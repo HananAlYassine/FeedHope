@@ -1,0 +1,626 @@
+/* --- REGISTRATION STYLES: FEEDHOPE PROJECT --- */
+
+.reg-page-layout {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1e2b3c 0%, #0f1722 100%);
+    /* Will use Poppins if installed locally, otherwise falls back to system fonts */
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    padding: 20px; 
+    box-sizing: border-box;
+}
+
+/* 2. THE MAIN CARD - The floating box */
+.reg-card-container {
+    display: flex;
+    width: 100%;
+    max-width: 1150px;
+    height: 88vh;
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+}
+
+/* --- LEFT SIDE: HERO --- */
+.reg-hero-section {
+    flex: 1;
+    position: relative;
+    /* Removed /public/ as it's served from root in React */
+    background: url('/public/Images/hero-background.jpg'); 
+    background-size: cover;
+    background-position: center;
+    color: white;
+}
+
+.reg-hero-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    /* Soft top-to-bottom darkening to make stats pop */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.8) 100%);
+    z-index: 1;
+}
+
+.reg-hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 45px;
+    height: 100%; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+    box-sizing: border-box;
+}
+
+/* 3. LOGO ENHANCEMENTS (Perfectly Circular, Non-Animated) */
+.reg-brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 34px; 
+    font-weight: 900;
+    align-self: flex-start;
+    letter-spacing: -1.5px;
+}
+
+.reg-logo-circle-img {
+    width: 70px;  /* Large, dominant size */
+    height: 70px; /* Perfect square before rounding */
+    object-fit: contain;
+    border-radius: 50%; /* <--- RE-APPLIED PERFECT CIRCLE FORMAT */
+    background: #ffffff;
+    padding: 8px; /* Slightly less padding to show more image */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+/* 4. GLASSMORPHISM BADGES (Impact & Quotes) */
+.glass-badge {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 25px;
+    transition: all 0.3s ease;
+}
+
+.glass-badge:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px); /* Subtle lift on hover */
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.impact-value {
+    font-size: 46px;
+    font-weight: 800;
+    color: #10b981; /* FeedHope Green */
+    display: block;
+}
+
+/* --- RIGHT SIDE: FORM --- */
+.reg-form-section {
+    flex: 1.2;
+    background: #ffffff;
+    padding: 40px 60px;
+    overflow-y: auto; 
+}
+
+/* Role Navigation Pills */
+.role-pills-nav {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0 25px;
+}
+
+.role-nav-btn {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.role-nav-btn.active-pill {
+    background: #10b981; 
+    color: white;
+    border-color: #10b981;
+    box-shadow: 0 5px 15px rgba(16, 185, 129, 0.15);
+}
+
+/* Form Grid */
+.auth-input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.full-width-field { grid-column: span 2; }
+
+.auth-input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #2d3748;
+}
+
+.auth-input-field, .auth-select-field {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fcfdfe;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.auth-input-field:focus {
+    border-color: #10b981;
+    background: #ffffff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+}
+
+/* Submit Button */
+.submit-reg-button {
+    width: 100%;
+    padding: 16px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s ease;
+}
+
+.submit-reg-button:hover {
+    background: #0d8a63;
+    transform: translateY(-1px);
+}
+
+/* Custom Scrollbar Styling for long forms */
+.reg-form-section::-webkit-scrollbar { width: 6px; }
+.reg-form-section::-webkit-scrollbar-track { background: #f1f1f1; }
+.reg-form-section::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+
+.back-link {
+    text-decoration: none;
+    color: #718096;
+    font-size: 12px;
+    transition: 0.3s;
+}
+
+.back-link:hover {
+    color: #0f9b6f;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   POPUP STYLES — Code Reveal & OTP Entry Modals
+   Shared by DonorRegistration, ReceiverRegistration,
+   and VolunteerRegistration.
+═══════════════════════════════════════════════════════════ */
+
+/* --- Keyframe Animations --- */
+
+@keyframes revealDrop {
+    0%   { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0)      scale(1);    }
+}
+
+@keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+
+@keyframes ringPulse {
+    0%,  100% { box-shadow: 0 0 0 0   rgba(52, 211, 153, 0.5); }
+    50%        { box-shadow: 0 0 0 14px rgba(52, 211, 153, 0);   }
+}
+
+@keyframes codeFloat {
+    0%,  100% { transform: translateY(0);   }
+    50%        { transform: translateY(-4px); }
+}
+
+@keyframes slideUpOtp {
+    0%   { opacity: 0; transform: translateY(26px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+@keyframes popInCheck {
+    0%   { transform: scale(0.6);  opacity: 0; }
+    60%  { transform: scale(1.15);             }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+@keyframes lockBounce {
+    0%,  100% { transform: translateY(0);   }
+    50%        { transform: translateY(-5px); }
+}
+
+/* --- Popup Backdrop --- */
+.popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.popup-backdrop--dark {
+    background: rgba(5, 15, 30, 0.68);
+}
+
+.popup-backdrop--medium {
+    background: rgba(5, 15, 30, 0.65);
+}
+
+/* ── Code Reveal Popup ── */
+.cr-card {
+    background: linear-gradient(160deg, #071f12 0%, #0a2e1c 55%, #0d3d26 100%);
+    border-radius: 28px;
+    width: 100%;
+    max-width: 390px;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    animation: revealDrop 0.35s cubic-bezier(.22, .68, 0, 1.1);
+    border: 1px solid rgba(52, 211, 153, 0.18);
+}
+
+.cr-header {
+    padding: 36px 32px 20px;
+    text-align: center;
+}
+
+.cr-icon-ring {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(52, 211, 153, 0.1);
+    border: 2px solid rgba(52, 211, 153, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    animation: ringPulse 2.8s ease infinite;
+}
+
+.cr-title {
+    margin: 0 0 7px;
+    color: #ecfdf5;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.3px;
+}
+
+.cr-subtitle {
+    margin: 0;
+    color: #6ee7b7;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.cr-subtitle strong {
+    color: #a7f3d0;
+}
+
+.cr-body {
+    padding: 0 28px 28px;
+}
+
+.cr-code-box {
+    background: rgba(0, 0, 0, 0.38);
+    border: 1.5px solid rgba(52, 211, 153, 0.22);
+    border-radius: 18px;
+    padding: 24px 20px;
+    text-align: center;
+    margin-bottom: 18px;
+    position: relative;
+    overflow: hidden;
+}
+
+.cr-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.07) 50%, transparent 100%);
+    background-size: 400px 100%;
+    animation: shimmer 2.6s linear infinite;
+}
+
+.cr-dev-label {
+    margin: 0 0 8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.cr-code-text {
+    margin: 0;
+    font-size: 50px;
+    font-weight: 900;
+    letter-spacing: 14px;
+    color: #ecfdf5;
+    font-family: 'Courier New', Courier, monospace;
+    text-shadow: 0 0 32px rgba(52, 211, 153, 0.45);
+    animation: codeFloat 3s ease-in-out infinite;
+    padding-left: 14px;
+}
+
+.cr-copy-btn {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(52, 211, 153, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+    color: #a7f3d0;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.cr-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Copied state — applied via JS className toggle */
+.cr-copy-btn.is-copied {
+    border-color: rgba(52, 211, 153, 0.5);
+    background: rgba(52, 211, 153, 0.18);
+    color: #34d399;
+}
+
+.cr-ok-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 15px;
+    font-weight: 800;
+    cursor: not-allowed;
+    letter-spacing: 0.3px;
+    box-shadow: none;
+    transition: all 0.25s ease;
+}
+
+.cr-ok-btn.is-copied {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 6px 22px rgba(16, 185, 129, 0.42);
+}
+
+.cr-ok-btn.is-copied:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.55) !important;
+}
+
+.cr-hint {
+    text-align: center;
+    font-size: 11.5px;
+    color: rgba(167, 243, 208, 0.45);
+    margin-top: 14px;
+    margin-bottom: 0;
+}
+
+/* ── OTP Entry Modal ── */
+.otp-card {
+    background: #fff;
+    border-radius: 26px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 36px 90px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: slideUpOtp 0.32s cubic-bezier(.22, .68, 0, 1.2);
+}
+
+.otp-header {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+    padding: 30px 28px 26px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.otp-header-bubble-top {
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.otp-header-bubble-bottom {
+    position: absolute;
+    bottom: -40px;
+    left: -20px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.otp-lock-ring {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    animation: lockBounce 2.4s ease-in-out infinite;
+    position: relative;
+}
+
+.otp-header-title {
+    margin: 0 0 6px;
+    color: #fff;
+    font-weight: 800;
+    font-size: 20px;
+    position: relative;
+}
+
+.otp-header-subtitle {
+    margin: 0;
+    color: #a7f3d0;
+    font-size: 13px;
+    position: relative;
+}
+
+.otp-header-subtitle strong {
+    color: #ecfdf5;
+}
+
+.otp-body {
+    padding: 28px 28px 32px;
+}
+
+.otp-success {
+    text-align: center;
+    padding: 12px 0 8px;
+}
+
+.otp-success-icon {
+    animation: popInCheck 0.5s ease;
+}
+
+.otp-success-title {
+    margin: 16px 0 8px;
+    font-weight: 800;
+    font-size: 20px;
+    color: #064e3b;
+}
+
+.otp-success-subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+}
+
+.otp-instruction {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    margin-top: 0;
+    margin-bottom: 18px;
+}
+
+.otp-inputs-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.otp-digit-input {
+    width: 52px;
+    height: 62px;
+    text-align: center;
+    font-size: 26px;
+    font-weight: 800;
+    font-family: 'Courier New', monospace;
+    border: 2.5px solid #e5e7eb;
+    border-radius: 14px;
+    outline: none;
+    background: #f9fafb;
+    color: #064e3b;
+    box-shadow: none;
+    transition: all 0.18s ease;
+}
+
+/* Filled state */
+.otp-digit-input.is-filled {
+    border-color: #10b981;
+    background: #ecfdf5;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+}
+
+/* Error state */
+.otp-digit-input.is-error {
+    border-color: #f87171;
+}
+
+.otp-error-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+
+.otp-error-text {
+    margin: 0;
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.otp-error-icon {
+    font-size: 16px;
+}
+
+.otp-submit-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    box-shadow: none;
+    transition: all 0.22s ease;
+}
+
+.otp-submit-btn.is-ready {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.38);
+}
+
+.otp-tip {
+    text-align: center;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 16px;
+    margin-bottom: 0;
+}

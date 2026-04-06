@@ -1,0 +1,420 @@
+/* ============================================================
+    FeedHope — Omar & Hanan — Styles/Receiver/ReceiverDashboard.css
+============================================================ */
+
+/* ───── CSS Custom Properties ────── */
+:root {
+    --rdb-green:         #2e7d32;
+    --rdb-green-dark:    #1b5e20;
+    --rdb-green-light:   #e8f5e9;
+    --rdb-green-mid:     #388e3c;
+    --rdb-blue:          #1976d2;
+    --rdb-blue-dark:     #0d47a1;
+    --rdb-blue-light:    #e3f2fd;
+    --rdb-orange:        #f57c00;
+    --rdb-orange-light:  #fff3e0;
+    --rdb-red:           #c62828;
+    --rdb-red-light:     #ffebee;
+    --rdb-purple:        #6a1b9a;
+    --rdb-purple-light:  #f3e5f5;
+    --rdb-yellow-notif:  #fffde7;
+    --rdb-text-main:     #1a1a1a;
+    --rdb-text-sub:      #555555;
+    --rdb-text-muted:    #888888;
+    --rdb-border:        #e0e0e0;
+    --rdb-bg-page:       #f4f6f8;
+    --rdb-bg-card:       #ffffff;
+    --rdb-sidebar-w:     240px;
+    --rdb-radius-sm:     6px;
+    --rdb-radius-md:     10px;
+    --rdb-radius-lg:     14px;
+    --rdb-shadow:        0 1px 4px rgba(0,0,0,0.07);
+}
+
+
+body {
+    background-color: var(--rdb-bg-page) !important;
+    color: var(--rdb-text-main) !important;
+    display: block !important; 
+}
+
+.rdb-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--rdb-bg-page);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--rdb-text-main);
+}
+
+
+.rdb-main {
+    margin-left: var(--rdb-sidebar-w);
+    flex: 1;
+    padding: 24px 28px;
+    min-height: 100vh;
+    max-width: calc(100vw - var(--rdb-sidebar-w));
+    display: block !important; 
+}
+
+/* ── Loading / Error ──────────────────────────────────────── */
+.rdb-loading-screen,
+.rdb-error-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 16px;
+    color: var(--rdb-text-sub);
+    font-size: 15px;
+}
+.rdb-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--rdb-green-light);
+    border-top-color: var(--rdb-green);
+    border-radius: 50%;
+    animation: rdb-spin 0.8s linear infinite;
+}
+@keyframes rdb-spin { to { transform: rotate(360deg); } }
+.rdb-error-msg  { color: var(--rdb-red); font-size: 14px; text-align: center; }
+.rdb-retry-btn  {
+    padding: 8px 20px; background: var(--rdb-green); color: #fff;
+    border: none; border-radius: var(--rdb-radius-sm); cursor: pointer;
+    font-size: 14px; font-weight: 600;
+}
+.rdb-retry-btn:hover { background: var(--rdb-green-dark); }
+
+/* ── Welcome Banner ───────────────────────────────────────── */
+.rdb-banner {
+    background: linear-gradient(135deg, #2196f3 0%, #1565c0 60%, #0d47a1 100%);
+    border-radius: var(--rdb-radius-lg);
+    padding: 32px 36px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 170px;
+}
+
+/* Decorative background circles */
+.rdb-banner::before {
+    content: '';
+    position: absolute;
+    right: 200px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.rdb-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -60px;
+    width: 220px;
+    height: 220px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.rdb-banner-text     { flex: 1; z-index: 1; }
+.rdb-banner-greeting { font-size: 13px; opacity: 0.9; margin-bottom: 6px; }
+.rdb-banner-title    { font-size: 28px; font-weight: 700; margin-bottom: 10px; line-height: 1.2; }
+.rdb-banner-subtitle { font-size: 13.5px; opacity: 0.9; max-width: 420px; line-height: 1.5; }
+
+/* The people icon circle — sits between text and button */
+.rdb-banner-icon {
+    width: 100px; height: 100px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    z-index: 1;
+    margin-right: 12px;
+}
+
+/* "Browse Offers" button — right side of banner */
+.rdb-banner-btn {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.55);
+    padding: 11px 26px;
+    border-radius: var(--rdb-radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    z-index: 1;
+}
+.rdb-banner-btn:hover { background: rgba(255,255,255,0.28); }
+
+/* ── Stats Row ──────────────────────────────────────────────── */
+.rdb-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;                        /* no gap — cards share borders */
+    margin-bottom: 22px;
+    background: var(--rdb-bg-card);
+    border-radius: var(--rdb-radius-md);
+    border: 1px solid var(--rdb-border);
+    box-shadow: var(--rdb-shadow);
+    overflow: hidden;
+}
+
+.rdb-stat-card {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    /* Divider between stat cards — right border except last */
+    border-right: 1px solid var(--rdb-border);
+    background: var(--rdb-bg-card);
+}
+.rdb-stat-card:last-child { border-right: none; }
+
+/* Rounded square icon container */
+.rdb-stat-icon {
+    width: 48px; height: 48px;
+    border-radius: var(--rdb-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.rdb-stat-icon--blue   { background: var(--rdb-blue-light);   color: var(--rdb-blue);   }
+.rdb-stat-icon--green  { background: var(--rdb-green-light);  color: var(--rdb-green);  }
+.rdb-stat-icon--orange { background: var(--rdb-orange-light); color: var(--rdb-orange); }
+.rdb-stat-icon--purple { background: var(--rdb-purple-light); color: var(--rdb-purple); }
+
+.rdb-stat-info   { display: flex; flex-direction: column; }
+/* Large bold number */
+.rdb-stat-number { font-size: 28px; font-weight: 700; line-height: 1.1; color: var(--rdb-text-main); }
+/* Small label below */
+.rdb-stat-label  { font-size: 12.5px; color: var(--rdb-text-muted); margin-top: 3px; }
+
+/* ── Main Two-Column Grid ───────────────────────────────────── */
+.rdb-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    align-items: start;
+}
+.rdb-col-left,
+.rdb-col-right { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Card Base ──────────────────────────────────────────────── */
+.rdb-card {
+    background: var(--rdb-bg-card);
+    border-radius: var(--rdb-radius-md);
+    border: 1px solid var(--rdb-border);
+    box-shadow: var(--rdb-shadow);
+    overflow: hidden;
+}
+
+/* Card header row: title on left, action link on right */
+.rdb-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+}
+.rdb-card-title {
+    display: flex; align-items: center; gap: 9px;
+    font-weight: 600; font-size: 15px;
+    color: var(--rdb-text-main);
+}
+.rdb-view-all {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 13px; color: var(--rdb-text-muted); font-weight: 500;
+    background: none; border: none; cursor: pointer;
+    transition: color 0.15s;
+}
+.rdb-view-all:hover { color: var(--rdb-green); }
+
+/* "Edit" button in What I'm Looking For header */
+.rdb-btn-edit {
+    font-size: 13px; color: var(--rdb-text-muted); font-weight: 500;
+    padding: 4px 10px; border-radius: var(--rdb-radius-sm);
+    background: none; border: none; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.rdb-btn-edit:hover { background: var(--rdb-green-light); color: var(--rdb-green); }
+
+.rdb-empty-state {
+    padding: 24px 20px; font-size: 13.5px;
+    color: var(--rdb-text-muted); text-align: center;
+}
+
+/* ── Offer Cards ────────────────────────────────────────────── */
+/* Left blue accent border */
+.rdb-offer-card {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+    border-left: 3px solid #42a5f5;    /* blue-ish left accent */
+    background: #fff;
+}
+.rdb-offer-card:last-child { border-bottom: none; }
+
+/* Top row: offer info on left, portions circle on right */
+.rdb-offer-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+.rdb-offer-title  { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: var(--rdb-text-main); }
+.rdb-offer-source { font-size: 13px; color: var(--rdb-text-sub); margin-bottom: 10px; }
+.rdb-offer-meta {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12.5px; color: var(--rdb-text-muted); margin-top: 5px;
+}
+
+/* Green circle with portion count */
+.rdb-offer-portions {
+    background: var(--rdb-green-light);
+    color: var(--rdb-green);
+    font-size: 13px; font-weight: 700;
+    min-width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* Button row: "Details" plain text left, "Accept Offer" green button right */
+.rdb-offer-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* "Details" — plain text, no visible border, left side */
+.rdb-btn-details {
+    padding: 9px 24px;
+    border-radius: var(--rdb-radius-sm);
+    font-size: 13.5px; font-weight: 500;
+    color: var(--rdb-text-sub);
+    border: 1px solid var(--rdb-border);
+    background: #fff; cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.rdb-btn-details:hover { background: var(--rdb-bg-page); }
+
+/* "Accept Offer" — solid green, full remaining width */
+.rdb-btn-accept {
+    flex: 1;
+    padding: 9px 0;
+    border-radius: var(--rdb-radius-sm);
+    font-size: 13.5px; font-weight: 600;
+    color: #fff;
+    background: var(--rdb-green);
+    border: none; cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+.rdb-btn-accept:hover    { background: var(--rdb-green-dark); }
+.rdb-btn-accept:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Notification Items ─────────────────────────────────────── */
+.rdb-notif-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+}
+.rdb-notif-item:last-child { border-bottom: none; }
+/* Unread = warm yellow background */
+.rdb-notif-item--new { background: #fffde7; }
+
+.rdb-notif-icon {
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: var(--rdb-green-light);
+    border-radius: var(--rdb-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--rdb-green);
+    margin-top: 2px;
+}
+.rdb-notif-body  { flex: 1; }
+.rdb-notif-title { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; color: var(--rdb-text-main); }
+.rdb-notif-text  { font-size: 12.5px; color: var(--rdb-text-sub); line-height: 1.5; }
+.rdb-notif-time  { font-size: 11.5px; color: var(--rdb-text-muted); margin-top: 5px; }
+
+/* ── What I'm Looking For — Need Items ───────────────────────── */
+.rdb-need-item {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+}
+.rdb-need-item:last-child { border-bottom: none; }
+
+/* Rounded-square icon, color-coded per category */
+.rdb-need-icon {
+    width: 38px; height: 38px;
+    border-radius: var(--rdb-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.rdb-need-icon--red    { background: var(--rdb-red-light);    color: var(--rdb-red);    }
+.rdb-need-icon--orange { background: var(--rdb-orange-light); color: var(--rdb-orange); }
+.rdb-need-icon--green  { background: var(--rdb-green-light);  color: var(--rdb-green);  }
+
+.rdb-need-info { flex: 1; display: flex; flex-direction: column; }
+.rdb-need-name { font-size: 13.5px; font-weight: 600; color: var(--rdb-text-main); }
+.rdb-need-desc { font-size: 12px; color: var(--rdb-text-muted); margin-top: 2px; }
+
+/* Priority badge pill */
+.rdb-priority {
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+.rdb-priority--high   { background: var(--rdb-red-light);    color: var(--rdb-red);    }
+.rdb-priority--medium { background: var(--rdb-orange-light); color: var(--rdb-orange); }
+.rdb-priority--low    { background: var(--rdb-green-light);  color: var(--rdb-green);  }
+
+/* ── My Accepted Offers ─────────────────────────────────────── */
+.rdb-accepted-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+}
+.rdb-accepted-item:last-child { border-bottom: none; }
+.rdb-accepted-info  { display: flex; flex-direction: column; gap: 3px; }
+.rdb-accepted-name  { font-size: 13.5px; font-weight: 600; color: var(--rdb-text-main); }
+.rdb-accepted-source { font-size: 12px; color: var(--rdb-text-muted); }
+
+/* "Accepted" badge — light blue pill */
+.rdb-status-badge {
+    font-size: 12px; font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+.rdb-status-badge--accepted { background: var(--rdb-blue-light); color: var(--rdb-blue); }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+    .rdb-grid { grid-template-columns: 1fr 320px; }
+}
+@media (max-width: 1100px) {
+    .rdb-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .rdb-stat-card:nth-child(2) { border-right: none; }
+    .rdb-stat-card:nth-child(1),
+    .rdb-stat-card:nth-child(2) { border-bottom: 1px solid var(--rdb-border); }
+    .rdb-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+    .rdb-main { margin-left: 0; padding: 16px; }
+    .rdb-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .rdb-banner { flex-direction: column; text-align: center; padding: 24px 20px; }
+    .rdb-banner-icon { display: none; }
+    .rdb-banner-title { font-size: 22px; }
+}
