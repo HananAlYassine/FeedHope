@@ -13,10 +13,16 @@
     font-family: 'Inter', sans-serif;
 }
 
+
 body, html, #root {
     height: 100%;
     width: 100%;
     overflow-x: hidden;
+}
+
+/* Scope white text to the landing page only — never set color on body/html/root
+   because it bleeds into every other page (ReceiverProfile, Dashboard, etc.) */
+.hero-wrapper {
     color: var(--text-white);
 }
 
@@ -24,7 +30,7 @@ body, html, #root {
 .hero-wrapper {
     position: relative;
     min-height: 100vh;
-    width: 100vw;
+    width: 100%;     /*100 vw*/
     /* Background is handled by inline style in JS */
     background-repeat: no-repeat;
     background-position: center center;
@@ -32,7 +38,7 @@ body, html, #root {
     display: flex;
     flex-direction: column;
     padding: 0 6%;
-}
+} 
 
 /* 3. Navigation & Logo */
 header {

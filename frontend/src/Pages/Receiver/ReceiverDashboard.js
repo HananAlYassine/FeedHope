@@ -1,21 +1,13 @@
-// ============================================================
-//  FeedHope — Pages/Receiver/ReceiverDashboard.js
-//
-//  This is the main Receiver Dashboard page.
-//  It fetches all dashboard data from the backend when it mounts,
-//  then passes the data down to smaller sub-components.
-// ============================================================
+// ==============================================================
+//  FeedHope — Omar & Hanan — Pages/Receiver/ReceiverDashboard.js
+// ==============================================================
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate }                 from 'react-router-dom';
 import ReceiverSidebar                 from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 
-// ── MUI Icon imports ──────────────────────────────────────────
-// Each icon is imported individually from @mui/icons-material to
-// keep the bundle small (tree-shakeable). Make sure you have
-// @mui/icons-material and @mui/material installed:
-//   npm install @mui/icons-material @mui/material @emotion/react @emotion/styled
+// ── MUI Icon imports ─────────────────────────────────────────
 
 import RestaurantMenuIcon  from '@mui/icons-material/RestaurantMenu';   // Represents food/offers
 import CheckCircleIcon     from '@mui/icons-material/CheckCircle';       // Accepted / confirmed actions
@@ -28,15 +20,7 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'; // 
 import ChevronRightIcon    from '@mui/icons-material/ChevronRight';      // "View All" arrow
 import PeopleIcon          from '@mui/icons-material/People';            // Welcome banner illustration
 
-// ── Fake "What I'm Looking For" data ──────────────────────────
-// These are hardcoded for now. In a future sprint you will add a DB table
-// (e.g. Receiver_needs) and let the receiver edit their needs list.
-const FAKE_NEEDS = [
-    { id: 1, name: 'Fresh Produce',  desc: 'Vegetables and fruits',    priority: 'HIGH',   color: 'red'    },
-    { id: 2, name: 'Dairy Products', desc: 'Milk, cheese, yogurt',     priority: 'MEDIUM', color: 'orange' },
-    { id: 3, name: 'Protein',        desc: 'Eggs, meat, fish',         priority: 'HIGH',   color: 'red'    },
-    { id: 4, name: 'Bread & Bakery', desc: 'Fresh bread and pastries', priority: 'LOW',    color: 'green'  },
-];
+
 
 // ── Format a pickup_time datetime string into a readable time ──
 // Example input:  "2024-03-14T14:00:00.000Z"
@@ -203,9 +187,7 @@ const ReceiverDashboard = () => {
                         </p>
                     </div>
 
-                    {/* Decorative icon circle on the right side of the banner.
-                        PeopleIcon (MUI) replaces the old inline <IconPeople> SVG.
-                        fontSize="inherit" lets the parent div control the size via CSS. */}
+                    {/* Decorative icon circle on the right side of the banner. */}
                     <div className="rdb-banner-icon">
                         <PeopleIcon sx={{ fontSize: 64, opacity: 0.9 }} />
                     </div>
@@ -223,8 +205,7 @@ const ReceiverDashboard = () => {
                      Four summary cards showing key numbers at a glance */}
                 <div className="rdb-stats-row">
 
-                    {/* Stat 1: How many offers are currently available.
-                        RestaurantMenuIcon (MUI) replaces the old inline <IconFood> SVG. */}
+                    {/* Stat 1: How many offers are currently available. */}
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--blue">
                             <RestaurantMenuIcon fontSize="small" />
@@ -235,8 +216,7 @@ const ReceiverDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Stat 2: How many offers this receiver has accepted.
-                        CheckCircleIcon (MUI) replaces the old inline <IconCheck> SVG. */}
+                    {/* Stat 2: How many offers this receiver has accepted.*/}
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--green">
                             <CheckCircleIcon fontSize="small" />
@@ -247,8 +227,7 @@ const ReceiverDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Stat 3: Deliveries currently in transit or assigned.
-                        LocalShippingIcon (MUI) replaces the old inline <IconTruck> SVG. */}
+                    {/* Stat 3: Deliveries currently in transit or assigned. */}
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--orange">
                             <LocalShippingIcon fontSize="small" />
@@ -259,8 +238,7 @@ const ReceiverDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Stat 4: Total meals received historically.
-                        ArticleIcon (MUI) replaces the old inline <IconMeals> SVG. */}
+                    {/* Stat 4: Total meals received historically.*/}
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--purple">
                             <ArticleIcon fontSize="small" />
@@ -290,7 +268,6 @@ const ReceiverDashboard = () => {
                                     className="rdb-view-all"
                                     onClick={() => navigate('/receiver-browse')}
                                 >
-                                    {/* ChevronRightIcon (MUI) replaces the old inline <IconArrow> SVG */}
                                     View All <ChevronRightIcon fontSize="small" />
                                 </button>
                             </div>
@@ -312,15 +289,13 @@ const ReceiverDashboard = () => {
                                                 {/* Donor's organization name */}
                                                 <p className="rdb-offer-source">{offer.donor_name}</p>
 
-                                                {/* Location: street + city.
-                                                    PlaceIcon (MUI) replaces the old inline <IconPin> SVG. */}
+                                                {/* Location: street + city. */}
                                                 <p className="rdb-offer-meta">
                                                     <PlaceIcon sx={{ fontSize: 13 }} />
                                                     {offer.donor_street}, {offer.donor_city}
                                                 </p>
 
-                                                {/* Pickup time formatted from the datetime field.
-                                                    AccessTimeIcon (MUI) replaces the old inline <IconClock> SVG. */}
+                                                {/* Pickup time formatted from the datetime field. */}
                                                 <p className="rdb-offer-meta">
                                                     <AccessTimeIcon sx={{ fontSize: 13 }} />
                                                     Pickup: {formatTime(offer.pickup_time)}
@@ -362,7 +337,7 @@ const ReceiverDashboard = () => {
                         <section className="rdb-card">
                             <div className="rdb-card-header">
                                 <div className="rdb-card-title">
-                                    {/* NotificationsIcon (MUI) replaces the old inline <IconBell> SVG */}
+                                    {/* NotificationsIcon */}
                                     <NotificationsIcon fontSize="small" />
                                     Notifications
                                 </div>
@@ -370,7 +345,7 @@ const ReceiverDashboard = () => {
                                     className="rdb-view-all"
                                     onClick={() => navigate('/receiver-notifications')}
                                 >
-                                    View All
+                                    View All <ChevronRightIcon fontSize="small" />
                                 </button>
                             </div>
 
@@ -384,8 +359,7 @@ const ReceiverDashboard = () => {
                                         // Add a highlight class if this notification hasn't been read yet
                                         className={`rdb-notif-item ${!notif.read_at ? 'rdb-notif-item--new' : ''}`}
                                     >
-                                        {/* Notification icon square.
-                                            RestaurantMenuIcon (MUI) used here to represent a food notification. */}
+                                        {/* Notification icon square. */}
                                         <div className="rdb-notif-icon">
                                             <RestaurantMenuIcon fontSize="small" />
                                         </div>
@@ -407,43 +381,13 @@ const ReceiverDashboard = () => {
                     {/* ── RIGHT COLUMN ─────────────────────────── */}
                     <div className="rdb-col-right">
 
-                        {/* ── What I'm Looking For Card ── */}
-                        <section className="rdb-card">
-                            <div className="rdb-card-header">
-                                <div className="rdb-card-title">
-                                    {/* FormatListBulletedIcon (MUI) replaces the old inline <IconList> SVG */}
-                                    <FormatListBulletedIcon fontSize="small" />
-                                    What I'm Looking For
-                                </div>
-                                {/* Edit button — placeholder for a future "edit needs" flow */}
-                                <button className="rdb-btn-edit">Edit</button>
-                            </div>
-
-                            {/* Render each hardcoded need item */}
-                            {FAKE_NEEDS.map(need => (
-                                <div className="rdb-need-item" key={need.id}>
-                                    {/* Color-coded icon square.
-                                        RestaurantMenuIcon (MUI) used as a generic food category icon. */}
-                                    <div className={`rdb-need-icon rdb-need-icon--${need.color}`}>
-                                        <RestaurantMenuIcon fontSize="small" />
-                                    </div>
-                                    <div className="rdb-need-info">
-                                        <span className="rdb-need-name">{need.name}</span>
-                                        <span className="rdb-need-desc">{need.desc}</span>
-                                    </div>
-                                    {/* Priority badge: HIGH / MEDIUM / LOW */}
-                                    <span className={`rdb-priority rdb-priority--${need.priority.toLowerCase()}`}>
-                                        {need.priority}
-                                    </span>
-                                </div>
-                            ))}
-                        </section>
+                        
 
                         {/* ── My Accepted Offers Card ── */}
                         <section className="rdb-card">
                             <div className="rdb-card-header">
                                 <div className="rdb-card-title">
-                                    {/* CheckCircleIcon (MUI) replaces the old inline <IconCheck> SVG */}
+                                    {/* CheckCircleIcon */}
                                     <CheckCircleIcon fontSize="small" />
                                     My Accepted Offers
                                 </div>
@@ -451,7 +395,7 @@ const ReceiverDashboard = () => {
                                     className="rdb-view-all"
                                     onClick={() => navigate('/receiver-accepted')}
                                 >
-                                    {/* ChevronRightIcon (MUI) replaces the old inline <IconArrow> SVG */}
+                                    {/* ChevronRightIcon */}
                                     View All <ChevronRightIcon fontSize="small" />
                                 </button>
                             </div>

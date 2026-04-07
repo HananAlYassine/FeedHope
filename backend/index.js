@@ -741,6 +741,238 @@ app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) =
 
 
 
+// ==============================================================
+// ──────────────── RECEIVER Profile API ──────────────────────
+// ==============================================================
+
+// ==============================================================
+// ──── GET /api/receiver/profile/:userId ───────────────────────
+//
+//  Returns the full receiver profile AND pre-computed stats
+//  so the React page only needs one HTTP round-trip.
+//
+//  Response shape:
+//  {
+//    profile: { user_id, name, email, phone_number, status,
+//               receiver_id, organization_name, org_type,
+//               foundation_date, street, city, country,
+//               latitude, longitude, contact_phone },
+//    stats: {
+//      totalReceived,       -- # of accepted food offers ever
+//      peopleServed,        -- from Receiver_stats table
+//      deliveriesReceived,  -- # of completed deliveries
+//    }
+//  }
+// ==============================================================
+app.get("/api/receiver/profile/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // ── Step 1: Fetch core profile data ──
+        // We join User → Receiver → Receiver_location → Address to
+        // collect every field the profile card needs in one query.
+        const [rows] = await pool.query(`
+            SELECT
+                u.user_id,
+                u.name,
+                u.email,
+                u.phone_number,
+                u.status,
+                r.receiver_id,
+                r.organization_name,
+                r.business_type       AS org_type,
+                r.foundation_date,
+                a.street,
+                a.city,
+                a.country,
+                a.latitude,
+                a.longitude,
+                rl.contact_phone
+            FROM User u
+            JOIN Receiver          r  ON r.user_id      = u.user_id
+            JOIN Receiver_location rl ON rl.receiver_id = r.receiver_id
+            JOIN Address           a  ON a.address_id   = rl.address_id
+            WHERE u.user_id = ?
+            LIMIT 1
+        `, [userId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Receiver profile not found." });
+        }
+
+        const profile = rows[0];
+
+        // ── Step 2: Total Received ──
+        // Count how many food offers have ever been accepted by this receiver.
+        const [[{ totalReceived }]] = await pool.query(`
+            SELECT COUNT(*) AS totalReceived
+            FROM Food_offer
+            WHERE receiver_id = ? AND status IN ('accepted', 'completed')
+        `, [profile.receiver_id]);
+
+        // ── Step 3: Deliveries Received ──
+        // Count completed deliveries that correspond to this receiver's accepted offers.
+        const [[{ deliveriesReceived }]] = await pool.query(`
+            SELECT COUNT(*) AS deliveriesReceived
+            FROM Delivery d
+            JOIN Food_offer fo ON fo.offer_id = d.offer_id
+            WHERE fo.receiver_id = ?
+              AND d.delivery_status = 'completed'
+        `, [profile.receiver_id]);
+
+        // ── Step 4: People Served ──
+        // Sum number_of_person across all completed offers for this receiver.
+        // This represents the total meals/people that benefited from donations.
+        const [[{ peopleServed }]] = await pool.query(`
+            SELECT COALESCE(SUM(fo.number_of_person), 0) AS peopleServed
+            FROM Food_offer fo
+            WHERE fo.receiver_id = ?
+              AND fo.status IN ('accepted', 'completed')
+        `, [profile.receiver_id]);
+
+        // ── Return everything ──
+        res.status(200).json({
+            profile,
+            stats: {
+                totalReceived:      Number(totalReceived),
+                peopleServed:       Number(peopleServed),
+                deliveriesReceived: Number(deliveriesReceived)
+            }
+        });
+
+    } catch (err) {
+        console.error("Profile GET error:", err);
+        res.status(500).json({ error: "Failed to load profile." });
+    }
+});
+
+
+// ==============================================================
+// ──── PUT /api/receiver/profile/:userId ───────────────────────
+//
+//  Updates: User.name, User.email, User.phone_number
+//           Address.street  (first address linked to this user)
+//           Receiver.business_type (the org type)
+//
+//  Request body:
+//  { name, email, phone, street, org_type }
+//
+//  All updates are wrapped in a transaction — either all succeed
+//  or none do, keeping the DB consistent.
+// ==============================================================
+app.put("/api/receiver/profile/:userId", async (req, res) => {
+    const { userId } = req.params;
+    const { name, email, phone, street, org_type } = req.body;
+
+    // Basic validation — all fields are required
+    if (!name || !email || !phone || !street || !org_type) {
+        return res.status(400).json({ error: "All profile fields are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // ── Update the core User row ──
+        await conn.query(
+            "UPDATE User SET name = ?, email = ?, phone_number = ? WHERE user_id = ?",
+            [name, email, phone, userId]
+        );
+
+        // ── Update the Receiver org type ──
+        await conn.query(
+            "UPDATE Receiver SET business_type = ? WHERE user_id = ?",
+            [org_type, userId]
+        );
+
+        // ── Update the Address (first address linked to this user) ──
+        await conn.query(
+            "UPDATE Address SET street = ? WHERE user_id = ? LIMIT 1",
+            [street, userId]
+        );
+
+        // ── Log the change ──
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Profile Update', 'Receiver updated their profile information', userId]
+        );
+
+        await conn.commit();
+        res.status(200).json({ message: "Profile updated successfully." });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error("Profile PUT error:", err);
+        res.status(500).json({ error: "Failed to update profile." });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ==============================================================
+// ──── PUT /api/receiver/change-password/:userId ───────────────
+//
+//  Verifies the user's current password with bcrypt, then
+//  hashes and stores the new password.
+//
+//  Request body:
+//  { currentPassword, newPassword }
+//
+//  Password rules (same as registration):
+//  • Minimum 3 characters
+//  • Maximum 10 characters
+// ==============================================================
+app.put("/api/receiver/change-password/:userId", async (req, res) => {
+    const { userId }                       = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // ── Validate new password length ──
+    if (!newPassword || newPassword.length < 3 || newPassword.length > 10) {
+        return res.status(400).json({
+            error: "New password must be between 3 and 10 characters long."
+        });
+    }
+
+    try {
+        // ── Fetch the stored hash ──
+        const [[user]] = await pool.query(
+            "SELECT password FROM User WHERE user_id = ?",
+            [userId]
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        // ── Verify the current password matches the stored hash ──
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: "Current password is incorrect." });
+        }
+
+        // ── Hash the new password ──
+        const newHash = await bcrypt.hash(newPassword, 10);
+
+        // ── Store the new hash ──
+        await pool.query(
+            "UPDATE User SET password = ? WHERE user_id = ?",
+            [newHash, userId]
+        );
+
+        // ── Log the action for audit trail ──
+        await pool.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Password Change', 'Receiver changed their password', userId]
+        );
+
+        res.status(200).json({ message: "Password changed successfully." });
+
+    } catch (err) {
+        console.error("Change password error:", err);
+        res.status(500).json({ error: "Failed to change password." });
+    }
+});
 
 
 
