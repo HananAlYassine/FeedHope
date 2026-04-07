@@ -43,7 +43,7 @@
 .rsb-logo-text {
     font-size:   19px;
     font-weight: 800;
-    color:#1a1a1a;
+    color:#1b5e20;
 }
 
 /* ── Role row (shows "Receiver" + switch button) ─────────────── */
@@ -95,11 +95,11 @@
 
 /* Section heading (e.g. "OVERVIEW", "FOOD", "ACTIVITY") */
 .rsb-nav-label {
-    font-size:      12.5px;
+    font-size:      10.5px;
     font-weight:    600;
     letter-spacing: 0.07em;
     color:          #888;
-    padding:        14px 8px 6px;
+    padding:        14px 8px 10px;
     text-transform: uppercase; /* Make the labels all-caps */
     display:        block;
 }

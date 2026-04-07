@@ -491,7 +491,6 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
 
     try {
         // ── Step 1: Get the receiver's profile info ──
-        // Join User → Receiver → Receiver_location → Address to get all profile fields
         const [receiverRows] = await pool.query(`
             SELECT
                 u.user_id,
@@ -674,52 +673,9 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
     }
 });
 
-// ──── 11. Get Receiver Profile ────
-// Returns full profile data for the "My Profile" page.
-// This endpoint returns more detail than the dashboard summary.
-app.get("/api/receiver/profile/:userId", async (req, res) => {
-    const { userId } = req.params;
 
-    try {
-        // Join all relevant tables to get everything the profile page needs
-        const [rows] = await pool.query(`
-            SELECT
-                u.user_id,
-                u.name,
-                u.email,
-                u.phone_number,
-                u.status,
-                r.receiver_id,
-                r.organization_name,
-                r.business_type       AS org_type,
-                r.foundation_date,
-                a.street,
-                a.city,
-                a.country,
-                a.latitude,
-                a.longitude,
-                rl.contact_phone
-            FROM User u
-            JOIN Receiver r           ON r.user_id      = u.user_id
-            JOIN Receiver_location rl ON rl.receiver_id = r.receiver_id
-            JOIN Address a            ON a.address_id   = rl.address_id
-            WHERE u.user_id = ?
-            LIMIT 1
-        `, [userId]);
 
-        if (rows.length === 0) {
-            return res.status(404).json({ error: "Profile not found." });
-        }
-
-        res.status(200).json({ profile: rows[0] });
-
-    } catch (err) {
-        console.error("Profile fetch error:", err);
-        res.status(500).json({ error: "Failed to load profile." });
-    }
-});
-
-// ──── 12. Mark Notification as Read ────
+// ──── 11. Mark Notification as Read ────
 // Called when the user clicks on a notification.
 app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) => {
     const { notificationId } = req.params;
@@ -747,30 +703,12 @@ app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) =
 
 // ==============================================================
 // ──── GET /api/receiver/profile/:userId ───────────────────────
-//
-//  Returns the full receiver profile AND pre-computed stats
-//  so the React page only needs one HTTP round-trip.
-//
-//  Response shape:
-//  {
-//    profile: { user_id, name, email, phone_number, status,
-//               receiver_id, organization_name, org_type,
-//               foundation_date, street, city, country,
-//               latitude, longitude, contact_phone },
-//    stats: {
-//      totalReceived,       -- # of accepted food offers ever
-//      peopleServed,        -- from Receiver_stats table
-//      deliveriesReceived,  -- # of completed deliveries
-//    }
-//  }
 // ==============================================================
 app.get("/api/receiver/profile/:userId", async (req, res) => {
     const { userId } = req.params;
 
     try {
         // ── Step 1: Fetch core profile data ──
-        // We join User → Receiver → Receiver_location → Address to
-        // collect every field the profile card needs in one query.
         const [rows] = await pool.query(`
             SELECT
                 u.user_id,
@@ -817,7 +755,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             FROM Delivery d
             JOIN Food_offer fo ON fo.offer_id = d.offer_id
             WHERE fo.receiver_id = ?
-              AND d.delivery_status = 'completed'
+            AND d.delivery_status = 'completed'
         `, [profile.receiver_id]);
 
         // ── Step 4: People Served ──
@@ -827,7 +765,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             SELECT COALESCE(SUM(fo.number_of_person), 0) AS peopleServed
             FROM Food_offer fo
             WHERE fo.receiver_id = ?
-              AND fo.status IN ('accepted', 'completed')
+            AND fo.status IN ('accepted', 'completed')
         `, [profile.receiver_id]);
 
         // ── Return everything ──
@@ -848,17 +786,11 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
 
 
 // ==============================================================
-// ──── PUT /api/receiver/profile/:userId ───────────────────────
+// ──── PUT /api/receiver/profile/:userIdb (Edit Profile) ───────
 //
 //  Updates: User.name, User.email, User.phone_number
 //           Address.street  (first address linked to this user)
 //           Receiver.business_type (the org type)
-//
-//  Request body:
-//  { name, email, phone, street, org_type }
-//
-//  All updates are wrapped in a transaction — either all succeed
-//  or none do, keeping the DB consistent.
 // ==============================================================
 app.put("/api/receiver/profile/:userId", async (req, res) => {
     const { userId } = req.params;
@@ -916,9 +848,6 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 //  Verifies the user's current password with bcrypt, then
 //  hashes and stores the new password.
 //
-//  Request body:
-//  { currentPassword, newPassword }
-//
 //  Password rules (same as registration):
 //  • Minimum 3 characters
 //  • Maximum 10 characters
@@ -973,6 +902,140 @@ app.put("/api/receiver/change-password/:userId", async (req, res) => {
         res.status(500).json({ error: "Failed to change password." });
     }
 });
+
+
+
+
+
+// ==============================================================
+// ──────────────── RECEIVER Browse Offers API ──────────────────
+// ==============================================================
+
+// Returns ALL available food offers
+app.get("/api/offers", async (req, res) => {
+    try {
+
+        const [offers] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.description,
+                fo.number_of_person,
+                fo.quantity_by_kg,
+                fo.expiration_date_and_time,
+
+                u.name AS donor_name,
+
+                a.street,
+                a.city,
+
+                fc.category_name
+
+            FROM Food_offer fo
+
+            -- Get donor info
+            JOIN Donor d ON d.donor_id = fo.donor_id
+
+            -- Get donor name
+            JOIN User u ON u.user_id = d.user_id
+
+            -- Get donor address
+            JOIN Address a ON a.address_id = d.address_id
+
+            --  Get category
+            JOIN Food_category fc ON fc.category_id = fo.category_id
+
+            WHERE fo.status = 'available'
+
+            ORDER BY fo.offer_id DESC
+        `);
+
+        res.status(200).json(offers);
+
+    } catch (err) {
+        console.error("Fetch offers error:", err);
+        res.status(500).json({ error: "Failed to fetch offers." });
+    }
+});
+
+
+// ──── Get all food categories (for dynamic filter dropdown) ────
+app.get("/api/categories", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+        "SELECT category_id, category_name, description FROM Food_category ORDER BY category_name"
+        );
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Fetch categories error:", err);
+        res.status(500).json({ error: "Failed to load categories." });
+    }
+});
+
+
+
+// ==============================================================
+// ──── GET /api/offers/:offerId  (Offer Detail Page) ───────────
+//
+//  Returns the FULL detail of a single food offer by its ID.
+//  Includes fields NOT returned by the list endpoint:
+//    • pickup_time
+//    • dietary_information
+//    • status (so the UI can show Available / Accepted / etc.)
+//    • posted_on (offer_id's row creation — approximated via offer_id ordering)
+//  This route is NEW — it does NOT duplicate /api/offers.
+// ==============================================================
+app.get("/api/offers/:offerId", async (req, res) => {
+    const { offerId } = req.params;
+
+    try {
+        const [[offer]] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.description,
+                fo.number_of_person,
+                fo.quantity_by_kg,
+                fo.expiration_date_and_time,
+                fo.pickup_time,
+                fo.dietary_information,
+                fo.status,
+
+                u.name  AS donor_name,
+
+                a.street,
+                a.city,
+                a.country,
+
+                fc.category_id,
+                fc.category_name
+
+            FROM Food_offer fo
+
+            JOIN Donor         d  ON d.donor_id    = fo.donor_id
+            JOIN User          u  ON u.user_id      = d.user_id
+            JOIN Address       a  ON a.address_id   = d.address_id
+            JOIN Food_category fc ON fc.category_id = fo.category_id
+
+            WHERE fo.offer_id = ?
+        `, [offerId]);
+
+        if (!offer) {
+            return res.status(404).json({ error: "Offer not found." });
+        }
+
+        res.status(200).json(offer);
+
+    } catch (err) {
+        console.error("Fetch offer detail error:", err);
+        res.status(500).json({ error: "Failed to fetch offer details." });
+    }
+});
+
+
+
+
+
 
 
 

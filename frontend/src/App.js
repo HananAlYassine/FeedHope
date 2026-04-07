@@ -23,6 +23,8 @@ import VolunteerRegister from './Pages/Volunteer/VolunteerRegistration';
 // ReceiverDashboard is protected — users should be signed in and have role = 'Receiver'
 import ReceiverDashboard from './Pages/Receiver/ReceiverDashboard';
 import ReceiverProfile from './Pages/Receiver/ReceiverProfile';
+import ReceiverBrowseOffers from './Pages/Receiver/ReceiverBrowseOffers';
+import ReceiverOfferDetails from './Pages/Receiver/ReceiverOfferDetails';
 
 
 // ─────────────────────────────────────────────────────────────
@@ -47,54 +49,78 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 };
 
 function App() {
-  return (
-    <Router>
-      <Routes>
-         {/* ── Public Routes ── */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/mission" element={<Mission />} />
-        <Route path="/how-it-works" element={<HowItWorks />} />
-        <Route path="/contact" element={<ContactUs />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/forgetpassword" element={<ForgetPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+    return (
+        <Router>
+            <Routes>
+                {/* ── Public Routes ── */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/mission" element={<Mission />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/forgetpassword" element={<ForgetPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ── Registration Routes ── */}
-        <Route path="/donor-registration" element={<DonorRegister />} />
-        <Route path="/receiver-registration" element={<ReceiverRegister />} />
-        <Route path="/volunteer-registration" element={<VolunteerRegister />} />
-        
-        
+                {/* ── Registration Routes ── */}
+                <Route path="/donor-registration" element={<DonorRegister />} />
+                <Route path="/receiver-registration" element={<ReceiverRegister />} />
+                <Route path="/volunteer-registration" element={<VolunteerRegister />} />
+                
+                
 
-        {/* ── Receiver Section (Protected) ──
-            Both routes require the user to be signed in with role = 'Receiver'.
-            Any other user will be redirected to /signin or /. */}
-        <Route
-            path="/receiver-dashboard"
-            element={
-                <ProtectedRoute requiredRole="Receiver">
-                    <ReceiverDashboard />
-                </ProtectedRoute>
-            }
-        />
-        <Route
-            path="/receiver-profile"
-            element={
-                <ProtectedRoute requiredRole="Receiver">
-                    <ReceiverProfile />
-                </ProtectedRoute>
-            }
-        />
+                {/* ── Receiver Section (Protected) ──
+                    Both routes require the user to be signed in with role = 'Receiver'.
+                    Any other user will be redirected to /signin or /. */}
+
+                {/* Browse Offers — first item in the Receiver sidebar */}
+                <Route
+                    path="/receiver-dashboard"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverDashboard />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Browse Offers — second item in the Receiver sidebar */}
+                <Route
+                    path="/receiver-profile"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverProfile />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Browse Offers — third item in the Receiver sidebar */}
+                <Route
+                    path="/receiver-browse"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverBrowseOffers />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* ── Offer Detail Page ── */}
+                <Route
+                    path="/receiver-offer/:offerId"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverOfferDetails />
+                        </ProtectedRoute>
+                    }
+                />
 
 
 
 
-      {/* ── Catch-all: anything unknown goes back to Home ── */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-        
-      </Routes>
-    </Router>
-  );
+                {/* ── Catch-all: anything unknown goes back to Home ── */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+                    
+            </Routes>
+        </Router>
+    );
 }
 
 export default App;

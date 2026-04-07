@@ -1,0 +1,426 @@
+/* ================================================================
+    FeedHope — Omar & Hanan
+    Styles/Receiver/ReceiverBrowseOffers.css
+
+    Styles for the Browse Offers page.
+    Extends / reuses the CSS variables and utility classes
+    defined in ReceiverDashboard.css (rdb-*) so the page
+    feels visually consistent with the rest of the Receiver section.
+    Page-specific classes use the "rob-" prefix.
+================================================================ */
+
+/* ── Banner override: green → blue gradient (matches Dashboard) ── */
+/*
+    We reuse .rdb-banner from ReceiverDashboard.css but need a
+    slightly different hue for Browse Offers, so we layer a modifier
+    class (.rob-banner) on top that overrides just the gradient.
+*/
+.rob-banner {
+    background: linear-gradient(135deg, #0d7e60 0%, #069a50 60%, #0e7e14 100%);
+}
+
+/* Stat pill on the right side of the banner ─────────────────── */
+/*
+    Shows the total number of available offers in a semi-transparent
+    pill to give a quick glance count.
+*/
+.rob-banner-stat {
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    gap:             4px;
+    background:      rgba(255, 255, 255, 0.15);
+    border:          1.5px solid rgba(255, 255, 255, 0.35);
+    border-radius:   var(--rdb-radius-md);
+    padding:         18px 28px;
+    flex-shrink:     0;
+    z-index:         1;
+}
+
+/* Large bold number inside the stat pill */
+.rob-banner-stat-num {
+    font-size:   36px;
+    font-weight: 800;
+    color:       #fff;
+    line-height: 1;
+}
+
+/* Small label below the number */
+.rob-banner-stat-label {
+    font-size: 12px;
+    color:     rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+}
+
+/* ── Search + Filter Controls Bar ───────────────────────────── */
+/*
+    A flex row holding:
+      • The search input (grows to fill available space)
+      • The category dropdown (fixed width)
+    Sits just below the banner.
+*/
+.rob-controls {
+    display:         flex;
+    align-items:     center;
+    gap:             12px;
+    margin-bottom:   12px;
+    background:      var(--rdb-bg-card);
+    border:          1px solid var(--rdb-border);
+    border-radius:   var(--rdb-radius-md);
+    padding:         14px 18px;
+    box-shadow:      var(--rdb-shadow);
+}
+
+/* ── Search wrapper: positions the icon inside the input ─────── */
+.rob-search-wrap {
+    position:   relative;
+    flex:        1;          /* Grows to fill remaining space */
+}
+
+/* The search icon — absolutely positioned inside the input */
+.rob-search-icon {
+    position:   absolute;
+    left:       12px;
+    top:        50%;
+    transform:  translateY(-50%);
+    color:      var(--rdb-text-muted);
+    pointer-events: none; /* Clicks pass through to the input */
+}
+
+/* Search text input */
+.rob-search-input {
+    width:         100%;
+    padding:       9px 14px 9px 40px;   /* 40px left padding makes room for the icon */
+    border:        1px solid var(--rdb-border);
+    border-radius: var(--rdb-radius-sm);
+    font-size:     14px;
+    color:         var(--rdb-text-main);
+    background:    #fafafa;
+    outline:       none;
+    font-family:   inherit;
+    transition:    border-color 0.15s, box-shadow 0.15s;
+}
+
+.rob-search-input::placeholder { color: var(--rdb-text-muted); }
+
+.rob-search-input:focus {
+    border-color: var(--rdb-blue);
+    box-shadow:   0 0 0 3px rgba(25, 118, 210, 0.1);
+    background:   #fff;
+}
+
+/* ── Filter wrapper: positions the icon inside the select ─────── */
+.rob-filter-wrap {
+    position:    relative;
+    flex-shrink: 0;
+}
+
+/* The filter icon inside the select */
+.rob-filter-icon {
+    position:       absolute;
+    left:           12px;
+    top:            50%;
+    transform:      translateY(-50%);
+    color:          var(--rdb-text-muted);
+    pointer-events: none;
+}
+
+/* Category dropdown select */
+.rob-filter-select {
+    padding:         9px 14px 9px 36px; /* 36px left makes room for the icon */
+    border:          1px solid var(--rdb-border);
+    border-radius:   var(--rdb-radius-sm);
+    font-size:       14px;
+    color:           var(--rdb-text-main);
+    background:      #fafafa;
+    outline:         none;
+    cursor:          pointer;
+    min-width:       190px;
+    font-family:     inherit;
+    appearance:      auto;
+    transition:      border-color 0.15s, box-shadow 0.15s;
+}
+
+.rob-filter-select:focus {
+    border-color: var(--rdb-blue);
+    box-shadow:   0 0 0 3px rgba(25, 118, 210, 0.1);
+    background:   #fff;
+}
+
+/* ── Results count hint ──────────────────────────────────────── */
+/*
+    A small muted line just above the cards that says
+    "Showing N offers in 'Category' matching 'query'"
+*/
+.rob-results-hint {
+    font-size:     13px;
+    color:         var(--rdb-text-muted);
+    margin-bottom: 16px;
+    padding-left:  2px;
+}
+.rob-results-hint strong {
+    color:      var(--rdb-text-main);
+    font-weight: 600;
+}
+
+/* ── Offer Cards Grid ────────────────────────────────────────── */
+/*
+    Responsive CSS grid:
+      • 3 columns on wide screens
+      • 2 columns on medium screens
+      • 1 column on mobile
+*/
+.rob-grid {
+    display:               grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:                   20px;
+    align-items:           start;      /* Cards don't stretch to equal height */
+}
+
+/* ── Individual Offer Card ───────────────────────────────────── */
+/*
+    Each card is split into two halves:
+      • .rob-card-img  — top image area (fixed height, background-image)
+      • .rob-card-body — bottom details area
+*/
+.rob-card {
+    background:    var(--rdb-bg-card);
+    border-radius: var(--rdb-radius-md);
+    border:        1px solid var(--rdb-border);
+    box-shadow:    var(--rdb-shadow);
+    overflow:      hidden;               /* Keeps rounded corners on image */
+    display:       flex;
+    flex-direction: column;
+    transition:    box-shadow 0.2s, transform 0.2s;
+}
+
+.rob-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+    transform:  translateY(-2px);       /* Subtle lift on hover */
+}
+
+/* ── Top half: image / placeholder ──────────────────────────── */
+.rob-card-img {
+    width:               100%;
+    height:              200px;
+    background-size:     cover;
+    background-position: center;
+    position:            relative;     /* For absolute-positioned badges */
+    flex-shrink:         0;
+}
+
+/* ── Category badge: bottom-left of the image ─────────────────── */
+.rob-category-badge {
+    position:      absolute;
+    bottom:        10px;
+    left:          10px;
+    display:       flex;
+    align-items:   center;
+    gap:           5px;
+    background:    rgba(0, 0, 0, 0.55);
+    color:         #fff;
+    font-size:     11.5px;
+    font-weight:   600;
+    padding:       4px 10px;
+    border-radius: 20px;
+    backdrop-filter: blur(4px);
+    letter-spacing: 0.02em;
+}
+
+/* ── Portions badge: top-right of the image ─────────────────── */
+.rob-portions-badge {
+    position:      absolute;
+    top:           10px;
+    right:         10px;
+    display:       flex;
+    flex-direction: column;
+    align-items:   center;
+    justify-content: center;
+    background:    var(--rdb-green);
+    color:         #fff;
+    font-size:     17px;
+    font-weight:   800;
+    width:         52px;
+    height:        52px;
+    border-radius: 50%;
+    box-shadow:    0 2px 8px rgba(0,0,0,0.18);
+    line-height:   1.1;
+}
+
+/* Tiny "portions" label inside the portions badge circle */
+.rob-portions-label {
+    font-size:   8.5px;
+    font-weight: 600;
+    opacity:     0.9;
+    letter-spacing: 0.02em;
+}
+
+/* ── Bottom half: text details ───────────────────────────────── */
+.rob-card-body {
+    padding:        18px 18px 16px;
+    display:        flex;
+    flex-direction: column;
+    gap:            8px;
+    flex:           1;               /* Fills remaining card height */
+}
+
+/* Offer title */
+.rob-offer-title {
+    font-size:   15.5px;
+    font-weight: 700;
+    color:       var(--rdb-text-main);
+    margin:      0;
+    line-height: 1.3;
+}
+
+/* Donor name row — icon + text */
+.rob-offer-donor {
+    display:     flex;
+    align-items: center;
+    gap:         5px;
+    font-size:   13px;
+    color:       var(--rdb-text-sub);
+    margin:      0;
+}
+
+/* Description — clamp to 2 lines to keep cards uniform */
+.rob-offer-desc {
+    font-size:         13px;
+    color:             var(--rdb-text-muted);
+    margin:            0;
+    line-height:       1.55;
+    display:           -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow:           hidden;
+}
+
+/* ── Meta grid (weight, location, posted, expiry) ────────────── */
+/*
+    A 2-column grid so the four meta chips sit in a tidy 2×2 layout.
+*/
+.rob-offer-meta {
+    display:               grid;
+    grid-template-columns: 1fr 1fr;
+    gap:                   5px 10px;
+    margin-top:            2px;
+}
+
+/* Individual meta chip */
+.rob-meta-item {
+    display:     flex;
+    align-items: center;
+    gap:         5px;
+    font-size:   12px;
+    color:       var(--rdb-text-muted);
+    white-space: nowrap;
+    overflow:    hidden;
+    text-overflow: ellipsis;
+}
+
+/* Expiry chip gets a warm orange tint to signal urgency */
+.rob-meta-item--expiry {
+    color: var(--rdb-orange);
+    font-weight: 600;
+}
+
+/* ── Action Buttons ──────────────────────────────────────────── */
+.rob-card-actions {
+    display:   flex;
+    gap:       10px;
+    margin-top: 10px;
+}
+
+/* "Details" — outlined secondary button */
+.rob-btn-details {
+    display:       flex;
+    align-items:   center;
+    justify-content: center;
+    gap:           6px;
+    padding:       9px 18px;
+    border-radius: var(--rdb-radius-sm);
+    font-size:     13.5px;
+    font-weight:   500;
+    color:         var(--rdb-text-sub);
+    border:        1px solid var(--rdb-border);
+    background:    #fff;
+    cursor:        pointer;
+    transition:    background 0.15s;
+    flex-shrink:   0;
+    font-family:   inherit;
+}
+.rob-btn-details:hover { background: var(--rdb-bg-page); }
+
+/* "Accept Offer" — solid green primary button, fills remaining width */
+.rob-btn-accept {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    gap:             6px;
+    flex:            1;                /* Fills all remaining width */
+    padding:         9px 0;
+    border-radius:   var(--rdb-radius-sm);
+    font-size:       13.5px;
+    font-weight:     600;
+    color:           #fff;
+    background:      var(--rdb-green);
+    border:          none;
+    cursor:          pointer;
+    transition:      background 0.15s, opacity 0.15s;
+    font-family:     inherit;
+}
+.rob-btn-accept:hover    { background: var(--rdb-green-dark); }
+.rob-btn-accept:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.rob-empty-state {
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    gap:            12px;
+    padding:        60px 20px;
+    color:          var(--rdb-text-muted);
+    font-size:      14px;
+    text-align:     center;
+    background:     var(--rdb-bg-card);
+    border:         1px solid var(--rdb-border);
+    border-radius:  var(--rdb-radius-md);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+
+/* Medium screens: 2 columns */
+@media (max-width: 1280px) {
+    .rob-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Tablets: stack controls vertically, keep 2 columns */
+@media (max-width: 1100px) {
+    .rob-controls { flex-wrap: wrap; }
+    .rob-filter-select { min-width: 160px; }
+}
+
+/* Mobile: single column, no sidebar */
+@media (max-width: 768px) {
+    .rdb-main { margin-left: 0; padding: 16px; }
+    .rob-grid  { grid-template-columns: 1fr; }
+    .rob-controls { flex-direction: column; align-items: stretch; }
+    .rob-filter-wrap { width: 100%; }
+    .rob-filter-select { width: 100%; }
+    .rob-banner-stat { width: 100%; text-align: center; }
+}
+
+
+
+.rob-dietary-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #2c7a4d;
+    background: #e8f5e9;
+    padding: 6px 10px;
+    border-radius: 20px;
+    margin: 8px 0;
+    width: fit-content;
+}

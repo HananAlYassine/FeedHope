@@ -86,7 +86,7 @@ body {
 
 /* ── Welcome Banner ───────────────────────────────────────── */
 .rdb-banner {
-    background: linear-gradient(135deg, #2196f3 0%, #1565c0 60%, #0d47a1 100%);
+    background: linear-gradient(135deg, #0d7e60 0%, #069a50 60%, #0e7e14 100%);
     border-radius: var(--rdb-radius-lg);
     padding: 32px 36px;
     display: flex;
@@ -289,14 +289,22 @@ body {
 }
 
 /* Button row: "Details" plain text left, "Accept Offer" green button right */
-.rdb-offer-actions {
+/* .rdb-offer-actions {
     display: flex;
     align-items: center;
     gap: 12px;
+} */
+
+
+.rdb-offer-actions {
+    display: flex;
+    width: 100%;
+    margin-top: 10px;
 }
 
+
 /* "Details" — plain text, no visible border, left side */
-.rdb-btn-details {
+/* .rdb-btn-details {
     padding: 9px 24px;
     border-radius: var(--rdb-radius-sm);
     font-size: 13.5px; font-weight: 500;
@@ -305,11 +313,25 @@ body {
     background: #fff; cursor: pointer;
     transition: background 0.15s;
     flex-shrink: 0;
+} */
+
+.rdb-btn-details {
+    width: 50%;
+    padding: 10px 0;
+    border-radius: var(--rdb-radius-sm) 0 0 var(--rdb-radius-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--rdb-text-sub);
+    border: 1px solid var(--rdb-border);
+    background: #fff;
+    cursor: pointer;
+    border-right: none; /* 🔥 remove double border */
 }
+
 .rdb-btn-details:hover { background: var(--rdb-bg-page); }
 
 /* "Accept Offer" — solid green, full remaining width */
-.rdb-btn-accept {
+/* .rdb-btn-accept {
     flex: 1;
     padding: 9px 0;
     border-radius: var(--rdb-radius-sm);
@@ -319,7 +341,25 @@ body {
     border: none; cursor: pointer;
     transition: background 0.15s, opacity 0.15s;
 }
-.rdb-btn-accept:hover    { background: var(--rdb-green-dark); }
+.rdb-btn-accept:hover    { background: var(--rdb-green-dark); } */
+
+.rdb-btn-accept {
+    width: 50%;
+    padding: 10px 0;
+    border-radius: 0 var(--rdb-radius-sm) var(--rdb-radius-sm) 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--rdb-green);
+    border: none;
+    cursor: pointer;
+}
+
+/* Hover */
+.rdb-btn-accept:hover {
+    background: var(--rdb-green-dark);
+}
+
 .rdb-btn-accept:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── Notification Items ─────────────────────────────────────── */

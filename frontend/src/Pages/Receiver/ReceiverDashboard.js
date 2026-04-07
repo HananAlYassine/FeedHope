@@ -3,8 +3,12 @@
 // ==============================================================
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate }                 from 'react-router-dom';
-import ReceiverSidebar                 from '../../Components/Receiver/ReceiverSidebar';
+import { useNavigate } from 'react-router-dom';
+
+// ── Sidebar shared across all Receiver pages ──────────────────
+import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+
+// ── Page-specific styles ──────────────────────────────────────
 import '../../Styles/Receiver/ReceiverDashboard.css';
 
 // ── MUI Icon imports ─────────────────────────────────────────

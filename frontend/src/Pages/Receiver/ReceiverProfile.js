@@ -383,16 +383,7 @@ const ReceiverProfile = () => {
                                 <span className="rdb-status-badge rdb-status-badge--accepted rcp-role-badge">
                                     Receiver
                                 </span>
-                                <div className="rcp-account-actions">
-                                    <button className="rdb-btn-accept" onClick={handleOpenEdit}>
-                                        <EditIcon style={{ fontSize: 15, marginRight: 6, verticalAlign: 'middle' }} />
-                                        Edit Profile
-                                    </button>
-                                    <button className="rdb-btn-details rcp-btn-pw" onClick={handleOpenPw}>
-                                        <LockIcon style={{ fontSize: 15, marginRight: 6, verticalAlign: 'middle' }} />
-                                        Change Password
-                                    </button>
-                                </div>
+                                
                             </div>
                         </section>
                     </div>
