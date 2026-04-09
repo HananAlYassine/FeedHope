@@ -1,7 +1,7 @@
-// ==============================================================
-//  FeedHope — Omar & Hanan — Pages/Receiver/ReceiverHistory.js
+// =============================================
+//  FeedHope — Omar & Hanan 
 //  Receiving History (completed deliveries)
-// ==============================================================
+// =============================================
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';

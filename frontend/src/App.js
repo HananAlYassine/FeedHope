@@ -19,6 +19,7 @@ import DonorRegister from './Pages/Donor/DonorRegistration';
 import ReceiverRegister from './Pages/Receiver/ReceiverRegistration';
 import VolunteerRegister from './Pages/Volunteer/VolunteerRegistration';
 
+
 // ── Receiver section ──
 // ReceiverDashboard is protected — users should be signed in and have role = 'Receiver'
 import ReceiverDashboard from './Pages/Receiver/ReceiverDashboard';
@@ -29,6 +30,19 @@ import ReceiverAcceptedOffers from './Pages/Receiver/ReceiverAcceptedOffers';
 import ReceiverHistory from './Pages/Receiver/ReceiverHistory';
 import ReceiverNotifications from './Pages/Receiver/ReceiverNotifications';
 
+
+// ── Donor section ──
+// DonorDashboard is protected — users should be signed in and have role = 'Donor'
+import DonorDashboard from './Pages/Donor/DonorDashboard';
+import DonorProfile from './Pages/Donor/DonorProfile';
+import NewOffer from './Pages/Donor/DonorNewOffer';
+import DonorMyOffers from './Pages/Donor/DonorMyOffers';
+import DonorHistory from './Pages/Donor/DonorHistory';
+import DonorMoneyDonation from './Pages/Donor/DonorMoneyDonation';
+import DonorMoneyHistory from './Pages/Donor/DonorMoneyHistory';
+import DonorDeliveries from './Pages/Donor/DonorDeliveries';
+import DonorFeedback from './Pages/Donor/DonorFeedback';
+import DonorNotifications from './Pages/Donor/DonorNotifications';
 
 
 // ─────────────────────────────────────────────────────────────
@@ -147,6 +161,54 @@ function App() {
                             <ReceiverNotifications />
                         </ProtectedRoute>
                     }
+                />
+
+
+				
+
+				 {/* ── Donor Section (Protected) ──
+            Both routes require the user to be signed in with role = 'Donor'.
+            Any other user will be redirected to /signin or /. */}
+                <Route
+                    path="/donor-dashboard"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorDashboard /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-profile"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorProfile /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-new-offer"
+                    element={<ProtectedRoute requiredRole="Donor"><NewOffer /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-my-offers"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorMyOffers /></ProtectedRoute>}
+                />
+
+                <Route
+                    path="/donor-history"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorHistory /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-donate-money"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorMoneyDonation /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-donations-history"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorMoneyHistory /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-deliveries"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorDeliveries /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-feedback"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorFeedback /></ProtectedRoute>}
+                />
+                <Route
+                    path="/donor-notifications"
+                    element={<ProtectedRoute requiredRole="Donor"><DonorNotifications /></ProtectedRoute>}
                 />
 
 

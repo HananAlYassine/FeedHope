@@ -34,7 +34,7 @@
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   top: -80px;
   right: -80px;
 }
@@ -65,7 +65,8 @@
 }
 
 .brand span {
-  color: white; /* Kept white for the green background side */
+  color: white;
+  /* Kept white for the green background side */
   font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -77,7 +78,7 @@
   font-weight: bold;
   font-size: 39px;
   line-height: 1.3;
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
 }
 
 .signin-left p {
@@ -86,7 +87,7 @@
   color: #dfe6e9;
   font-size: 20px;
   line-height: 1.6;
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
 }
 
 /* FEATURES */
@@ -99,7 +100,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
 }
 
 .features li::before {
@@ -160,8 +161,8 @@
   gap: 8px;
 
   font-size: 14px;
-  font-weight: 600;      
-  color: #374151;       
+  font-weight: 600;
+  color: #374151;
   margin-bottom: 8px;
 }
 
@@ -190,9 +191,22 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 35px;
-  color: #374151; 
+  color: #374151;
   font-size: 14px;
-  font-weight: 600;  
+  font-weight: 600;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  width: auto;
+  margin: 0;
 }
 
 .forgot-password {
@@ -214,7 +228,7 @@
   color: white;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 6px 15px rgba(15,155,111,0.3);
+  box-shadow: 0 6px 15px rgba(15, 155, 111, 0.3);
 }
 
 /* DIVIDER */
@@ -247,7 +261,7 @@
   text-align: center;
   margin-top: 35px;
   font-size: 15px;
-  color: #374151; 
+  color: #374151;
 }
 
 .signup-link a {

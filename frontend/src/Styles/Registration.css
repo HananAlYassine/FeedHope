@@ -6,9 +6,8 @@
     align-items: center;
     min-height: 100vh;
     background: linear-gradient(135deg, #1e2b3c 0%, #0f1722 100%);
-    /* Will use Poppins if installed locally, otherwise falls back to system fonts */
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-    padding: 20px; 
+    padding: 20px;
     box-sizing: border-box;
 }
 
@@ -28,8 +27,7 @@
 .reg-hero-section {
     flex: 1;
     position: relative;
-    /* Removed /public/ as it's served from root in React */
-    background: url('/public/Images/hero-background.jpg'); 
+    background: url('/public/Images/hero-background.jpg');
     background-size: cover;
     background-position: center;
     color: white;
@@ -37,8 +35,10 @@
 
 .reg-hero-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    /* Soft top-to-bottom darkening to make stats pop */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.8) 100%);
     z-index: 1;
 }
@@ -47,10 +47,10 @@
     position: relative;
     z-index: 2;
     padding: 45px;
-    height: 100%; 
+    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; 
+    justify-content: space-between;
     box-sizing: border-box;
 }
 
@@ -59,19 +59,19 @@
     display: flex;
     align-items: center;
     gap: 18px;
-    font-size: 34px; 
+    font-size: 34px;
     font-weight: 900;
     align-self: flex-start;
     letter-spacing: -1.5px;
 }
 
 .reg-logo-circle-img {
-    width: 70px;  /* Large, dominant size */
-    height: 70px; /* Perfect square before rounding */
+    width: 70px;
+    height: 70px;
     object-fit: contain;
-    border-radius: 50%; /* <--- RE-APPLIED PERFECT CIRCLE FORMAT */
+    border-radius: 50%;
     background: #ffffff;
-    padding: 8px; /* Slightly less padding to show more image */
+    padding: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
@@ -88,7 +88,7 @@
 
 .glass-badge:hover {
     background: rgba(255, 255, 255, 0.12);
-    transform: translateY(-2px); /* Subtle lift on hover */
+    transform: translateY(-2px);
     border-color: rgba(16, 185, 129, 0.4);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
@@ -96,7 +96,7 @@
 .impact-value {
     font-size: 46px;
     font-weight: 800;
-    color: #10b981; /* FeedHope Green */
+    color: #10b981;
     display: block;
 }
 
@@ -105,7 +105,7 @@
     flex: 1.2;
     background: #ffffff;
     padding: 40px 60px;
-    overflow-y: auto; 
+    overflow-y: auto;
 }
 
 /* Role Navigation Pills */
@@ -133,7 +133,7 @@
 }
 
 .role-nav-btn.active-pill {
-    background: #10b981; 
+    background: #10b981;
     color: white;
     border-color: #10b981;
     box-shadow: 0 5px 15px rgba(16, 185, 129, 0.15);
@@ -146,7 +146,9 @@
     gap: 16px;
 }
 
-.full-width-field { grid-column: span 2; }
+.full-width-field {
+    grid-column: span 2;
+}
 
 .auth-input-group label {
     display: block;
@@ -156,7 +158,8 @@
     color: #2d3748;
 }
 
-.auth-input-field, .auth-select-field {
+.auth-input-field,
+.auth-select-field {
     width: 100%;
     padding: 12px 14px;
     border: 1px solid #e2e8f0;
@@ -194,9 +197,18 @@
 }
 
 /* Custom Scrollbar Styling for long forms */
-.reg-form-section::-webkit-scrollbar { width: 6px; }
-.reg-form-section::-webkit-scrollbar-track { background: #f1f1f1; }
-.reg-form-section::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+.reg-form-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.reg-form-section::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.reg-form-section::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+}
 
 .back-link {
     text-decoration: none;
@@ -209,49 +221,135 @@
     color: #0f9b6f;
 }
 
+/* ✅ FIX: Terms and conditions checkbox alignment */
+.terms-wrapper {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.terms-wrapper input[type="checkbox"] {
+    margin-top: 2px;
+    /* fine-tune vertical alignment with first line of text */
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.terms-wrapper label {
+    margin: 0;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+/* Alternative if you cannot add the 'terms-wrapper' class (uses :has() – modern browsers) */
+/*
+.full-width-field:has(input[type="checkbox"]) {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 10px;
+}
+.full-width-field:has(input[type="checkbox"]) input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.full-width-field:has(input[type="checkbox"]) label {
+    margin: 0;
+    line-height: 1.4;
+}
+*/
 
 /* ═══════════════════════════════════════════════════════════
    POPUP STYLES — Code Reveal & OTP Entry Modals
-   Shared by DonorRegistration, ReceiverRegistration,
-   and VolunteerRegistration.
 ═══════════════════════════════════════════════════════════ */
 
 /* --- Keyframe Animations --- */
 
 @keyframes revealDrop {
-    0%   { opacity: 0; transform: translateY(-20px) scale(0.95); }
-    100% { opacity: 1; transform: translateY(0)      scale(1);    }
+    0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 @keyframes shimmer {
-    0%   { background-position: -400px 0; }
-    100% { background-position:  400px 0; }
+    0% {
+        background-position: -400px 0;
+    }
+
+    100% {
+        background-position: 400px 0;
+    }
 }
 
 @keyframes ringPulse {
-    0%,  100% { box-shadow: 0 0 0 0   rgba(52, 211, 153, 0.5); }
-    50%        { box-shadow: 0 0 0 14px rgba(52, 211, 153, 0);   }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 0 14px rgba(52, 211, 153, 0);
+    }
 }
 
 @keyframes codeFloat {
-    0%,  100% { transform: translateY(0);   }
-    50%        { transform: translateY(-4px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
 }
 
 @keyframes slideUpOtp {
-    0%   { opacity: 0; transform: translateY(26px) scale(0.96); }
-    100% { opacity: 1; transform: translateY(0)     scale(1);    }
+    0% {
+        opacity: 0;
+        transform: translateY(26px) scale(0.96);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 @keyframes popInCheck {
-    0%   { transform: scale(0.6);  opacity: 0; }
-    60%  { transform: scale(1.15);             }
-    100% { transform: scale(1);    opacity: 1; }
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes lockBounce {
-    0%,  100% { transform: translateY(0);   }
-    50%        { transform: translateY(-5px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
 }
 
 /* --- Popup Backdrop --- */
@@ -390,7 +488,6 @@
     background: rgba(255, 255, 255, 0.14) !important;
 }
 
-/* Copied state — applied via JS className toggle */
 .cr-copy-btn.is-copied {
     border-color: rgba(52, 211, 153, 0.5);
     background: rgba(52, 211, 153, 0.18);
@@ -561,14 +658,12 @@
     transition: all 0.18s ease;
 }
 
-/* Filled state */
 .otp-digit-input.is-filled {
     border-color: #10b981;
     background: #ecfdf5;
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
 }
 
-/* Error state */
 .otp-digit-input.is-error {
     border-color: #f87171;
 }

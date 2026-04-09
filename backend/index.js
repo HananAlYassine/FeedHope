@@ -478,6 +478,8 @@ app.post('/api/contact-us', async (req, res) => {
     }
 });
 
+// ────────────────────────────── RECEIVER ────────────────────────────────────
+
 // ==============================================================
 // ──────────────── RECEIVER DASHBOARD API ──────────────────────
 // ==============================================================
@@ -919,8 +921,6 @@ app.put("/api/receiver/change-password/:userId", async (req, res) => {
 
 
 
-
-
 // ==============================================================
 // ──────────────── RECEIVER Browse Offers API ──────────────────
 // ==============================================================
@@ -1140,7 +1140,7 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
             return res.status(403).json({ error: "You are not authorized to cancel this offer." });
         }
 
-        // ✅ Perform cancellation: make offer available again (keep receiver_id)
+        // Perform cancellation: make offer available again (keep receiver_id)
         const [result] = await conn.query(
             `UPDATE Food_offer
              SET status = 'available'
@@ -1311,8 +1311,6 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
 
 
 
-
-
 // ==============================================================
 // ──────────────── RECEIVER NOTIFICATIONS API ──────────────────
 // ==============================================================
@@ -1376,6 +1374,366 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
         res.status(500).json({ error: "Failed to mark notifications as read." });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ────────────────────────────── Donor ────────────────────────────────────
+
+
+// ==============================================================
+// ──── GET /api/donor/profile/:userId ─────────────────────────
+//
+//  Returns donor profile + stats: totalDonations, peopleFed, co2Prevented
+// ==============================================================
+app.get("/api/donor/profile/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                u.user_id,
+                u.name,
+                u.email,
+                u.phone_number,
+                u.status,
+                d.donor_id,
+                d.organization_name AS business_name,
+                d.business_type,
+                d.foundation_date,
+                a.street,
+                a.city,
+                a.country,
+                a.latitude,
+                a.longitude
+            FROM User u
+            JOIN Donor d ON d.user_id = u.user_id
+            LEFT JOIN Address a ON a.user_id = u.user_id
+            WHERE u.user_id = ?
+            LIMIT 1
+        `, [userId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Donor profile not found." });
+        }
+
+        const profile = rows[0];
+
+        // Stats
+        const [[{ totalDonations }]] = await pool.query(
+            "SELECT COUNT(*) AS totalDonations FROM Food_offer WHERE donor_id = ?",
+            [profile.donor_id]
+        );
+
+        const [[{ peopleFed }]] = await pool.query(
+            `SELECT COALESCE(SUM(number_of_person), 0) AS peopleFed
+             FROM Food_offer
+             WHERE donor_id = ? AND status IN ('accepted', 'completed')`,
+            [profile.donor_id]
+        );
+
+        const co2PerMeal = 0.5;
+        const co2Prevented = (peopleFed * co2PerMeal).toFixed(1);
+
+        res.json({
+            profile,
+            stats: {
+                totalDonations: Number(totalDonations),
+                peopleFed: Number(peopleFed),
+                co2Prevented: Number(co2Prevented)
+            }
+        });
+
+    } catch (err) {
+        console.error("Donor profile GET error:", err);
+        res.status(500).json({ error: "Failed to load donor profile.", details: err.message });
+    }
+});
+// ==============================================================
+// ──── PUT /api/donor/profile/:userId ─────────────────────────
+//
+//  Updates: User.name, User.email, User.phone_number
+//           Address.street (first address linked to this donor)
+//           Donor.business_type
+//
+//  Request body: { name, email, phone, street, business_type }
+// ==============================================================
+app.put("/api/donor/profile/:userId", async (req, res) => {
+    const { userId } = req.params;
+    const { name, email, phone, street, city, business_type } = req.body;
+
+    // Validate required fields (country is NOT required)
+    if (!name || !email || !phone || !street || !city || !business_type) {
+        return res.status(400).json({ error: "All fields except country are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 1. Update User table
+        await conn.query(
+            "UPDATE User SET name = ?, email = ?, phone_number = ? WHERE user_id = ?",
+            [name, email, phone, userId]
+        );
+
+        // 2. Update Donor (organization_name and business_type)
+        await conn.query(
+            "UPDATE Donor SET organization_name = ?, business_type = ? WHERE user_id = ?",
+            [name, business_type, userId]
+        );
+
+        // 3. Handle Address – preserve existing country, never update it
+        const [addr] = await conn.query(
+            "SELECT address_id, country FROM Address WHERE user_id = ? LIMIT 1",
+            [userId]
+        );
+
+        if (addr.length === 0) {
+            // No address yet – insert with a fixed default country
+            const DEFAULT_COUNTRY = 'Lebanon'; // Change to your country
+            await conn.query(
+                "INSERT INTO Address (user_id, street, city, country) VALUES (?, ?, ?, ?)",
+                [userId, street, city, DEFAULT_COUNTRY]
+            );
+        } else {
+            // Address exists – update only street and city, keep the existing country
+            await conn.query(
+                "UPDATE Address SET street = ?, city = ? WHERE user_id = ?",
+                [street, city, userId]
+            );
+            // country is NOT updated – remains whatever was in the database
+        }
+
+        // 4. Log the change
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Profile Update', 'Donor updated their profile information', userId]
+        );
+
+        await conn.commit();
+        res.status(200).json({ message: "Profile updated successfully." });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error("Donor profile PUT error:", err);
+        res.status(500).json({ error: "Failed to update donor profile." });
+    } finally {
+        conn.release();
+    }
+});
+
+// ==============================================================
+// ──── PUT /api/donor/profile-picture/:userId ─────────────────
+//
+//  Updates donor profile picture
+// ==============================================================
+// app.put("/api/donor/profile-picture/:userId", async (req, res) => {
+//     const { userId } = req.params;
+//     const { profile_picture } = req.body; // base64 string
+
+//     if (!profile_picture) {
+//         return res.status(400).json({ error: "Profile picture is required." });
+//     }
+
+//     try {
+//         // Assuming you have a column 'profile_picture' in Donor table
+//         await pool.query(
+//             "UPDATE Donor SET profile_picture = ? WHERE user_id = ?",
+//             [profile_picture, userId]
+//         );
+//         res.status(200).json({ message: "Profile picture updated successfully." });
+//     } catch (err) {
+//         console.error("Profile picture update error:", err);
+//         res.status(500).json({ error: "Failed to update profile picture." });
+//     }
+// });
+
+// ==============================================================
+// ──── PUT /api/donor/change-password/:userId ─────────────────
+//
+//  Verifies current password, hashes and stores new password.
+//  Request body: { currentPassword, newPassword }
+// ==============================================================
+app.put("/api/donor/change-password/:userId", async (req, res) => {
+    const { userId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 3 || newPassword.length > 10) {
+        return res.status(400).json({
+            error: "New password must be between 3 and 10 characters long."
+        });
+    }
+
+    try {
+        // Fetch stored hash
+        const [[user]] = await pool.query(
+            "SELECT password FROM User WHERE user_id = ?",
+            [userId]
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: "Current password is incorrect." });
+        }
+
+        // Hash new password
+        const newHash = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        await pool.query(
+            "UPDATE User SET password = ? WHERE user_id = ?",
+            [newHash, userId]
+        );
+
+        // Log action
+        await pool.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Password Change', 'Donor changed their password', userId]
+        );
+
+        res.status(200).json({ message: "Password changed successfully." });
+
+    } catch (err) {
+        console.error("Donor change password error:", err);
+        res.status(500).json({ error: "Failed to change password." });
+    }
+});
+
+// ──── 13. Get All Food Categories ────
+app.get('/api/categories', async (req, res) => {
+    try {
+        const [rows] = await db.execute("SELECT category_id, category_name FROM Food_category");
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// // ──── 14. Create New Food Offer (With Image) ────
+// app.post('/api/donor/create-offer', upload.single('imageFile'), async (req, res) => {
+//     // 1. Get a connection from the pool for a transaction
+//     const connection = await db.getConnection(); 
+    
+//     try {
+//         await connection.beginTransaction();
+
+//         const { 
+//             foodName, description, categoryId, quantityKg, 
+//             numPersons, pickupTime, expirationDate, dietarySelections, donorId 
+//         } = req.body;
+
+//         // 2. Insert into Food_offer (Matches your schema exactly)
+//         const offerSql = `
+//             INSERT INTO Food_offer 
+//             (food_name, description, category_id, quantity_by_kg, number_of_person, 
+//              pickup_time, expiration_date_and_time, dietary_information, donor_id, status) 
+//             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')
+//         `;
+
+//         const [offerResult] = await connection.execute(offerSql, [
+//             foodName, 
+//             description || null, 
+//             categoryId, 
+//             quantityKg, 
+//             numPersons || 0, 
+//             pickupTime, 
+//             expirationDate, 
+//             dietarySelections, 
+//             donorId
+//         ]);
+
+//         const newOfferId = offerResult.insertId;
+
+//         // 3. Insert into Food_photo using the new newOfferId
+//         if (req.file) {
+//             const imageUrl = `/uploads/${req.file.filename}`;
+//             const photoSql = `
+//                 INSERT INTO Food_photo (image_url, offer_id, uploaded_at) 
+//                 VALUES (?, ?, NOW())
+//             `;
+//             await connection.execute(photoSql, [imageUrl, newOfferId]);
+//         }
+
+//         // 4. If everything is fine, save changes to DB
+//         await connection.commit();
+//         res.status(200).json({ success: true, offerId: newOfferId });
+
+//     } catch (err) {
+//         // If anything fails, undo all changes
+//         await connection.rollback();
+//         console.error("CRITICAL DATABASE ERROR:", err.message);
+//         res.status(500).json({ error: err.message });
+//     } finally {
+//         connection.release();
+//     }
+// });
+
+
+// GET offers for a specific donor with optional status filtering
+app.get('/api/donor/my-offers/:donorId', async (req, res) => {
+    try {
+        const { donorId } = req.params;
+        const { status } = req.query; // e.g., ?status=Available
+
+        let sql = `
+            SELECT 
+                fo.offer_id, 
+                fo.food_name, 
+                fo.quantity_by_kg, 
+                fo.status, 
+                fo.pickup_time,
+                fc.category_name,
+                fo.created_at
+            FROM Food_offer fo
+            JOIN Food_category fc ON fo.category_id = fc.category_id
+            WHERE fo.donor_id = ?
+        `;
+        
+        const params = [donorId];
+
+        // Add status filter if it's not "All" and exists
+        if (status && status !== 'All') {
+            sql += ` AND fo.status = ?`;
+            params.push(status);
+        }
+
+        sql += ` ORDER BY fo.created_at DESC`;
+
+        const [rows] = await db.execute(sql, params);
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Fetch Filtered Offers Error:", err);
+        res.status(500).json({ error: "Server error fetching offers" });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

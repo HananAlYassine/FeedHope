@@ -146,14 +146,14 @@ const VolunteerRegister = () => {
         plateNumber: '', birthdate: '', gender: '', password: '', confirmPassword: ''
     });
 
-    const [showPassword, setShowPassword]   = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const today = new Date().toISOString().split('T')[0];
 
-    const [popup, setPopup]                 = useState('none');
-    const [devCode, setDevCode]             = useState('');
-    const [pendingEmail, setPendingEmail]   = useState('');
-    const [otp, setOtp]                     = useState(['', '', '', '', '', '']);
-    const [verifyError, setVerifyError]     = useState('');
+    const [popup, setPopup] = useState('none');
+    const [devCode, setDevCode] = useState('');
+    const [pendingEmail, setPendingEmail] = useState('');
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
+    const [verifyError, setVerifyError] = useState('');
     const [verifySuccess, setVerifySuccess] = useState(false);
     const otpRefs = useRef([]);
 
@@ -337,7 +337,7 @@ const VolunteerRegister = () => {
                                     </button>
                                 </div>
                             </div>
-                            <div className="full-width-field" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                            <div className="full-width-field terms-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
                                 <input type="checkbox" id="terms" required />
                                 <label htmlFor="terms" style={{ fontSize: '12px', color: '#4a5568', margin: 0 }}>
                                     I agree to the <span style={{ color: '#10b981', fontWeight: 600 }}>Terms of Service</span> and <span style={{ color: '#10b981', fontWeight: 600 }}>Privacy Policy</span>

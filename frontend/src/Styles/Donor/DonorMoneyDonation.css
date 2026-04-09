@@ -1,0 +1,384 @@
+/* DonorMoneyDonation.css – styled like DonorDashboard */
+
+/* Import dashboard CSS variables (or define them here) */
+:root {
+    --ddb-green: #2e7d32;
+    --ddb-green-light: #e8f5e9;
+    --ddb-blue: #1976d2;
+    --ddb-blue-light: #e3f2fd;
+    --ddb-orange: #f57c00;
+    --ddb-orange-light: #fff3e0;
+    --ddb-text-main: #1a1a1a;
+    --ddb-text-sub: #555555;
+    --ddb-text-muted: #888888;
+    --ddb-border: #e0e0e0;
+    --ddb-bg-page: #f4f6f8;
+    --ddb-bg-card: #ffffff;
+    --ddb-radius-sm: 6px;
+    --ddb-radius-md: 10px;
+    --ddb-radius-lg: 14px;
+    --ddb-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+}
+
+/* Banner – matches dashboard gradient + circles */
+.dmd-banner {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 60%, #e65100 100%);
+    border-radius: var(--ddb-radius-lg);
+    padding: 32px 36px;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 170px;
+}
+
+.dmd-banner::before {
+    content: '';
+    position: absolute;
+    right: 200px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.dmd-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -60px;
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.dmd-banner .dmd-banner-greeting {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dmd-banner .dmd-banner-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    line-height: 1.2;
+    color: #fff;
+}
+
+.dmd-banner .dmd-banner-subtitle {
+    font-size: 13.5px;
+    opacity: 0.9;
+    max-width: 420px;
+    line-height: 1.5;
+}
+
+/* Form container – centered, card style */
+.dmd-form-container {
+    max-width: 650px;
+    margin: 0 auto 3rem auto;
+}
+
+.dmd-form-card {
+    background: var(--ddb-bg-card);
+    border-radius: var(--ddb-radius-md);
+    border: 1px solid var(--ddb-border);
+    box-shadow: var(--ddb-shadow);
+    overflow: hidden;
+}
+
+/* Card header */
+.dmd-form-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--ddb-border);
+    background: var(--ddb-bg-card);
+}
+
+.dmd-header-icon-wrapper {
+    background: var(--ddb-orange-light);
+    color: var(--ddb-orange);
+    padding: 0.75rem;
+    border-radius: var(--ddb-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dmd-header-icon {
+    font-size: 1.75rem !important;
+}
+
+.dmd-form-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ddb-text-main);
+    margin: 0 0 0.25rem 0;
+}
+
+.dmd-form-subtitle {
+    font-size: 0.875rem;
+    color: var(--ddb-text-muted);
+    margin: 0;
+}
+
+/* Form groups */
+.dmd-form-group {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.dmd-form-group:last-of-type {
+    border-bottom: none;
+}
+
+.dmd-label {
+    display: block;
+    font-weight: 600;
+    color: var(--ddb-text-sub);
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* Amount input – big & prominent */
+.dmd-amount-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.dmd-amount-input-wrapper:focus-within {
+    border-color: var(--ddb-orange);
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(245, 124, 0, 0.1);
+}
+
+.dmd-currency-symbol {
+    position: absolute;
+    left: 1.25rem;
+    font-size: 1.5rem;
+    color: var(--ddb-text-muted);
+    font-weight: 500;
+}
+
+.dmd-currency-code {
+    position: absolute;
+    right: 1.25rem;
+    font-size: 1rem;
+    color: var(--ddb-text-muted);
+    font-weight: 600;
+}
+
+.dmd-amount-input {
+    width: 100%;
+    padding: 1rem 3.5rem 1rem 2.5rem;
+    border: none;
+    background: transparent;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ddb-text-main);
+    outline: none;
+}
+
+.dmd-amount-input::-webkit-outer-spin-button,
+.dmd-amount-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Payment method tiles */
+.dmd-payment-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.dmd-payment-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #ffffff;
+}
+
+.dmd-payment-tile input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.dmd-payment-icon {
+    color: var(--ddb-text-muted);
+    font-size: 1.75rem !important;
+    transition: color 0.2s;
+}
+
+.dmd-payment-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ddb-text-sub);
+}
+
+.dmd-payment-tile:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.dmd-payment-tile.selected {
+    border-color: var(--ddb-orange);
+    background: var(--ddb-orange-light);
+}
+
+.dmd-payment-tile.selected .dmd-payment-icon {
+    color: var(--ddb-orange);
+}
+
+.dmd-payment-tile.selected .dmd-payment-name {
+    color: var(--ddb-orange);
+}
+
+/* Textarea */
+.dmd-textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background: #f8fafc;
+    color: var(--ddb-text-main);
+    resize: vertical;
+    font-family: inherit;
+}
+
+.dmd-textarea:focus {
+    outline: none;
+    border-color: var(--ddb-orange);
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(245, 124, 0, 0.1);
+}
+
+/* Alert messages */
+.dmd-alert {
+    margin: 0 2rem 1.5rem 2rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.dmd-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.dmd-success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #15803d;
+}
+
+/* Action buttons */
+.dmd-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+}
+
+.dmd-btn {
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--ddb-radius-sm);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.dmd-btn-cancel {
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    color: var(--ddb-text-muted);
+}
+
+.dmd-btn-cancel:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--ddb-text-main);
+}
+
+.dmd-btn-confirm {
+    background: var(--ddb-orange);
+    color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(245, 124, 0, 0.2);
+}
+
+.dmd-btn-confirm:hover:not(:disabled) {
+    background: var(--ddb-orange);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(245, 124, 0, 0.3);
+}
+
+.dmd-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dmd-banner {
+        padding: 24px 20px;
+        text-align: center;
+    }
+
+    .dmd-banner .dmd-banner-title {
+        font-size: 22px;
+    }
+
+    .dmd-form-header {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .dmd-form-group {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .dmd-actions {
+        padding: 1.25rem 1.5rem;
+        flex-direction: column-reverse;
+    }
+
+    .dmd-btn {
+        width: 100%;
+    }
+
+    .dmd-amount-input {
+        font-size: 1.5rem;
+    }
+}

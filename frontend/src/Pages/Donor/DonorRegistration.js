@@ -387,7 +387,7 @@ const DonorRegister = () => {
                                     </button>
                                 </div>
                             </div>
-                            <div className="full-width-field" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                            <div className="full-width-field terms-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
                                 <input type="checkbox" id="terms" required />
                                 <label htmlFor="terms" style={{ fontSize: '12px', color: '#4a5568', margin: 0 }}>
                                     I agree to the <span style={{ color: '#10b981', fontWeight: 600 }}>Terms of Service</span> and <span style={{ color: '#10b981', fontWeight: 600 }}>Privacy Policy</span>

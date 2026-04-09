@@ -1,0 +1,210 @@
+/* DonorNotifications.css - matching dashboard styles */
+
+/* Action bar (filter + mark all) */
+.dn-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.dn-filter-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.dn-filter-btn {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid #e0e0e0;
+    background: white;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #555555;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dn-filter-btn:hover {
+    background: #f5f5f5;
+    border-color: #c0c0c0;
+}
+
+.dn-filter-btn.active {
+    background: #f57c00;
+    color: white;
+    border-color: #f57c00;
+}
+
+.dn-mark-all-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #555555;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dn-mark-all-btn:hover {
+    background: #f0f0f0;
+    border-color: #c0c0c0;
+}
+
+/* Notifications container */
+.dn-notifications-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.dn-category-section {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+}
+
+.dn-category-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.dn-category-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff3e0;
+    color: #f57c00;
+    border-radius: 8px;
+}
+
+.dn-category-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.dn-category-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.dn-notification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.dn-notification-item:last-child {
+    border-bottom: none;
+}
+
+.dn-notification-item:hover {
+    background: #fafcff;
+}
+
+.dn-notification-item.unread {
+    background: #fffef7;
+    border-left: 3px solid #f57c00;
+}
+
+.dn-notification-content {
+    flex: 1;
+}
+
+.dn-notification-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+}
+
+.dn-notification-description {
+    font-size: 0.9rem;
+    color: #555555;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+
+.dn-notification-date {
+    font-size: 0.75rem;
+    color: #888888;
+}
+
+.dn-unread-dot {
+    width: 10px;
+    height: 10px;
+    background: #f57c00;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+}
+
+/* Empty & loading */
+.dn-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+}
+
+.dn-empty-sub {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.dn-loading {
+    text-align: center;
+    padding: 3rem;
+    color: #475569;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dn-action-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dn-filter-buttons {
+        justify-content: center;
+    }
+
+    .dn-mark-all-btn {
+        justify-content: center;
+    }
+
+    .dn-notification-item {
+        padding: 0.75rem 1rem;
+    }
+
+    .dn-category-header {
+        padding: 0.75rem 1rem;
+    }
+}
