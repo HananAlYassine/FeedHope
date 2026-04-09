@@ -85,7 +85,7 @@ const ReceiverOfferDetails = () => {
       const res = await fetch('http://localhost:5000/api/receiver/accept-offer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerId: offer.offer_id, receiverId: user.user_id }),
+        body: JSON.stringify({ offerId: offer.offer_id, userId: user.user_id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
@@ -175,7 +175,7 @@ const ReceiverOfferDetails = () => {
         </div>
 
         {/* Back button */}
-        <button className="rod-back-btn" onClick={() => navigate(-1)}>
+        <button className="rod-back-btn" onClick={() => navigate('/receiver-browse')}>
           <ArrowBackIcon sx={{ fontSize: 16 }} />
           Back to Browse
         </button>

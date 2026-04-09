@@ -498,7 +498,7 @@ const ReceiverBrowseOffers = () => {
       const res = await fetch('http://localhost:5000/api/receiver/accept-offer', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ offerId, receiverId: user.user_id }),
+        body:    JSON.stringify({ offerId, userId: user.user_id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');

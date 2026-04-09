@@ -1,0 +1,208 @@
+/* ==============================================================
+    FeedHope — ReceiverNotifications.css
+    Styles for Notifications page
+================================================================*/
+
+.rn-banner .rn-banner-stat {
+    background: rgba(255,255,255,0.15);
+    border-radius: 40px;
+    padding: 8px 20px;
+    text-align: center;
+}
+
+.rn-banner-stat-num {
+    font-size: 32px;
+    font-weight: 700;
+    display: block;
+    line-height: 1.2;
+}
+
+.rn-banner-stat-label {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.rn-date-badge {
+    background: rgba(255,255,255,0.2);
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 13px;
+    margin-top: 12px;
+    backdrop-filter: blur(4px);
+}
+
+/* Filter bar */
+.rn-filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 24px 0 20px;
+}
+
+.rn-filter-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.rn-filter-btn {
+    background: var(--rdb-bg-card);
+    border: 1px solid var(--rdb-border);
+    padding: 8px 20px;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--rdb-text-sub);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rn-filter-btn.active {
+    background: var(--rdb-blue);
+    border-color: var(--rdb-blue);
+    color: white;
+}
+
+.rn-filter-btn:hover:not(.active) {
+    background: #f0f0f0;
+}
+
+.rn-mark-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f0f0;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.rn-mark-all-btn:hover:not(:disabled) {
+    background: #e0e0e0;
+}
+
+.rn-mark-all-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Notifications list */
+.rn-list-container {
+    background: var(--rdb-bg-card);
+    border-radius: var(--rdb-radius-md);
+    border: 1px solid var(--rdb-border);
+    overflow: hidden;
+}
+
+.rn-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rdb-border);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+}
+
+.rn-notification-item:hover {
+    background: #fafafa;
+}
+
+.rn-notification-item--unread {
+    background: #f0f7ff;
+}
+
+.rn-notification-item--unread:hover {
+    background: #e3f0ff;
+}
+
+.rn-notification-icon {
+    width: 36px;
+    height: 36px;
+    background: #f0f0f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rdb-text-main);
+    flex-shrink: 0;
+}
+
+.rn-notification-content {
+    flex: 1;
+}
+
+.rn-notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.rn-notification-title {
+    font-weight: 600;
+    color: var(--rdb-text-main);
+    font-size: 14px;
+}
+
+.rn-notification-time {
+    font-size: 11px;
+    color: var(--rdb-text-muted);
+}
+
+.rn-notification-message {
+    font-size: 13px;
+    color: var(--rdb-text-sub);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.rn-unread-dot {
+    width: 10px;
+    height: 10px;
+    background: #1976d2;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 10px;
+}
+
+.rn-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--rdb-text-muted);
+}
+
+.rn-empty-state p {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .rn-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .rn-filter-buttons {
+        justify-content: center;
+    }
+    .rn-mark-all-btn {
+        justify-content: center;
+    }
+    .rn-notification-item {
+        padding: 14px;
+    }
+    .rn-notification-header {
+        flex-direction: column;
+        gap: 4px;
+    }
+}

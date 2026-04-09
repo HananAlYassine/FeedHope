@@ -631,34 +631,49 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
 // Called when the receiver clicks "Accept Offer" on the dashboard.
 // Assigns the offer to this receiver and changes its status to 'accepted'.
 app.post("/api/receiver/accept-offer", async (req, res) => {
-    const { offerId, receiverId } = req.body; // Both IDs come from the frontend
+    const { offerId, userId } = req.body;  // ← rename receiverId → userId
+
+    // Validate input
+    if (!offerId || !userId) {
+        return res.status(400).json({ error: "Offer ID and User ID are required." });
+    }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
-        // Verify the offer exists and is still available
+        // 1️⃣ Get the actual receiver_id from the Receiver table using the user_id
+        const [[receiver]] = await conn.query(
+            "SELECT receiver_id FROM Receiver WHERE user_id = ?",
+            [userId]
+        );
+        if (!receiver) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Receiver profile not found." });
+        }
+        const receiverId = receiver.receiver_id;
+
+        // 2️⃣ Verify the offer exists and is still available
         const [[offer]] = await conn.query(
             "SELECT * FROM Food_offer WHERE offer_id = ? AND status = 'available'",
             [offerId]
         );
-
         if (!offer) {
             await conn.rollback();
             return res.status(400).json({ error: "Offer is no longer available." });
         }
 
-        // Update the offer: assign this receiver and mark as accepted
+        // 3️⃣ Update the offer with the correct receiver_id
         await conn.query(
             "UPDATE Food_offer SET receiver_id = ?, status = 'accepted' WHERE offer_id = ?",
             [receiverId, offerId]
         );
 
-        // Create a notification for the receiver confirming the acceptance
+        // 4️⃣ Notify the receiver (optional but good practice)
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id)
-            VALUES ('Offer Accepted', ?, 'offer_accepted', (SELECT user_id FROM Receiver WHERE receiver_id = ?))`,
-            [`You have successfully accepted the offer: "${offer.food_name}"`, receiverId]
+             VALUES ('Offer Accepted', ?, 'offer_accepted', ?)`,
+            [`You have successfully accepted the offer: "${offer.food_name}"`, userId]
         );
 
         await conn.commit();
@@ -692,7 +707,6 @@ app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) =
         res.status(500).json({ error: "Failed to update notification." });
     }
 });
-
 
 
 
@@ -1035,6 +1049,333 @@ app.get("/api/offers/:offerId", async (req, res) => {
 
 
 
+// ==============================================================
+// ──────────────── RECEIVER ACCEPTED OFFERS API ────────────────
+// ==============================================================
+
+// ──── 12. Get all accepted offers for a receiver ────
+app.get("/api/receiver/accepted-offers/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[receiver]] = await pool.query(
+            "SELECT receiver_id FROM Receiver WHERE user_id = ?",
+            [userId]
+        );
+        if (!receiver) return res.status(404).json({ error: "Receiver not found." });
+
+        const receiverId = receiver.receiver_id;
+
+        const [offers] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name                 AS title,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                fo.status,
+                fo.pickup_time,
+                u.name                       AS donor_name,
+                d.donor_id,
+                -- Volunteer info (if delivery completed)
+                vu.name                      AS volunteer_name,
+                del.volunteer_id,
+                del.delivery_id
+            FROM Food_offer fo
+            JOIN Donor d ON d.donor_id = fo.donor_id
+            JOIN User  u ON u.user_id  = d.user_id
+            LEFT JOIN Delivery del ON del.offer_id = fo.offer_id AND del.delivery_status = 'completed'
+            LEFT JOIN Volunteer v ON v.volunteer_id = del.volunteer_id
+            LEFT JOIN User vu ON vu.user_id = v.user_id
+            WHERE fo.receiver_id = ? AND fo.status = 'accepted'
+            ORDER BY fo.offer_id DESC
+        `, [receiverId]);
+
+        res.status(200).json(offers);
+    } catch (err) {
+        console.error("Fetch accepted offers error:", err);
+        res.status(500).json({ error: "Failed to load accepted offers." });
+    }
+});
+
+
+
+
+// ──── 13. Cancel an accepted offer ────
+app.post("/api/receiver/cancel-offer", async (req, res) => {
+    const { offerId, userId } = req.body;
+
+    if (!offerId || !userId) {
+        return res.status(400).json({ error: "Offer ID and User ID are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Get receiver_id from Receiver table
+        const [[receiver]] = await conn.query(
+            "SELECT receiver_id FROM Receiver WHERE user_id = ?",
+            [userId]
+        );
+        if (!receiver) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Receiver not found." });
+        }
+        const correctReceiverId = receiver.receiver_id;
+
+        // Check offer exists and is accepted
+        const [[offer]] = await conn.query(
+            "SELECT offer_id, status, receiver_id, food_name FROM Food_offer WHERE offer_id = ?",
+            [offerId]
+        );
+        if (!offer) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Offer not found." });
+        }
+        if (offer.status !== 'accepted') {
+            await conn.rollback();
+            return res.status(400).json({ error: `Offer cannot be cancelled because its status is '${offer.status}'.` });
+        }
+        if (offer.receiver_id !== correctReceiverId) {
+            await conn.rollback();
+            return res.status(403).json({ error: "You are not authorized to cancel this offer." });
+        }
+
+        // ✅ Perform cancellation: make offer available again (keep receiver_id)
+        const [result] = await conn.query(
+            `UPDATE Food_offer
+             SET status = 'available'
+             WHERE offer_id = ? AND receiver_id = ? AND status = 'accepted'`,
+            [offerId, correctReceiverId]
+        );
+
+        if (result.affectedRows === 0) {
+            await conn.rollback();
+            return res.status(400).json({ error: "Failed to cancel offer. No rows affected." });
+        }
+
+        // Notify the donor
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id)
+             SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id
+             FROM Food_offer fo
+             JOIN Donor d ON d.donor_id = fo.donor_id
+             JOIN User u ON u.user_id = d.user_id
+             WHERE fo.offer_id = ?`,
+            [offer.food_name, offerId]
+        );
+
+        // Notify the receiver
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id)
+             VALUES ('Offer Cancelled', 'You have cancelled an offer. The donor has been notified, and the offer is now available for others.', 'cancellation', ?)`,
+            [userId]
+        );
+
+        await conn.commit();
+        res.status(200).json({ message: "Offer cancelled successfully and is now available again." });
+    } catch (err) {
+        await conn.rollback();
+        console.error("Cancel offer error:", err);
+        res.status(500).json({ error: "Failed to cancel offer: " + err.message });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+// ──── 14. Give feedback on an accepted offer ────
+app.post("/api/receiver/feedback-offer", async (req, res) => {
+    const { offerId, userId, donorRating, volunteerRating, comment } = req.body;
+
+    if (!offerId || !userId || !donorRating || !volunteerRating) {
+        return res.status(400).json({ error: "Offer ID, User ID, donor rating and volunteer rating are required." });
+    }
+    if (donorRating < 1 || donorRating > 5 || volunteerRating < 1 || volunteerRating > 5) {
+        return res.status(400).json({ error: "Ratings must be between 1 and 5." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 1. Get receiver_id, donor_id, and the completed delivery for this offer
+        const [[offer]] = await conn.query(
+            `SELECT receiver_id, donor_id FROM Food_offer WHERE offer_id = ? AND status = 'accepted'`,
+            [offerId]
+        );
+        if (!offer) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Accepted offer not found." });
+        }
+
+        const [[delivery]] = await conn.query(
+            `SELECT delivery_id, volunteer_id FROM Delivery 
+             WHERE offer_id = ? AND delivery_status = 'completed' LIMIT 1`,
+            [offerId]
+        );
+        if (!delivery) {
+            await conn.rollback();
+            return res.status(404).json({ error: "No completed delivery found for this offer." });
+        }
+
+        const today = new Date().toISOString().slice(0,10);
+
+        // 2. Insert donor rating (volunteer_id = NULL)
+        await conn.query(
+            `INSERT INTO Feedback_and_rating 
+             (rating, comment, feedback_date, given_by, donor_id, volunteer_id, receiver_id, delivery_id)
+             VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+            [donorRating, comment || null, today, userId, offer.donor_id, offer.receiver_id, delivery.delivery_id]
+        );
+
+        // 3. Insert volunteer rating (donor_id = NULL)
+        await conn.query(
+            `INSERT INTO Feedback_and_rating 
+             (rating, comment, feedback_date, given_by, donor_id, volunteer_id, receiver_id, delivery_id)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+            [volunteerRating, comment || null, today, userId, delivery.volunteer_id, offer.receiver_id, delivery.delivery_id]
+        );
+
+        await conn.commit();
+        res.status(200).json({ message: "Thank you for your feedback!" });
+    } catch (err) {
+        await conn.rollback();
+        console.error("Feedback error:", err);
+        res.status(500).json({ error: "Failed to submit feedback." });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+
+
+// ==============================================================
+// ──────────────── RECEIVER HISTORY API ────────────────────────
+// ==============================================================
+// ──── 15. Get Receiver History (completed deliveries) ────
+// Returns list of past received donations with donor info, quantity, delivered date,
+// and a flag indicating whether feedback has already been given.
+app.get("/api/receiver/history/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [[receiver]] = await pool.query(
+            "SELECT receiver_id FROM Receiver WHERE user_id = ?",
+            [userId]
+        );
+        if (!receiver) {
+            return res.status(404).json({ error: "Receiver not found." });
+        }
+        const receiverId = receiver.receiver_id;
+
+        const [history] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name                     AS title,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                u.name                           AS donor_name,
+                d.donor_id,
+                del.delivery_id,
+                del.delivery_status,
+                del.delivery_time                AS delivered_date,  -- using delivery_time as completion timestamp
+                EXISTS(
+                    SELECT 1 FROM Feedback_and_rating fr
+                    WHERE fr.delivery_id = del.delivery_id
+                      AND fr.given_by = ?
+                ) AS feedback_given
+            FROM Delivery del
+            JOIN Food_offer fo ON fo.offer_id = del.offer_id
+            JOIN Donor d       ON d.donor_id  = fo.donor_id
+            JOIN User u        ON u.user_id   = d.user_id
+            WHERE fo.receiver_id = ?
+              AND del.delivery_status = 'completed'
+            ORDER BY del.delivery_time DESC
+        `, [userId, receiverId]);
+
+        const formattedHistory = history.map(row => ({
+            ...row,
+            quantity: row.quantity_by_kg ? `${row.quantity_by_kg} kg` : (row.number_of_person ? `${row.number_of_person} portions` : '—'),
+            delivered_date: row.delivered_date ? new Date(row.delivered_date).toLocaleString() : '—'
+        }));
+
+        res.status(200).json(formattedHistory);
+    } catch (err) {
+        console.error("Fetch history error:", err);
+        res.status(500).json({ error: "Failed to load receiving history." });
+    }
+});
+
+
+
+
+
+// ==============================================================
+// ──────────────── RECEIVER NOTIFICATIONS API ──────────────────
+// ==============================================================
+
+// ──── 16. Get all notifications for a receiver ────
+// GET /api/receiver/notifications/:userId?status=all|unread
+// Returns all notifications for the user, ordered by date DESC.
+// This is a new endpoint because the dashboard only returns the latest 10.
+app.get("/api/receiver/notifications/:userId", async (req, res) => {
+    const { userId } = req.params;
+    const { status } = req.query; // 'all' (default) or 'unread'
+
+    try {
+        let query = `
+            SELECT
+                notification_id,
+                message_title AS title,
+                message,
+                type,
+                read_at,
+                date
+            FROM Notifications
+            WHERE user_id = ?
+        `;
+        const params = [userId];
+
+        if (status === 'unread') {
+            query += ` AND read_at IS NULL`;
+        }
+
+        query += ` ORDER BY date DESC`;
+
+        const [notifications] = await pool.query(query, params);
+        res.status(200).json(notifications);
+    } catch (err) {
+        console.error("Fetch notifications error:", err);
+        res.status(500).json({ error: "Failed to load notifications." });
+    }
+});
+
+// ──── 17. Mark all notifications as read for a receiver ────
+// POST /api/receiver/notifications/mark-all-read/:userId
+// Sets read_at = NOW() for all unread notifications of this user.
+// This is a new convenience endpoint to avoid multiple PATCH requests.
+app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [result] = await pool.query(
+            `UPDATE Notifications
+             SET read_at = NOW()
+             WHERE user_id = ? AND read_at IS NULL`,
+            [userId]
+        );
+
+        res.status(200).json({
+            message: `${result.affectedRows} notification(s) marked as read.`
+        });
+    } catch (err) {
+        console.error("Mark all read error:", err);
+        res.status(500).json({ error: "Failed to mark notifications as read." });
+    }
+});
 
 
 

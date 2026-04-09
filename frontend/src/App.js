@@ -25,6 +25,10 @@ import ReceiverDashboard from './Pages/Receiver/ReceiverDashboard';
 import ReceiverProfile from './Pages/Receiver/ReceiverProfile';
 import ReceiverBrowseOffers from './Pages/Receiver/ReceiverBrowseOffers';
 import ReceiverOfferDetails from './Pages/Receiver/ReceiverOfferDetails';
+import ReceiverAcceptedOffers from './Pages/Receiver/ReceiverAcceptedOffers';
+import ReceiverHistory from './Pages/Receiver/ReceiverHistory';
+import ReceiverNotifications from './Pages/Receiver/ReceiverNotifications';
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -108,6 +112,39 @@ function App() {
                     element={
                         <ProtectedRoute requiredRole="Receiver">
                             <ReceiverOfferDetails />
+                        </ProtectedRoute>
+                    }
+                />
+
+
+                {/* ── My Accepted Offers Page ── */}
+                <Route
+                    path="/receiver-accepted"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverAcceptedOffers />
+                        </ProtectedRoute>
+                    }
+                />
+
+
+                {/* ── Receiver History Page ── */}
+                <Route
+                    path="/receiver-history"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverHistory />
+                        </ProtectedRoute>
+                    }
+                />
+
+
+                {/* ── Receiver Notifications Page ── */}
+                <Route
+                    path="/receiver-notifications"
+                    element={
+                        <ProtectedRoute requiredRole="Receiver">
+                            <ReceiverNotifications />
                         </ProtectedRoute>
                     }
                 />
