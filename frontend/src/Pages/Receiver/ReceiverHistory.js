@@ -7,10 +7,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverDashboard.css';
-import '../../Styles/Receiver/ReceiverAcceptedOffers.css'; // reuse table styles
-import '../../Styles/Receiver/ReceiverHistory.css';        // additional custom styles
+import '../../Styles/Receiver/ReceiverAcceptedOffers.css';
+import '../../Styles/Receiver/ReceiverHistory.css';
 
-// MUI Icons
 import HistoryIcon from '@mui/icons-material/History';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -21,15 +20,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 
-// Helper: format date
 const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString();
 };
 
-// ==============================================================
-// RateExperienceModal (same as in ReceiverAcceptedOffers)
-// ==============================================================
 const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName, volunteerName }) => {
     const [donorRating, setDonorRating] = useState(5);
     const [volunteerRating, setVolunteerRating] = useState(5);
@@ -81,9 +76,9 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                         <div className="ram-stars">
                             {[1,2,3,4,5].map(star => (
                                 <span key={star} className="ram-star"
-                                      onClick={() => setVolunteerRating(star)}
-                                      onMouseEnter={() => setHoverVolunteer(star)}
-                                      onMouseLeave={() => setHoverVolunteer(0)}>
+                                    onClick={() => setVolunteerRating(star)}
+                                    onMouseEnter={() => setHoverVolunteer(star)}
+                                    onMouseLeave={() => setHoverVolunteer(0)}>
                                     {star <= (hoverVolunteer || volunteerRating) ?
                                         <StarIcon sx={{ color: '#f5b042' }} /> :
                                         <StarBorderIcon sx={{ color: '#ccc' }} />}
@@ -94,8 +89,8 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                     <div className="ram-comment">
                         <label>Comment (optional)</label>
                         <textarea rows="3" value={comment}
-                                  onChange={(e) => setComment(e.target.value)}
-                                  placeholder="Share your experience..." />
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Share your experience..." />
                     </div>
                 </div>
                 <div className="ram-modal-footer">
@@ -107,9 +102,6 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
     );
 };
 
-// ==============================================================
-// Main Component
-// ==============================================================
 const ReceiverHistory = () => {
     const navigate = useNavigate();
     const [user] = useState(() => {
@@ -117,18 +109,16 @@ const ReceiverHistory = () => {
         return stored ? JSON.parse(stored) : null;
     });
     const userId = user?.user_id;
-    const firstName = user?.name?.split(' ')[0] || 'Receiver';
+    const organizationName = user?.name || 'Receiver';
 
-    // State
-    const [profileStats, setProfileStats] = useState(null);   // from profile API
-    const [history, setHistory] = useState([]);               // completed deliveries
+    const [profileStats, setProfileStats] = useState(null);
+    const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [actionLoading, setActionLoading] = useState(null);
     const [feedbackOffer, setFeedbackOffer] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Fetch profile stats (reuse existing API)
     const fetchProfileStats = useCallback(async () => {
         if (!userId) return;
         try {
@@ -146,7 +136,6 @@ const ReceiverHistory = () => {
         }
     }, [userId]);
 
-    // Fetch history (new endpoint)
     const fetchHistory = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
@@ -171,13 +160,11 @@ const ReceiverHistory = () => {
         fetchHistory();
     }, [userId, navigate, fetchProfileStats, fetchHistory]);
 
-    // Open feedback modal
     const openFeedbackModal = (item) => {
         setFeedbackOffer(item);
         setIsModalOpen(true);
     };
 
-    // Submit feedback (reuse existing endpoint)
     const submitFeedback = async (donorRating, volunteerRating, comment) => {
         if (!feedbackOffer) return;
         setActionLoading(feedbackOffer.offer_id);
@@ -196,7 +183,6 @@ const ReceiverHistory = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Feedback failed');
             alert('Thank you for your feedback!');
-            // Refresh history to update feedback_given flag
             fetchHistory();
         } catch (err) {
             alert(err.message);
@@ -219,7 +205,7 @@ const ReceiverHistory = () => {
     if (loading) {
         return (
             <div className="rdb-layout">
-                <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="history" />
+                <ReceiverSidebar onLogout={handleLogout} activePage="history" />
                 <main className="rdb-main">
                     <div className="rdb-loading-screen">
                         <div className="rdb-spinner" />
@@ -233,7 +219,7 @@ const ReceiverHistory = () => {
     if (error) {
         return (
             <div className="rdb-layout">
-                <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="history" />
+                <ReceiverSidebar onLogout={handleLogout} activePage="history" />
                 <main className="rdb-main">
                     <div className="rdb-error-screen">
                         <p className="rdb-error-msg">{error}</p>
@@ -246,13 +232,12 @@ const ReceiverHistory = () => {
 
     return (
         <div className="rdb-layout">
-            <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="history" />
+            <ReceiverSidebar onLogout={handleLogout} activePage="history" />
 
             <main className="rdb-main">
-                {/* Banner */}
                 <div className="rdb-banner rob-banner rao-banner rh-banner">
                     <div className="rdb-banner-text">
-                        <p className="rdb-banner-greeting">Welcome back, {firstName}</p>
+                        <p className="rdb-banner-greeting">Welcome back, {organizationName}</p>
                         <h1 className="rdb-banner-title">Receiving History</h1>
                         <p className="rdb-banner-subtitle">Review your past received donations</p>
                         <div className="rao-date-badge">{formattedDate}</div>
@@ -266,7 +251,6 @@ const ReceiverHistory = () => {
                     </div>
                 </div>
 
-                {/* Stats Row (reused from profile API) */}
                 <div className="rdb-stats-row">
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--blue">
@@ -308,7 +292,6 @@ const ReceiverHistory = () => {
                     </div>
                 </div>
 
-                {/* Table of Past Received Donations */}
                 <div className="rao-table-container">
                     <h3 className="rh-table-title">Past Received Donations</h3>
                     <table className="rao-table">
@@ -361,7 +344,6 @@ const ReceiverHistory = () => {
                 </div>
             </main>
 
-            {/* Feedback Modal (reused from Accepted page) */}
             <RateExperienceModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}

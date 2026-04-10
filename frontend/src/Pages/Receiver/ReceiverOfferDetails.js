@@ -1,7 +1,6 @@
 // ============================================================
 //  FeedHope — Omar & Hanan
 //  Pages/Receiver/ReceiverOfferDetails.js
-//  Displays full offer details 
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -10,7 +9,6 @@ import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverOfferDetails.css';
 import '../../Styles/Receiver/ReceiverBrowseOffers.css';
 
-// MUI Icons
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -23,9 +21,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import NoMealsIcon from '@mui/icons-material/NoMeals';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import PeopleIcon from '@mui/icons-material/People'; // new icon for portions
+import PeopleIcon from '@mui/icons-material/People';
 
-// Helpers
 const formatDate = (dt) => {
   if (!dt) return 'N/A';
   return new Date(dt).toLocaleDateString('en-US', {
@@ -46,7 +43,8 @@ const ReceiverOfferDetails = () => {
   const { offerId } = useParams();
   const stored = localStorage.getItem('feedhope_user');
   const user = stored ? JSON.parse(stored) : null;
-  const firstName = user?.name?.split(' ')[0] || 'Receiver';
+
+  const organizationName = user?.name || 'Receiver';
 
   const [offer, setOffer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +121,7 @@ const ReceiverOfferDetails = () => {
   if (loading) {
     return (
       <div className="rdb-layout">
-        <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="browse" />
+        <ReceiverSidebar onLogout={handleLogout} activePage="browse" />
         <main className="rdb-main">
           <div className="rdb-loading-screen">
             <div className="rdb-spinner" />
@@ -137,7 +135,7 @@ const ReceiverOfferDetails = () => {
   if (error || !offer) {
     return (
       <div className="rdb-layout">
-        <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="browse" />
+        <ReceiverSidebar onLogout={handleLogout} activePage="browse" />
         <main className="rdb-main">
           <div className="rdb-error-screen">
             <p className="rdb-error-msg">{error || 'Offer not found.'}</p>
@@ -153,13 +151,12 @@ const ReceiverOfferDetails = () => {
 
   return (
     <div className="rdb-layout">
-      <ReceiverSidebar onLogout={handleLogout} unreadCount={0} activePage="browse" />
+      <ReceiverSidebar onLogout={handleLogout} activePage="browse" />
 
       <main className="rdb-main">
-        {/* Banner – stat now shows number of portions */}
         <div className="rdb-banner rob-banner">
           <div className="rdb-banner-text">
-            <p className="rdb-banner-greeting">Welcome back, {firstName}</p>
+            <p className="rdb-banner-greeting">Welcome back, {organizationName}</p>
             <h1 className="rdb-banner-title">Offer Details</h1>
             <p className="rdb-banner-subtitle">
               Review the complete information and accept this donation.
@@ -174,13 +171,11 @@ const ReceiverOfferDetails = () => {
           </div>
         </div>
 
-        {/* Back button */}
         <button className="rod-back-btn" onClick={() => navigate('/receiver-browse')}>
           <ArrowBackIcon sx={{ fontSize: 16 }} />
           Back to Browse
         </button>
 
-        {/* Detail Card */}
         <div className="rob-card rod-detail-card">
           <div className="rob-card-body">
             <div className="rod-card-header">
@@ -216,7 +211,6 @@ const ReceiverOfferDetails = () => {
                 <span className="rod-meta-label">Quantity (KG)</span>
                 <span className="rod-meta-value">{offer.quantity_by_kg ? `${offer.quantity_by_kg} KG` : '—'}</span>
               </div>
-              {/* NEW: Number of persons / portions */}
               <div className="rod-meta-item">
                 <PeopleIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
                 <span className="rod-meta-label">Portions</span>

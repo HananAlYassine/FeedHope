@@ -1,4 +1,3 @@
-
 // ============================================================
 //  FeedHope — Omar & Hanan — Pages/Receiver/ReceiverProfile.js
 // ============================================================
@@ -24,7 +23,10 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 // Helpers
+// Gets first letter of name → used for avatar
 const getInitial = (name = '') => name.trim().charAt(0).toUpperCase() || '?';
+
+// Converts date → "Oct 2023" format
 const formatMonthYear = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -35,12 +37,12 @@ const ReceiverProfile = () => {
     const navigate = useNavigate();
 
     // --- user stored in state to avoid re‑reading localStorage on every render
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null); // stores logged-in user
 
-    const [profile, setProfile] = useState(null);
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [profile, setProfile] = useState(null); // stores profile data
+    const [stats, setStats] = useState(null); // stores stats
+    const [loading, setLoading] = useState(true); // loading spinner
+    const [error, setError] = useState(null); // error message
 
     // Edit modal state
     const [showEditModal, setShowEditModal] = useState(false);
@@ -62,27 +64,33 @@ const ReceiverProfile = () => {
 
     // --- Load user from localStorage once
     useEffect(() => {
+        // get user from localStorage
         const storedUser = localStorage.getItem('feedhope_user');
+
+        // If NOT logged in: redirect to login page
         if (!storedUser) {
             navigate('/signin');
             return;
         }
+        // Save user in state
         setUser(JSON.parse(storedUser));
     }, [navigate]);
 
+
     // --- Fetch profile when user becomes available
     useEffect(() => {
-        if (!user) return;
+        if (!user) return; // Wait until user exists
 
         const fetchProfile = async () => {
             try {
                 setLoading(true);
-                const res = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`);
+                const res = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`); // Calls backend API
                 const data = await res.json();
                 if (!res.ok) {
                     setError(data.error || 'Failed to load profile.');
                     return;
                 }
+                // Saves data into state
                 setProfile(data.profile);
                 setStats(data.stats);
                 setEditForm({
@@ -106,19 +114,28 @@ const ReceiverProfile = () => {
     const handleOpenEdit = () => {
         setEditError('');
         setEditSuccess('');
-        setShowEditModal(true);
+        setShowEditModal(true); // open the modal
     };
     const handleCloseEdit = () => {
         setShowEditModal(false);
         setEditError('');
         setEditSuccess('');
     };
-    const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value })); // Updates input fields dynamically
 
     const handleEditSubmit = async () => {
         setEditError('');
         setEditSuccess('');
         setEditSaving(true);
+
+
+        const updatedUser = { ...user, name: editForm.name };
+        localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+
+        window.dispatchEvent(new Event('user-updated'));
+
+        // Sends updated data to backend
         try {
             const res = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`, {
                 method: 'PUT',
@@ -130,6 +147,8 @@ const ReceiverProfile = () => {
                 setEditError(data.error || 'Failed to save changes.');
                 return;
             }
+
+            // Updates UI instantly
             setProfile(prev => ({
                 ...prev,
                 name: editForm.name,
@@ -141,6 +160,8 @@ const ReceiverProfile = () => {
             setEditSuccess('Profile updated successfully!');
             // Update stored user name
             const updatedUser = { ...user, name: editForm.name };
+
+            // Keeps user data updated
             localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
             setUser(updatedUser); // keep state in sync
             setTimeout(() => handleCloseEdit(), 1200);
@@ -168,15 +189,18 @@ const ReceiverProfile = () => {
     const handlePwSubmit = async () => {
         setPwError('');
         setPwSuccess('');
+        // Check passwords match
         if (pwForm.newPassword !== pwForm.confirmPassword) {
             setPwError('New passwords do not match.');
             return;
         }
+        // Password rules
         if (pwForm.newPassword.length < 3 || pwForm.newPassword.length > 10) {
             setPwError('New password must be 3–10 characters long.');
             return;
         }
         setPwSaving(true);
+        // Backend handles hashing
         try {
             const res = await fetch(`http://localhost:5000/api/receiver/change-password/${user.user_id}`, {
                 method: 'PUT',
@@ -205,7 +229,7 @@ const ReceiverProfile = () => {
         navigate('/signin');
     };
 
-    // Loading / error states
+    // Show loading screen
     if (loading) {
         return (
             <div className="rdb-loading-screen">
@@ -215,6 +239,7 @@ const ReceiverProfile = () => {
         );
     }
 
+    // Show error screen
     if (error) {
         return (
             <div className="rdb-error-screen">
@@ -223,8 +248,10 @@ const ReceiverProfile = () => {
         );
     }
 
+    /* If profile is null / undefined / not loaded yet DON’T render anything */
     if (!profile) return null;
 
+    // Use best available value
     const orgName = profile.organization_name || profile.name || '—';
     const orgType = profile.org_type || profile.business_type || '—';
     const phone = profile.phone_number || profile.contact_phone || '—';

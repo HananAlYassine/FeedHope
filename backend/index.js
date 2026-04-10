@@ -525,7 +525,6 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
 
         // ── Step 2: Count available food offers ──
         // "Available" = Food_offer rows with status 'available'
-        // For now this is a platform-wide count; later you can filter by location/category
         const [[{ availableCount }]] = await pool.query(`
             SELECT COUNT(*) AS availableCount
             FROM Food_offer
@@ -644,7 +643,7 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // 1️⃣ Get the actual receiver_id from the Receiver table using the user_id
+        // 1 - Get the actual receiver_id from the Receiver table using the user_id
         const [[receiver]] = await conn.query(
             "SELECT receiver_id FROM Receiver WHERE user_id = ?",
             [userId]
@@ -655,7 +654,7 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
         }
         const receiverId = receiver.receiver_id;
 
-        // 2️⃣ Verify the offer exists and is still available
+        // 2 - Verify the offer exists and is still available
         const [[offer]] = await conn.query(
             "SELECT * FROM Food_offer WHERE offer_id = ? AND status = 'available'",
             [offerId]
@@ -665,16 +664,16 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
             return res.status(400).json({ error: "Offer is no longer available." });
         }
 
-        // 3️⃣ Update the offer with the correct receiver_id
+        // 3 - Update the offer with the correct receiver_id
         await conn.query(
             "UPDATE Food_offer SET receiver_id = ?, status = 'accepted' WHERE offer_id = ?",
             [receiverId, offerId]
         );
 
-        // 4️⃣ Notify the receiver (optional but good practice)
+        // 4 - Notify the receiver
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id)
-             VALUES ('Offer Accepted', ?, 'offer_accepted', ?)`,
+            VALUES ('Offer Accepted', ?, 'offer_accepted', ?)`,
             [`You have successfully accepted the offer: "${offer.food_name}"`, userId]
         );
 
@@ -691,35 +690,10 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
 });
 
 
-
-// ──── 11. Mark Notification as Read ────
-// Called when the user clicks on a notification.
-app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) => {
-    const { notificationId } = req.params;
-
-    try {
-        // Set read_at to the current time, meaning the notification is now read
-        await pool.query(
-            "UPDATE Notifications SET read_at = NOW() WHERE notification_id = ?",
-            [notificationId]
-        );
-        res.status(200).json({ message: "Notification marked as read." });
-    } catch (err) {
-        console.error("Notification read error:", err);
-        res.status(500).json({ error: "Failed to update notification." });
-    }
-});
-
-
-
-
 // ==============================================================
 // ──────────────── RECEIVER Profile API ──────────────────────
 // ==============================================================
 
-// ==============================================================
-// ──── GET /api/receiver/profile/:userId ───────────────────────
-// ==============================================================
 app.get("/api/receiver/profile/:userId", async (req, res) => {
     const { userId } = req.params;
 
@@ -784,7 +758,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             AND fo.status IN ('accepted', 'completed')
         `, [profile.receiver_id]);
 
-        // ── Return everything ──
+        // ──── Return everything ────
         res.status(200).json({
             profile,
             stats: {
@@ -829,8 +803,8 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 
         // ── Update the Receiver org type ──
         await conn.query(
-            "UPDATE Receiver SET business_type = ? WHERE user_id = ?",
-            [org_type, userId]
+            "UPDATE Receiver SET business_type = ?, organization_name = ? WHERE user_id = ?",
+            [org_type, name, userId]
         );
 
         // ── Update the Address (first address linked to this user) ──
@@ -839,7 +813,7 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
             [street, userId]
         );
 
-        // ── Log the change ──
+        // ──── Log the change ────
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Profile Update', 'Receiver updated their profile information', userId]
@@ -858,8 +832,8 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 });
 
 
-// ==============================================================
-// ──── PUT /api/receiver/change-password/:userId ───────────────
+// =====================================================================
+// ──── PUT /api/receiver/change-password/:userId (Change Password)────
 //
 //  Verifies the user's current password with bcrypt, then
 //  hashes and stores the new password.
@@ -867,7 +841,7 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 //  Password rules (same as registration):
 //  • Minimum 3 characters
 //  • Maximum 10 characters
-// ==============================================================
+// =====================================================================
 app.put("/api/receiver/change-password/:userId", async (req, res) => {
     const { userId }                       = req.params;
     const { currentPassword, newPassword } = req.body;
@@ -890,7 +864,7 @@ app.put("/api/receiver/change-password/:userId", async (req, res) => {
             return res.status(404).json({ error: "User not found." });
         }
 
-        // ── Verify the current password matches the stored hash ──
+        // ──── Verify the current password matches the stored hash ────
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) {
             return res.status(401).json({ error: "Current password is incorrect." });
@@ -1143,8 +1117,8 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
         // Perform cancellation: make offer available again (keep receiver_id)
         const [result] = await conn.query(
             `UPDATE Food_offer
-             SET status = 'available'
-             WHERE offer_id = ? AND receiver_id = ? AND status = 'accepted'`,
+            SET status = 'available'
+            WHERE offer_id = ? AND receiver_id = ? AND status = 'accepted'`,
             [offerId, correctReceiverId]
         );
 
@@ -1155,19 +1129,19 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
 
         // Notify the donor
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id)
-             SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id
-             FROM Food_offer fo
-             JOIN Donor d ON d.donor_id = fo.donor_id
-             JOIN User u ON u.user_id = d.user_id
-             WHERE fo.offer_id = ?`,
+        `INSERT INTO Notifications (message_title, message, type, user_id)
+            SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id
+            FROM Food_offer fo
+            JOIN Donor d ON d.donor_id = fo.donor_id
+            JOIN User u ON u.user_id = d.user_id
+            WHERE fo.offer_id = ?`,
             [offer.food_name, offerId]
         );
 
         // Notify the receiver
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id)
-             VALUES ('Offer Cancelled', 'You have cancelled an offer. The donor has been notified, and the offer is now available for others.', 'cancellation', ?)`,
+            VALUES ('Offer Cancelled', 'You have cancelled an offer. The donor has been notified, and the offer is now available for others.', 'cancellation', ?)`,
             [userId]
         );
 
@@ -1374,14 +1348,6 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
         res.status(500).json({ error: "Failed to mark notifications as read." });
     }
 });
-
-
-
-
-
-
-
-
 
 
 

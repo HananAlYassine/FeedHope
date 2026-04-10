@@ -1,6 +1,5 @@
 // ==============================================================
 //  FeedHope — Omar & Hanan — Pages/Receiver/ReceiverNotifications.js
-//  Notifications page with filter and mark-all-read functionality
 // ==============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -9,7 +8,6 @@ import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 import '../../Styles/Receiver/ReceiverNotifications.css';
 
-// MUI Icons
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
@@ -17,7 +15,6 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CancelIcon from '@mui/icons-material/Cancel';
 import InfoIcon from '@mui/icons-material/Info';
 
-// Helper: format relative time
 const formatNotificationDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -34,7 +31,6 @@ const formatNotificationDate = (dateStr) => {
     return date.toLocaleDateString();
 };
 
-// Map notification type to an icon
 const getNotificationIcon = (type) => {
     switch (type) {
         case 'offer_accepted': return <RestaurantMenuIcon fontSize="small" />;
@@ -51,16 +47,15 @@ const ReceiverNotifications = () => {
         return stored ? JSON.parse(stored) : null;
     });
     const userId = user?.user_id;
-    const firstName = user?.name?.split(' ')[0] || 'Receiver';
+    const organizationName = user?.name || 'Receiver';
 
     const [notifications, setNotifications] = useState([]);
-    const [filter, setFilter] = useState('all'); // 'all' or 'unread'
+    const [filter, setFilter] = useState('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [markingAll, setMarkingAll] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    // Fetch notifications based on current filter
     const fetchNotifications = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
@@ -71,7 +66,6 @@ const ReceiverNotifications = () => {
             const data = await res.json();
             setNotifications(data);
             
-            // Also fetch the unread count for the sidebar badge
             const unreadRes = await fetch(`http://localhost:5000/api/receiver/notifications/${userId}?status=unread`);
             const unreadData = await unreadRes.json();
             setUnreadCount(unreadData.length);
@@ -90,25 +84,24 @@ const ReceiverNotifications = () => {
         fetchNotifications();
     }, [userId, navigate, fetchNotifications]);
 
-    // Mark a single notification as read (optimistic update)
     const markAsRead = async (notificationId) => {
         try {
             await fetch(`http://localhost:5000/api/receiver/notifications/${notificationId}/read`, {
                 method: 'PATCH'
             });
-            // Update local state
             setNotifications(prev =>
                 prev.map(n =>
                     n.notification_id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
                 )
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
+            // Notify sidebar to refresh its badge
+            window.dispatchEvent(new Event('notification-read'));
         } catch (err) {
             console.error("Mark as read error:", err);
         }
     };
 
-    // Mark all notifications as read
     const markAllAsRead = async () => {
         if (markingAll) return;
         setMarkingAll(true);
@@ -117,8 +110,8 @@ const ReceiverNotifications = () => {
                 method: 'POST'
             });
             if (!res.ok) throw new Error('Failed to mark all as read');
-            // Refresh notifications (re-fetch with current filter)
             await fetchNotifications();
+            window.dispatchEvent(new Event('notification-read'));
         } catch (err) {
             alert(err.message);
         } finally {
@@ -142,7 +135,7 @@ const ReceiverNotifications = () => {
     if (loading && notifications.length === 0) {
         return (
             <div className="rdb-layout">
-                <ReceiverSidebar onLogout={handleLogout} unreadCount={unreadCount} activePage="notifications" />
+                <ReceiverSidebar onLogout={handleLogout} activePage="notifications" />
                 <main className="rdb-main">
                     <div className="rdb-loading-screen">
                         <div className="rdb-spinner" />
@@ -156,7 +149,7 @@ const ReceiverNotifications = () => {
     if (error) {
         return (
             <div className="rdb-layout">
-                <ReceiverSidebar onLogout={handleLogout} unreadCount={unreadCount} activePage="notifications" />
+                <ReceiverSidebar onLogout={handleLogout} activePage="notifications" />
                 <main className="rdb-main">
                     <div className="rdb-error-screen">
                         <p className="rdb-error-msg">{error}</p>
@@ -169,13 +162,12 @@ const ReceiverNotifications = () => {
 
     return (
         <div className="rdb-layout">
-            <ReceiverSidebar onLogout={handleLogout} unreadCount={unreadCount} activePage="notifications" />
+            <ReceiverSidebar onLogout={handleLogout} activePage="notifications" />
 
             <main className="rdb-main">
-                {/* Banner */}
                 <div className="rdb-banner rn-banner">
                     <div className="rdb-banner-text">
-                        <p className="rdb-banner-greeting">Welcome back, {firstName}</p>
+                        <p className="rdb-banner-greeting">Welcome back, {organizationName}</p>
                         <h1 className="rdb-banner-title">Notifications</h1>
                         <p className="rdb-banner-subtitle">Stay updated on available food and deliveries</p>
                         <div className="rn-date-badge">{formattedDate}</div>
@@ -189,7 +181,6 @@ const ReceiverNotifications = () => {
                     </div>
                 </div>
 
-                {/* Filter and Action Bar */}
                 <div className="rn-filter-bar">
                     <div className="rn-filter-buttons">
                         <button
@@ -215,7 +206,6 @@ const ReceiverNotifications = () => {
                     </button>
                 </div>
 
-                {/* Notifications List */}
                 <div className="rn-list-container">
                     {displayedNotifications.length === 0 ? (
                         <div className="rn-empty-state">

@@ -21,8 +21,6 @@ import PlaceIcon           from '@mui/icons-material/Place';
 import AccessTimeIcon      from '@mui/icons-material/AccessTime';
 import ChevronRightIcon    from '@mui/icons-material/ChevronRight';
 import PeopleIcon          from '@mui/icons-material/People';
-
-// ✨ NEW: Import additional icons for dynamic notification types
 import CancelIcon          from '@mui/icons-material/Cancel';
 import InfoIcon            from '@mui/icons-material/Info';
 
@@ -38,7 +36,7 @@ const formatNotifDate = (dateStr) => {
     return new Date(dateStr).toLocaleString();
 };
 
-// ✨ NEW: Map notification type to icon (same as Notifications page)
+// Map notification type to icon (same as Notifications page)
 const getNotificationIcon = (type) => {
     switch (type) {
         case 'offer_accepted': return <RestaurantMenuIcon fontSize="small" />;
@@ -57,12 +55,14 @@ const ReceiverDashboard = () => {
     const storedUser = localStorage.getItem('feedhope_user');
     const user       = storedUser ? JSON.parse(storedUser) : null;
 
-    const [dashboardData, setDashboardData] = useState(null);
-    const [loading,       setLoading]       = useState(true);
-    const [error,         setError]         = useState(null);
+    const [dashboardData, setDashboardData] = useState(null); // used to display values
+    const [loading,       setLoading]       = useState(true); // show spinner
+    const [error,         setError]         = useState(null); // show error message
     const [accepting,     setAccepting]     = useState(null);
 
+    
     useEffect(() => {
+        // If there is no logged-in user Redirect them to Sign In page
         if (!user) {
             navigate('/signin');
             return;
@@ -70,55 +70,65 @@ const ReceiverDashboard = () => {
 
         const fetchDashboard = async () => {
             try {
-                setLoading(true);
+                setLoading(true); // We are loading data now
+                // Call the backend API
                 const res  = await fetch(`http://localhost:5000/api/receiver/dashboard/${user.user_id}`);
-                const data = await res.json();
+                const data = await res.json(); // Backend sends data → we convert it into usable JavaScript object.
+
+                // if something went wrong: 1. Show error message 2. Stop execution
                 if (!res.ok) {
                     setError(data.error || 'Failed to load dashboard.');
                     return;
                 }
-                setDashboardData(data);
+                setDashboardData(data);  // Store the API result in React state
             } catch (err) {
+                // If server is down or network fails: Show error message
                 setError('Could not connect to the server. Make sure the backend is running.');
             } finally {
-                setLoading(false);
+                setLoading(false); // Stop loading
             }
         };
 
-        fetchDashboard();
+        fetchDashboard(); // Call the function
     }, []);
 
+    // This function runs when the user clicks "Accept Offer"
     const handleAcceptOffer = async (offerId) => {
-        setAccepting(offerId);
+        setAccepting(offerId); // This specific offer is being accepted now
         try {
             const res  = await fetch('http://localhost:5000/api/receiver/accept-offer', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({
                     offerId,
-                    receiverId: dashboardData.receiver.receiver_id
+                    userId: user.user_id
                 })
             });
-            const data = await res.json();
+            const data = await res.json(); // Convert backend response to JS object
             if (res.ok) {
                 const refreshRes  = await fetch(`http://localhost:5000/api/receiver/dashboard/${user.user_id}`);
                 const refreshData = await refreshRes.json();
-                if (refreshRes.ok) setDashboardData(refreshData);
+                if (refreshRes.ok) setDashboardData(refreshData); //re-render UI with new data
             } else {
                 alert(data.error || 'Could not accept offer.');
             }
         } catch {
             alert('Network error. Please try again.');
         } finally {
-            setAccepting(null);
+            setAccepting(null); // Reset loading state
         }
     };
 
+    // This logs the user out completely
     const handleLogout = () => {
         localStorage.removeItem('feedhope_user');
         navigate('/signin');
     };
 
+    /* If data is still loading:
+        Show spinner
+        Show message: Loading your dashboard…
+        Prevents empty or broken UI */
     if (loading) {
         return (
             <div className="rdb-loading-screen">
@@ -128,25 +138,34 @@ const ReceiverDashboard = () => {
         );
     }
 
+    /* If something went wrong:
+        Show error message
+        Show retry button */
     if (error) {
         return (
             <div className="rdb-error-screen">
                 <p className="rdb-error-msg">{error}</p>
-                <button className="rdb-retry-btn" onClick={() => window.location.reload()}>
+                <button className="rdb-retry-btn" onClick={() => window.location.reload()}> 
                     Retry
-                </button>
+                </button> 
             </div>
         );
     }
 
+    /*  Extracting data from state
+    What each one means:
+        receiver → user info
+        stats → numbers (meals, etc.)
+        offers → available offers
+        notifications → alerts/messages
+        acceptedOffers → offers user accepted
+    */
     const { receiver, stats, offers, notifications, acceptedOffers } = dashboardData;
-    const unreadCount = notifications.filter(n => !n.read_at).length;
-
+    
     return (
         <div className="rdb-layout">
             <ReceiverSidebar
                 onLogout={handleLogout}
-                unreadCount={unreadCount}
                 activePage="dashboard"
             />
 
@@ -175,7 +194,7 @@ const ReceiverDashboard = () => {
                     </button>
                 </div>
 
-                {/* Stats Row - unchanged */}
+                {/* Stats Row */}
                 <div className="rdb-stats-row">
                     <div className="rdb-stat-card">
                         <div className="rdb-stat-icon rdb-stat-icon--blue">
@@ -315,7 +334,7 @@ const ReceiverDashboard = () => {
                         </section>
                     </div>
 
-                    {/* RIGHT COLUMN - unchanged */}
+                    {/* RIGHT COLUMN  */}
                     <div className="rdb-col-right">
                         <section className="rdb-card">
                             <div className="rdb-card-header">
