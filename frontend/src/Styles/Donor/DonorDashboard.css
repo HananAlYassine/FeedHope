@@ -32,6 +32,33 @@
     --ddb-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 }
 
+/* The container for the unread notification */
+.ddb-notif-item.unread {
+    background-color: rgba(255, 165, 0, 0.05);
+    /* Very light orange background */
+    border-left: 4px solid #ff9800;
+    /* The "Orange Light" strip on the side */
+    position: relative;
+}
+
+/* Optional: An actual orange dot */
+.ddb-notif-item.unread::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 8px;
+    height: 8px;
+    background-color: #ff9800;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #ff9800;
+}
+
+.ddb-notif-unread .ddb-notif-title {
+    font-weight: bold;
+    color: #333;
+}
+
 body {
     background-color: var(--ddb-bg-page) !important;
     color: var(--ddb-text-main) !important;

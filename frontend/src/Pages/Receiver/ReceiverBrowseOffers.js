@@ -25,6 +25,7 @@ import EmojiFoodBeverageIcon  from '@mui/icons-material/EmojiFoodBeverage';
 import WarehouseIcon          from '@mui/icons-material/Warehouse';
 import ImageNotSupportedIcon  from '@mui/icons-material/ImageNotSupported';
 
+// Returns an icon based on the category name of the offer
 const getCategoryIcon = (categoryName) => {
   const name = categoryName?.toLowerCase() || '';
   if (name.includes('meal') || name.includes('prepared')) return <RestaurantIcon fontSize="small" />;
@@ -37,20 +38,38 @@ const getCategoryIcon = (categoryName) => {
   return <RestaurantIcon fontSize="small" />;
 };
 
+// Converts the expiration date of an offer into a readable date & time format
 const formatExpiry = (datetime) => {
   if (!datetime) return 'N/A';
   return new Date(datetime).toLocaleString();
 };
 
+
 const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
   const weight      = offer.quantity_by_kg ? `${offer.quantity_by_kg} kg` : '—';
   const portions    = offer.number_of_person || 0;
   const donorAddress = [offer.street, offer.city].filter(Boolean).join(', ') || 'Address not provided';
+  
+  // Format creation time
+  const formatTime = (datetime) => {
+    if (!datetime) return '—';
+    return new Date(datetime).toLocaleString();
+  };
 
   return (
     <article className="rob-card">
-      <div className="rob-card-img" style={{ background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <ImageNotSupportedIcon style={{ fontSize: 48, color: '#aaa' }} />
+      <div className="rob-card-img">
+        {offer.image_url ? (
+          <img 
+            src={`http://localhost:5000${offer.image_url}`} 
+            alt={offer.food_name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <div style={{ background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <ImageNotSupportedIcon style={{ fontSize: 48, color: '#aaa' }} />
+          </div>
+        )}
         <span className="rob-category-badge">
           {getCategoryIcon(offer.category_name)}
           {offer.category_name || 'General'}
@@ -69,14 +88,23 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
         </p>
         <p className="rob-offer-desc">{offer.description || 'No description provided'}</p>
 
-        <div className="rob-offer-meta">
+        {/* Row 1: Weight and Address side by side */}
+        <div className="rob-meta-row">
           <span className="rob-meta-item">
             <ScaleIcon sx={{ fontSize: 14 }} />
             {weight}
           </span>
-          <span className="rob-meta-item">
+          <span className="rob-meta-item rob-meta-address">
             <LocationOnIcon sx={{ fontSize: 14 }} />
             {donorAddress}
+          </span>
+        </div>
+
+        {/* Row 2: Posted and Expires – stacked vertically */}
+        <div className="rob-meta-stack">
+          <span className="rob-meta-item">
+            <EventIcon sx={{ fontSize: 14 }} />
+            Posted: {formatTime(offer.created_at)}
           </span>
           <span className="rob-meta-item rob-meta-item--expiry">
             <EventIcon sx={{ fontSize: 14 }} />
@@ -85,18 +113,11 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
         </div>
 
         <div className="rob-card-actions">
-          <button
-            className="rob-btn-details"
-            onClick={() => onDetails(offer.offer_id)}
-          >
+          <button className="rob-btn-details" onClick={() => onDetails(offer.offer_id)}>
             <InfoOutlinedIcon sx={{ fontSize: 16 }} />
             Details
           </button>
-          <button
-            className="rob-btn-accept"
-            onClick={() => onAccept(offer.offer_id)}
-            disabled={accepting === offer.offer_id}
-          >
+          <button className="rob-btn-accept" onClick={() => onAccept(offer.offer_id)} disabled={accepting === offer.offer_id}>
             <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />
             {accepting === offer.offer_id ? 'Accepting…' : 'Accept Offer'}
           </button>
@@ -105,6 +126,8 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
     </article>
   );
 };
+
+
 
 const ReceiverBrowseOffers = () => {
   const navigate = useNavigate();
@@ -175,7 +198,6 @@ const ReceiverBrowseOffers = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
-      alert('Offer accepted successfully!');
       fetchOffers();
     } catch (err) {
       alert(err.message);
@@ -185,7 +207,7 @@ const ReceiverBrowseOffers = () => {
   };
 
   const filteredOffers = offers.filter(offer => {
-    const matchesCat    = activeCategoryId === 'all' || offer.category_id === activeCategoryId;
+    const matchesCat    = activeCategoryId === 'all' || offer.category_id === Number(activeCategoryId);
     const q             = searchQuery.toLowerCase();
     const matchesSearch =
       offer.food_name?.toLowerCase().includes(q) ||

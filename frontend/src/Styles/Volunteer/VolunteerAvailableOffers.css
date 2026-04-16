@@ -1,0 +1,319 @@
+/* ==============================================================
+   FeedHope — Volunteer Available Offers Styles (Matches Dashboard)
+================================================================*/
+
+.vao-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #f4f6f8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.vao-main {
+    margin-left: 260px;
+    flex: 1;
+    padding: 24px 28px;
+    max-width: calc(100vw - 260px);
+}
+
+/* Header */
+.vao-header {
+    margin-bottom: 24px;
+}
+
+.vao-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 6px 0;
+}
+
+.vao-subtitle {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Search and Filter Bar */
+.vao-search-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.vao-search-input-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+.vao-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 20px;
+}
+
+.vao-search-input {
+    width: 100%;
+    padding: 10px 12px 10px 40px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    background: white;
+    transition: all 0.2s;
+}
+
+.vao-search-input:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.vao-filter-select {
+    padding: 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: white;
+    font-size: 0.9rem;
+    color: #1e293b;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+/* Success Message */
+.vao-success-message {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+
+/* Empty State */
+.vao-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.vao-empty-state p {
+    color: #64748b;
+    margin-bottom: 16px;
+}
+
+.vao-empty-state button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+}
+
+/* List Container */
+.vao-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+/* Card – matches dashboard card style */
+.vao-list-item {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    transition: box-shadow 0.2s;
+    border-left: 4px solid #1976d2;
+}
+
+.vao-list-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.vao-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.vao-item-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.vao-item-weight {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.vao-item-donor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+}
+
+.vao-item-description {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+}
+
+.vao-item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.vao-item-details span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.vao-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.vao-item-receiver {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.vao-item-receiver strong {
+    color: #334155;
+}
+
+.vao-accept-btn {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 40px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.vao-accept-btn:hover:not(:disabled) {
+    background: #0d47a1;
+}
+
+.vao-accept-btn:disabled {
+    background: #90caf9;
+    cursor: not-allowed;
+}
+
+/* Pagination */
+.vao-pagination-container {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.vao-pagination-text {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.vao-pagination-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.vao-page-arrow,
+.vao-page-number {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.vao-page-number.active {
+    background: #1976d2;
+    color: white;
+    border-color: #1976d2;
+}
+
+.vao-page-arrow:hover:not(:disabled),
+.vao-page-number:hover:not(.active) {
+    border-color: #1976d2;
+    color: #1976d2;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+    .vao-main {
+        margin-left: 0;
+        padding: 20px;
+        max-width: 100vw;
+    }
+}
+
+@media (max-width: 640px) {
+    .vao-search-bar {
+        flex-direction: column;
+    }
+
+    .vao-filter-select {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .vao-item-details {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .vao-item-footer {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .vao-pagination-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+}

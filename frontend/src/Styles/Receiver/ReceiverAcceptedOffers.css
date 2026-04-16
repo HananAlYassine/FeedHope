@@ -257,7 +257,6 @@
     background: #e0e0e0;
 }
 
-
 .rate-experience-modal {
     max-width: 500px;
 }
@@ -274,10 +273,31 @@
     margin-bottom: 8px;
     font-weight: 500;
 }
-.ram-btn-skip {
-    background: #f0f0f0;
-    color: #333;
+
+/* ========== NEW: Cancel Confirmation Modal Styles ========== */
+.confirm-cancel-modal {
+    max-width: 420px;
+    text-align: center;
 }
-.ram-btn-skip:hover {
-    background: #e0e0e0;
+.confirm-warning-icon {
+    margin-bottom: 16px;
+}
+.confirm-message {
+    font-size: 16px;
+    margin: 8px 0 4px;
+    color: #1e2a3a;
+}
+.confirm-submessage {
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-top: 8px;
+}
+.confirm-footer {
+    justify-content: center;
+}
+.confirm-btn-danger {
+    background: #c62828 !important;
+}
+.confirm-btn-danger:hover {
+    background: #b71c1c !important;
 }

@@ -6,18 +6,18 @@
 
 /* ── Sidebar container — fixed to the left edge of the viewport ── */
 .rsb-sidebar {
-    width:      240px;                /* Fixed width — same value as --rdb-sidebar-w */
-    min-height: 100vh;                /* Full viewport height */
-    background: #ffffff;              /* White background */
-    border-right: 1px solid #e0e0e0; /* Subtle right border to separate from main */
+    width:      240px;
+    min-height: 100vh;
+    background: #ffffff;
+    border-right: 1px solid #e0e0e0;
     display:    flex;
     flex-direction: column;
-    position:   fixed;                /* Stays in place while main content scrolls */
+    position:   fixed;
     top:    0;
     left:   0;
     bottom: 0;
     padding-bottom: 16px;
-    z-index: 100;                     /* Sits above the main content */
+    z-index: 100;
 }
 
 /* ── Logo row ────────────────────────────────────────────────── */
@@ -28,22 +28,20 @@
     padding:     20px 20px 18px;
     border-bottom: 1px solid #e0e0e0;
 }
-/* Green square icon next to the project name */
 .rsb-logo-icon {
     width:           36px;
     height:          36px;
-    background:      #2e7d32;         /* Primary green */
+    background:      #2e7d32;
     border-radius:   6px;
     display:         flex;
     align-items:     center;
     justify-content: center;
     flex-shrink:     0;
 }
-/* "FeedHope" text */
 .rsb-logo-text {
     font-size:   19px;
     font-weight: 800;
-    color:#1b5e20;
+    color: #1b5e20;
 }
 
 /* ── Role row (shows "Receiver" + switch button) ─────────────── */
@@ -59,7 +57,6 @@
     font-weight: 500;
     color:       #555;
 }
-/* Small avatar circle inside the role row */
 .rsb-role-avatar {
     width:           28px;
     height:          28px;
@@ -71,9 +68,7 @@
     color:           #555;
     flex-shrink:     0;
 }
-/* "Receiver" label text */
 .rsb-role-label { flex: 1; }
-/* Small icon-button on the right to switch roles */
 .rsb-role-switch {
     display:    flex;
     align-items: center;
@@ -88,23 +83,19 @@
 
 /* ── Navigation ──────────────────────────────────────────────── */
 .rsb-nav {
-    flex:       1;          /* Fills the space between role row and logout button */
+    flex:       1;
     padding:    4px 12px;
-    overflow-y: auto;       /* Scroll if there are many items */
+    overflow-y: auto;
 }
-
-/* Section heading (e.g. "OVERVIEW", "FOOD", "ACTIVITY") */
 .rsb-nav-label {
     font-size:      10.5px;
     font-weight:    600;
     letter-spacing: 0.07em;
     color:          #888;
     padding:        14px 8px 10px;
-    text-transform: uppercase; /* Make the labels all-caps */
+    text-transform: uppercase;
     display:        block;
 }
-
-/* Individual nav item button */
 .rsb-nav-item {
     display:       flex;
     align-items:   center;
@@ -117,25 +108,22 @@
     background:    none;
     border:        none;
     cursor:        pointer;
-    width:         100%;        /* Full width so the whole row is clickable */
+    width:         100%;
     text-align:    left;
     transition:    background 0.15s, color 0.15s;
-    position:      relative;    /* Needed for the badge absolute positioning */
+    position:      relative;
 }
 .rsb-nav-item:hover {
-    background: #e8f5e9;        /* Light green on hover */
+    background: #e8f5e9;
     color:      #2e7d32;
 }
-/* Active state — solid green background with white text */
 .rsb-nav-item--active {
     background: #2e7d32 !important;
     color:      #fff    !important;
 }
-
-/* Unread notification badge (red circle with a count) */
 .rsb-badge {
-    margin-left:     auto;       /* Push to the far right of the nav item */
-    background:      #e53935;   /* Red */
+    margin-left:     auto;
+    background:      #e53935;
     color:           #fff;
     font-size:       10px;
     font-weight:     700;
@@ -154,24 +142,33 @@
     align-items:   center;
     gap:           10px;
     margin:        0 12px;
-    padding:       9px 10px;
+    padding:       11px 10px;
     border-radius: 6px;
     font-size:     13.5px;
-    font-weight:   500;
-    color:         #555;
-    background:    none;
+    font-weight:   600;
+    color:         #b71c1c;
+    background:    #ffcdd2;
     border:        none;
     cursor:        pointer;
-    width:         calc(100% - 24px); /* Full width minus the 12px margin on each side */
+    width:         calc(100% - 24px);
     text-align:    left;
-    transition:    background 0.15s, color 0.15s;
+    transition:    background 0.2s ease, color 0.2s ease;
 }
 .rsb-logout:hover {
-    background: #ffebee;   /* Light red on hover */
-    color:      #c62828;   /* Dark red text on hover */
+    background: #ef9a9a;
+    color:      #b71c1c;
+}
+.rsb-logout:active {
+    background: #c62828 !important;
+    color:      #ffffff !important;
+    transform:   scale(0.98);
+}
+.rsb-logout:focus-visible {
+    outline: 2px solid #c62828;
+    outline-offset: 2px;
 }
 
-/* ── Mobile: hide sidebar (future: replace with hamburger) ────── */
+/* ── Mobile: hide sidebar ────────────────────────────────────── */
 @media (max-width: 768px) {
     .rsb-sidebar { display: none; }
 }

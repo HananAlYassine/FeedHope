@@ -284,7 +284,7 @@ const ReceiverRegister = () => {
 
                     <div className="reg-form-section">
                         <Link to="/" className="back-link">← Back to Home</Link>
-                        <h2 style={{ margin: '10px 0 5px', fontWeight: 800 }}>Receiver Registration</h2>
+                        <h2 style={{ margin: '10px 0 5px', fontWeight: 800 }}>Create Account</h2>
                         <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px' }}>Join our food rescue mission and make a difference today</p>
 
                         <span style={{ fontSize: '13px', fontWeight: 600 }}>I am a...</span>

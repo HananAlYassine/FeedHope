@@ -1,29 +1,14 @@
 /* ================================================================
     FeedHope — Omar & Hanan
     Styles/Receiver/ReceiverBrowseOffers.css
-
-    Styles for the Browse Offers page.
-    Extends / reuses the CSS variables and utility classes
-    defined in ReceiverDashboard.css (rdb-*) so the page
-    feels visually consistent with the rest of the Receiver section.
-    Page-specific classes use the "rob-" prefix.
 ================================================================ */
 
 /* ── Banner override: green → blue gradient (matches Dashboard) ── */
-/*
-    We reuse .rdb-banner from ReceiverDashboard.css but need a
-    slightly different hue for Browse Offers, so we layer a modifier
-    class (.rob-banner) on top that overrides just the gradient.
-*/
 .rob-banner {
     background: linear-gradient(135deg, #0d7e60 0%, #069a50 60%, #0e7e14 100%);
 }
 
 /* Stat pill on the right side of the banner ─────────────────── */
-/*
-    Shows the total number of available offers in a semi-transparent
-    pill to give a quick glance count.
-*/
 .rob-banner-stat {
     display:         flex;
     flex-direction:  column;
@@ -36,16 +21,12 @@
     flex-shrink:     0;
     z-index:         1;
 }
-
-/* Large bold number inside the stat pill */
 .rob-banner-stat-num {
     font-size:   36px;
     font-weight: 800;
     color:       #fff;
     line-height: 1;
 }
-
-/* Small label below the number */
 .rob-banner-stat-label {
     font-size: 12px;
     color:     rgba(255, 255, 255, 0.85);
@@ -53,12 +34,6 @@
 }
 
 /* ── Search + Filter Controls Bar ───────────────────────────── */
-/*
-    A flex row holding:
-      • The search input (grows to fill available space)
-      • The category dropdown (fixed width)
-    Sits just below the banner.
-*/
 .rob-controls {
     display:         flex;
     align-items:     center;
@@ -70,27 +45,21 @@
     padding:         14px 18px;
     box-shadow:      var(--rdb-shadow);
 }
-
-/* ── Search wrapper: positions the icon inside the input ─────── */
 .rob-search-wrap {
     position:   relative;
-    flex:        1;          /* Grows to fill remaining space */
+    flex:        1;
 }
-
-/* The search icon — absolutely positioned inside the input */
 .rob-search-icon {
     position:   absolute;
     left:       12px;
     top:        50%;
     transform:  translateY(-50%);
     color:      var(--rdb-text-muted);
-    pointer-events: none; /* Clicks pass through to the input */
+    pointer-events: none;
 }
-
-/* Search text input */
 .rob-search-input {
     width:         100%;
-    padding:       9px 14px 9px 40px;   /* 40px left padding makes room for the icon */
+    padding:       9px 14px 9px 40px;
     border:        1px solid var(--rdb-border);
     border-radius: var(--rdb-radius-sm);
     font-size:     14px;
@@ -100,22 +69,16 @@
     font-family:   inherit;
     transition:    border-color 0.15s, box-shadow 0.15s;
 }
-
 .rob-search-input::placeholder { color: var(--rdb-text-muted); }
-
 .rob-search-input:focus {
     border-color: var(--rdb-blue);
     box-shadow:   0 0 0 3px rgba(25, 118, 210, 0.1);
     background:   #fff;
 }
-
-/* ── Filter wrapper: positions the icon inside the select ─────── */
 .rob-filter-wrap {
     position:    relative;
     flex-shrink: 0;
 }
-
-/* The filter icon inside the select */
 .rob-filter-icon {
     position:       absolute;
     left:           12px;
@@ -124,10 +87,8 @@
     color:          var(--rdb-text-muted);
     pointer-events: none;
 }
-
-/* Category dropdown select */
 .rob-filter-select {
-    padding:         9px 14px 9px 36px; /* 36px left makes room for the icon */
+    padding:         9px 14px 9px 36px;
     border:          1px solid var(--rdb-border);
     border-radius:   var(--rdb-radius-sm);
     font-size:       14px;
@@ -140,7 +101,6 @@
     appearance:      auto;
     transition:      border-color 0.15s, box-shadow 0.15s;
 }
-
 .rob-filter-select:focus {
     border-color: var(--rdb-blue);
     box-shadow:   0 0 0 3px rgba(25, 118, 210, 0.1);
@@ -148,10 +108,6 @@
 }
 
 /* ── Results count hint ──────────────────────────────────────── */
-/*
-    A small muted line just above the cards that says
-    "Showing N offers in 'Category' matching 'query'"
-*/
 .rob-results-hint {
     font-size:     13px;
     color:         var(--rdb-text-muted);
@@ -164,39 +120,27 @@
 }
 
 /* ── Offer Cards Grid ────────────────────────────────────────── */
-/*
-    Responsive CSS grid:
-      • 3 columns on wide screens
-      • 2 columns on medium screens
-      • 1 column on mobile
-*/
 .rob-grid {
     display:               grid;
     grid-template-columns: repeat(3, 1fr);
     gap:                   20px;
-    align-items:           start;      /* Cards don't stretch to equal height */
+    align-items:           start;
 }
 
 /* ── Individual Offer Card ───────────────────────────────────── */
-/*
-    Each card is split into two halves:
-      • .rob-card-img  — top image area (fixed height, background-image)
-      • .rob-card-body — bottom details area
-*/
 .rob-card {
     background:    var(--rdb-bg-card);
     border-radius: var(--rdb-radius-md);
     border:        1px solid var(--rdb-border);
     box-shadow:    var(--rdb-shadow);
-    overflow:      hidden;               /* Keeps rounded corners on image */
+    overflow:      hidden;
     display:       flex;
     flex-direction: column;
     transition:    box-shadow 0.2s, transform 0.2s;
 }
-
 .rob-card:hover {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
-    transform:  translateY(-2px);       /* Subtle lift on hover */
+    transform:  translateY(-2px);
 }
 
 /* ── Top half: image / placeholder ──────────────────────────── */
@@ -205,11 +149,9 @@
     height:              200px;
     background-size:     cover;
     background-position: center;
-    position:            relative;     /* For absolute-positioned badges */
+    position:            relative;
     flex-shrink:         0;
 }
-
-/* ── Category badge: bottom-left of the image ─────────────────── */
 .rob-category-badge {
     position:      absolute;
     bottom:        10px;
@@ -226,8 +168,6 @@
     backdrop-filter: blur(4px);
     letter-spacing: 0.02em;
 }
-
-/* ── Portions badge: top-right of the image ─────────────────── */
 .rob-portions-badge {
     position:      absolute;
     top:           10px;
@@ -246,8 +186,6 @@
     box-shadow:    0 2px 8px rgba(0,0,0,0.18);
     line-height:   1.1;
 }
-
-/* Tiny "portions" label inside the portions badge circle */
 .rob-portions-label {
     font-size:   8.5px;
     font-weight: 600;
@@ -261,10 +199,8 @@
     display:        flex;
     flex-direction: column;
     gap:            8px;
-    flex:           1;               /* Fills remaining card height */
+    flex:           1;
 }
-
-/* Offer title */
 .rob-offer-title {
     font-size:   15.5px;
     font-weight: 700;
@@ -272,8 +208,6 @@
     margin:      0;
     line-height: 1.3;
 }
-
-/* Donor name row — icon + text */
 .rob-offer-donor {
     display:     flex;
     align-items: center;
@@ -282,8 +216,6 @@
     color:       var(--rdb-text-sub);
     margin:      0;
 }
-
-/* Description — clamp to 2 lines to keep cards uniform */
 .rob-offer-desc {
     font-size:         13px;
     color:             var(--rdb-text-muted);
@@ -295,33 +227,37 @@
     overflow:           hidden;
 }
 
-/* ── Meta grid (weight, location, posted, expiry) ────────────── */
-/*
-    A 2-column grid so the four meta chips sit in a tidy 2×2 layout.
-*/
-.rob-offer-meta {
-    display:               grid;
-    grid-template-columns: 1fr 1fr;
-    gap:                   5px 10px;
-    margin-top:            2px;
-}
-
-/* Individual meta chip */
-.rob-meta-item {
-    display:     flex;
+/* ── New meta layout ────────────────────────────────────────── */
+/* Row for weight + address (side by side) */
+.rob-meta-row {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap:         5px;
-    font-size:   12px;
-    color:       var(--rdb-text-muted);
-    white-space: nowrap;
-    overflow:    hidden;
-    text-overflow: ellipsis;
+    gap: 16px;
+    margin-top: 4px;
 }
-
-/* Expiry chip gets a warm orange tint to signal urgency */
+/* Stack for posted + expires (vertical) with separation from above */
+.rob-meta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;   /* Space between weight/address row and the stack */
+}
+.rob-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--rdb-text-muted);
+    white-space: nowrap;
+}
 .rob-meta-item--expiry {
-    color: var(--rdb-orange);
+    color: var(--rdb-orange, #e67e22);
     font-weight: 600;
+}
+.rob-meta-address {
+    white-space: normal;
+    word-break: break-word;
 }
 
 /* ── Action Buttons ──────────────────────────────────────────── */
@@ -330,8 +266,6 @@
     gap:       10px;
     margin-top: 10px;
 }
-
-/* "Details" — outlined secondary button */
 .rob-btn-details {
     display:       flex;
     align-items:   center;
@@ -350,14 +284,12 @@
     font-family:   inherit;
 }
 .rob-btn-details:hover { background: var(--rdb-bg-page); }
-
-/* "Accept Offer" — solid green primary button, fills remaining width */
 .rob-btn-accept {
     display:         flex;
     align-items:     center;
     justify-content: center;
     gap:             6px;
-    flex:            1;                /* Fills all remaining width */
+    flex:            1;
     padding:         9px 0;
     border-radius:   var(--rdb-radius-sm);
     font-size:       13.5px;
@@ -388,19 +320,13 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */
-
-/* Medium screens: 2 columns */
 @media (max-width: 1280px) {
     .rob-grid { grid-template-columns: repeat(2, 1fr); }
 }
-
-/* Tablets: stack controls vertically, keep 2 columns */
 @media (max-width: 1100px) {
     .rob-controls { flex-wrap: wrap; }
     .rob-filter-select { min-width: 160px; }
 }
-
-/* Mobile: single column, no sidebar */
 @media (max-width: 768px) {
     .rdb-main { margin-left: 0; padding: 16px; }
     .rob-grid  { grid-template-columns: 1fr; }
@@ -409,8 +335,6 @@
     .rob-filter-select { width: 100%; }
     .rob-banner-stat { width: 100%; text-align: center; }
 }
-
-
 
 .rob-dietary-info {
     display: flex;

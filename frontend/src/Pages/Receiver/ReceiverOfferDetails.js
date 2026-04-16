@@ -87,7 +87,7 @@ const ReceiverOfferDetails = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
-      alert('Offer accepted successfully!');
+      // alert('Offer accepted successfully!');
       fetchOffer();
     } catch (err) {
       alert(err.message);

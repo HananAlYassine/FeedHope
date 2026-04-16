@@ -40,7 +40,7 @@
     font-weight: 700;
     color: #1e2a3e;
     margin-bottom: 0.25rem;
-   
+
 }
 
 .subtitle {
@@ -264,6 +264,164 @@
     font-size: 0.8rem;
     color: #5b6e8c;
     padding: 0.5rem 0;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.action-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-btn {
+    color: #2196f3;
+    background-color: #e3f2fd;
+}
+
+.view-btn:hover {
+    background-color: #bbdefb;
+    transform: translateY(-2px);
+}
+
+.delete-btn {
+    color: #f44336;
+    background-color: #ffebee;
+}
+
+.delete-btn:hover {
+    background-color: #ffcdd2;
+    transform: translateY(-2px);
+}
+
+/* Overlay Background */
+.details-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    /* Dark dim */
+    backdrop-filter: blur(8px);
+    /* The magic blur effect */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+/* The Glass Form */
+.details-form-container {
+    background: rgba(255, 255, 255, 0.85);
+    width: 100%;
+    max-width: 500px;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.details-header h2 {
+    color: #2d3436;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #636e72;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.detail-group {
+    margin-bottom: 15px;
+}
+
+.detail-group label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #636e72;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.detail-group p {
+    font-size: 16px;
+    color: #2d3436;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 0;
+}
+
+.done-btn {
+    width: 100%;
+    padding: 12px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background 0.2s;
+}
+
+.done-btn:hover {
+    background: #219150;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* Responsive adjustments */

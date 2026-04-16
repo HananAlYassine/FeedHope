@@ -2,7 +2,7 @@
 //  FeedHope — Omar & Hanan — Pages/Receiver/ReceiverProfile.js
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverDashboard.css';
@@ -21,6 +21,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 // Helpers
 // Gets first letter of name → used for avatar
@@ -44,6 +45,9 @@ const ReceiverProfile = () => {
     const [loading, setLoading] = useState(true); // loading spinner
     const [error, setError] = useState(null); // error message
 
+    const [profilePicture, setProfilePicture] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
     // Edit modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editForm, setEditForm] = useState({
@@ -62,6 +66,9 @@ const ReceiverProfile = () => {
     const [pwError, setPwError] = useState('');
     const [pwSuccess, setPwSuccess] = useState('');
 
+    // Ref for hidden file input 
+    const fileInputRef = useRef(null);
+
     // --- Load user from localStorage once
     useEffect(() => {
         // get user from localStorage
@@ -72,10 +79,10 @@ const ReceiverProfile = () => {
             navigate('/signin');
             return;
         }
-        // Save user in state
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed); // Save user in state
+        setProfilePicture(parsed.profile_picture || null);
     }, [navigate]);
-
 
     // --- Fetch profile when user becomes available
     useEffect(() => {
@@ -84,7 +91,7 @@ const ReceiverProfile = () => {
         const fetchProfile = async () => {
             try {
                 setLoading(true);
-                const res = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`); // Calls backend API
+                const res = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`);
                 const data = await res.json();
                 if (!res.ok) {
                     setError(data.error || 'Failed to load profile.');
@@ -93,6 +100,7 @@ const ReceiverProfile = () => {
                 // Saves data into state
                 setProfile(data.profile);
                 setStats(data.stats);
+                // pre-fills edit form with existing data
                 setEditForm({
                     name: data.profile.name || '',
                     email: data.profile.email || '',
@@ -100,6 +108,13 @@ const ReceiverProfile = () => {
                     street: data.profile.street || '',
                     org_type: data.profile.org_type || ''
                 });
+                // Only set profile picture if it exists and we don't have one already 
+                if (data.profile.profile_picture && !profilePicture) {
+                    setProfilePicture(data.profile.profile_picture);
+                    const updatedUser = { ...user, profile_picture: data.profile.profile_picture };
+                    localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
+                    setUser(updatedUser);
+                }
             } catch {
                 setError('Could not connect to the server.');
             } finally {
@@ -108,31 +123,93 @@ const ReceiverProfile = () => {
         };
 
         fetchProfile();
-    }, [user]);
+        
+    }, [user]); // profilePicture not in deps to avoid re-fetch after upload
 
-    // --- Edit handlers
+    // --- Profile picture upload handlers ---
+    //  Upload a new picture
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Creates a FormData object and appends the selected file.
+        const formData = new FormData();
+        formData.append('profilePicture', file);
+
+        setUploading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/receiver/upload-profile-picture/${user.user_id}`, {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Upload failed');
+            
+            // Update local state and localStorage without re-fetching profile
+            setProfilePicture(data.profile_picture);
+            const updatedUser = { ...user, profile_picture: data.profile_picture };
+            localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to upload picture.');
+        } finally {
+            setUploading(false);
+            // Clear the file input value so same file can be re-uploaded if needed
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    // Remove the profile picture
+    const handleDeletePicture = async () => {
+        
+        setUploading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/receiver/delete-profile-picture/${user.user_id}`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) throw new Error('Delete failed');
+            setProfilePicture(null);
+            const updatedUser = { ...user, profile_picture: null };
+            localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete picture.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // --- Edit handlers ---
+
+    // sets showEditModal = true and resets any previous error/success messages.
     const handleOpenEdit = () => {
         setEditError('');
         setEditSuccess('');
         setShowEditModal(true); // open the modal
     };
+
+    //  closes the modal and clears messages.
     const handleCloseEdit = () => {
         setShowEditModal(false);
         setEditError('');
         setEditSuccess('');
     };
-    const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value })); // Updates input fields dynamically
 
+    //  updates the editForm state as the user types.
+    const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+    // pdates the user object in localStorage and state
     const handleEditSubmit = async () => {
         setEditError('');
         setEditSuccess('');
         setEditSaving(true);
 
-
         const updatedUser = { ...user, name: editForm.name };
         localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
+         // Keeps user data updated
         setUser(updatedUser);
-
         window.dispatchEvent(new Event('user-updated'));
 
         // Sends updated data to backend
@@ -159,11 +236,10 @@ const ReceiverProfile = () => {
             }));
             setEditSuccess('Profile updated successfully!');
             // Update stored user name
-            const updatedUser = { ...user, name: editForm.name };
-
+            const updatedUser2 = { ...user, name: editForm.name };
             // Keeps user data updated
-            localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
-            setUser(updatedUser); // keep state in sync
+            localStorage.setItem('feedhope_user', JSON.stringify(updatedUser2));
+            setUser(updatedUser2); // keep state in sync
             setTimeout(() => handleCloseEdit(), 1200);
         } catch {
             setEditError('Network error. Please try again.');
@@ -172,7 +248,8 @@ const ReceiverProfile = () => {
         }
     };
 
-    // --- Password handlers
+    // --- Password handlers ---
+    //  resets the password form and shows the modal.
     const handleOpenPw = () => {
         setPwError('');
         setPwSuccess('');
@@ -229,7 +306,7 @@ const ReceiverProfile = () => {
         navigate('/signin');
     };
 
-    // Show loading screen
+    // --- Show loading screen ---
     if (loading) {
         return (
             <div className="rdb-loading-screen">
@@ -272,14 +349,15 @@ const ReceiverProfile = () => {
                         </p>
                     </div>
                     <div className="rdb-banner-icon rdb-banner-avatar">
-                        {getInitial(orgName)}
-                        <button
-                            className="rcp-avatar-camera"
-                            aria-label="Change profile picture"
-                            title="Coming soon"
-                        >
-                            <CameraAltIcon style={{ fontSize: 14 }} />
-                        </button>
+                        {profilePicture ? (
+                            <img 
+                                src={`http://localhost:5000${profilePicture}`} 
+                                alt="profile" 
+                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                        ) : (
+                            getInitial(orgName)
+                        )}
                     </div>
                     <div className="rcp-banner-actions">
                         <button className="rdb-banner-btn" onClick={handleOpenEdit}>
@@ -334,7 +412,7 @@ const ReceiverProfile = () => {
                         </div>
                         <div className="rdb-stat-info">
                             <span className="rdb-stat-number rdb-stat-number--sm">
-                                {formatMonthYear(profile.foundation_date)}
+                                {formatMonthYear(profile.joined_date)}
                             </span>
                             <span className="rdb-stat-label">Member Since</span>
                         </div>
@@ -343,7 +421,7 @@ const ReceiverProfile = () => {
 
                 {/* Two‑column grid */}
                 <div className="rdb-grid">
-                    {/* LEFT COLUMN: Contact Information (single card) */}
+                    {/* LEFT COLUMN */}
                     <div className="rdb-col-left">
                         <section className="rdb-card">
                             <div className="rdb-card-header">
@@ -393,7 +471,7 @@ const ReceiverProfile = () => {
                         </section>
                     </div>
 
-                    {/* RIGHT COLUMN: Account (avatar, name, role, buttons) */}
+                    {/* RIGHT COLUMN - Account card with avatar and picture buttons */}
                     <div className="rdb-col-right">
                         <section className="rdb-card">
                             <div className="rdb-card-header">
@@ -404,13 +482,49 @@ const ReceiverProfile = () => {
                             </div>
                             <div className="rcp-account-avatar-wrap">
                                 <div className="rcp-account-avatar">
-                                    {getInitial(orgName)}
+                                    {profilePicture ? (
+                                        <img 
+                                            src={`http://localhost:5000${profilePicture}`} 
+                                            alt="profile" 
+                                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                        />
+                                    ) : (
+                                        getInitial(orgName)
+                                    )}
                                 </div>
                                 <p className="rcp-account-org">{orgName}</p>
                                 <span className="rdb-status-badge rdb-status-badge--accepted rcp-role-badge">
                                     Receiver
                                 </span>
                                 
+                                {/* Profile picture action buttons */}
+                                <div className="rcp-picture-actions">
+                                    <button 
+                                        className="rcp-picture-btn rcp-change-btn" 
+                                        onClick={() => fileInputRef.current.click()}
+                                        disabled={uploading}
+                                    >
+                                        <CameraAltIcon style={{ fontSize: 16, marginRight: 6 }} />
+                                        Change Profile Picture
+                                    </button>
+                                    <button 
+                                        className="rcp-picture-btn rcp-delete-btn" 
+                                        onClick={handleDeletePicture}
+                                        disabled={uploading || !profilePicture}
+                                    >
+                                        <DeleteIcon style={{ fontSize: 16, marginRight: 6 }} />
+                                        Delete Profile Picture
+                                    </button>
+                                </div>
+                                
+                                {/* Hidden file input */}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    onChange={handleFileChange}
+                                />
                             </div>
                         </section>
                     </div>

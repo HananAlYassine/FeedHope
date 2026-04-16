@@ -6,33 +6,59 @@ import '../../Styles/Donor/DonorMyOffers.css';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-
-// Hardcoded for testing; replace with your Auth logic later
-const CURRENT_DONOR_ID = 101;
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 const STATUS_FILTERS = ['All', 'Available', 'Accepted', 'In Transit', 'Delivered', 'Expired'];
 
 const DonorMyOffers = () => {
     const navigate = useNavigate();
 
-    // State Management
+    const [user] = useState(() => {
+        const saved = localStorage.getItem('feedhope_user');
+        return saved ? JSON.parse(saved) : null;
+    });
+
     const [offers, setOffers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
 
-    // 1. Fetch data whenever statusFilter changes
+    // State to handle the transparent details form
+    const [selectedOffer, setSelectedOffer] = useState(null);
+
+    const handleDelete = async (offerId) => {
+        if (window.confirm("Are you sure you want to delete this offer? This action cannot be undone.")) {
+            try {
+                const response = await fetch(`http://localhost:5000/api/donor/delete-offer/${offerId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    setOffers(prev => prev.filter(offer => offer.offer_id !== offerId));
+                    alert("Offer deleted successfully");
+                } else {
+                    alert("Failed to delete the offer.");
+                }
+            } catch (error) {
+                console.error("Error deleting offer:", error);
+                alert("An error occurred while deleting.");
+            }
+        }
+    };
+
     useEffect(() => {
+        if (!user || !user.user_id) {
+            navigate('/signin');
+            return;
+        }
+
         const fetchOffers = async () => {
             try {
                 setIsLoading(true);
-                // The URL includes the status as a query parameter
                 const response = await fetch(
-                    `http://localhost:5000/api/donor/my-offers/${CURRENT_DONOR_ID}?status=${statusFilter}`
+                    `http://localhost:5000/api/donor/my-offers/${user.user_id}?status=${statusFilter}`
                 );
-
                 if (!response.ok) throw new Error('Network response was not ok');
-
                 const data = await response.json();
                 setOffers(data);
             } catch (error) {
@@ -41,38 +67,36 @@ const DonorMyOffers = () => {
                 setIsLoading(false);
             }
         };
-
         fetchOffers();
-    }, [statusFilter]); // Effect runs again if the user clicks a different pill
+    }, [statusFilter, user, navigate]);
 
-    // 2. Local Search Filter (filters the already fetched list by food name)
     const displayedOffers = useMemo(() => {
         return offers.filter((offer) =>
             offer.food_name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [offers, searchTerm]);
 
-    const handleViewOffer = (offerId) => {
-        navigate(`/donor/offer-details/${offerId}`);
+    const handleLogout = () => {
+        localStorage.removeItem('feedhope_user');
+        navigate('/signin');
     };
 
     return (
         <div className="ddb-layout">
-            <DonorSidebar />
+            <DonorSidebar user={user} onLogout={handleLogout} activePage="my-offers" />
 
             <main className="ddb-main">
                 <div className="my-offers-container">
                     <div className="offers-header">
                         <div>
                             <h1>My Offers</h1>
-                            <p className="subtitle">View and manage all your food donation offers</p>
+                            <p className="subtitle">View and manage your donation history</p>
                         </div>
                         <button className="new-offer-btn" onClick={() => navigate('/donor-new-offer')}>
-                            <AddIcon />New Offer
+                            <AddIcon /> New Offer
                         </button>
                     </div>
 
-                    {/* Search and Status Pills */}
                     <div className="search-filter-row">
                         <div className="search-wrapper">
                             <SearchIcon className="search-icon" />
@@ -98,15 +122,18 @@ const DonorMyOffers = () => {
                         </div>
                     </div>
 
-                    {/* Table View */}
                     <div className="offers-table-wrapper">
                         {isLoading ? (
-                            <div className="loading-container">Loading Offers...</div>
+                            <div className="loading-container">
+                                <div className="rdb-spinner" style={{ margin: '0 auto 10px' }}></div>
+                                <p>Loading Offers...</p>
+                            </div>
                         ) : (
                             <table className="offers-table">
                                 <thead>
                                     <tr>
-                                        <th>Food Item</th>
+                                        <th>Offer ID</th>
+                                        <th>Food Name</th>
                                         <th>Category</th>
                                         <th>Quantity (KG)</th>
                                         <th>Status</th>
@@ -118,28 +145,42 @@ const DonorMyOffers = () => {
                                     {displayedOffers.length > 0 ? (
                                         displayedOffers.map((offer) => (
                                             <tr key={offer.offer_id}>
+                                                <td>#{offer.offer_id}</td>
                                                 <td className="title-cell">{offer.food_name}</td>
-                                                <td>{offer.category_name}</td>
-                                                <td>{offer.quantity_by_kg}</td>
+                                                <td>{offer.category_name || 'Uncategorized'}</td>
+                                                <td>{offer.quantity_by_kg} kg</td>
                                                 <td>
                                                     <span className={`status-badge ${offer.status.toLowerCase().replace(/\s+/g, '-')}`}>
                                                         {offer.status}
                                                     </span>
                                                 </td>
-                                                <td>{new Date(offer.created_at).toLocaleDateString()}</td>
+                                                <td>
+                                                    {new Date(offer.created_at).toLocaleString('en-GB', {
+                                                        day: '2-digit', month: 'short', year: 'numeric',
+                                                        hour: '2-digit', minute: '2-digit', hour12: true
+                                                    })}
+                                                </td>
                                                 <td className="actions-cell">
                                                     <button
-                                                        className="action-icon"
-                                                        onClick={() => handleViewOffer(offer.offer_id)}
+                                                        className="action-btn view-btn"
+                                                        onClick={() => setSelectedOffer(offer)}
+                                                        title="View Details"
                                                     >
                                                         <VisibilityIcon fontSize="small" />
+                                                    </button>
+                                                    <button
+                                                        className="action-btn delete-btn"
+                                                        onClick={() => handleDelete(offer.offer_id)}
+                                                        title="Delete Offer"
+                                                    >
+                                                        <DeleteOutlineIcon fontSize="small" />
                                                     </button>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr className="empty-row">
-                                            <td colSpan="6">No offers found for this criteria.</td>
+                                            <td colSpan="7">No offers found.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -148,9 +189,58 @@ const DonorMyOffers = () => {
                     </div>
 
                     <div className="offers-footer">
-                        <p>Showing {displayedOffers.length} offers</p>
+                        <p>Showing {displayedOffers.length} {displayedOffers.length === 1 ? 'offer' : 'offers'}</p>
                     </div>
                 </div>
+
+                {/* Glassmorphism Details Form Overlay */}
+                {selectedOffer && (
+                    <div className="details-overlay" onClick={() => setSelectedOffer(null)}>
+                        <div className="details-form-container" onClick={(e) => e.stopPropagation()}>
+                            <div className="details-header">
+                                <h2>Offer Details</h2>
+                                <button className="close-btn" onClick={() => setSelectedOffer(null)}>&times;</button>
+                            </div>
+
+                            <div className="details-body">
+                                <div className="detail-group">
+                                    <label>Food Name</label>
+                                    <p>{selectedOffer.food_name}</p>
+                                </div>
+                                <div className="detail-row">
+                                    <div className="detail-group">
+                                        <label>Category</label>
+                                        <p>{selectedOffer.category_name || 'Uncategorized'}</p>
+                                    </div>
+                                    <div className="detail-group">
+                                        <label>Quantity</label>
+                                        <p>{selectedOffer.quantity_by_kg} kg</p>
+                                    </div>
+                                </div>
+                                <div className="detail-group">
+                                    <label>Current Status</label>
+                                    <p className={`status-text ${selectedOffer.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                                        {selectedOffer.status}
+                                    </p>
+                                </div>
+                                <div className="detail-row">
+                                    <div className="detail-group">
+                                        <label>Created At</label>
+                                        <p>{new Date(selectedOffer.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <div className="detail-group">
+                                        <label>ID</label>
+                                        <p>#{selectedOffer.offer_id}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="details-footer">
+                                <button className="done-btn" onClick={() => setSelectedOffer(null)}>Close</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

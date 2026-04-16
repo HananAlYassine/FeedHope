@@ -14,6 +14,7 @@ import RestaurantIcon from '@mui/icons-material/Restaurant';
 import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'; // for confirmation modal
 
 const formatPickupTime = (datetime) => {
     if (!datetime) return '—';
@@ -25,6 +26,42 @@ const formatQuantity = (offer) => {
     if (offer.number_of_person) return `${offer.number_of_person} portions`;
     return '—';
 };
+
+// ========== NEW: Confirmation Modal for Cancel ==========
+const ConfirmCancelModal = ({ isOpen, onClose, onConfirm, offerTitle }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="ram-modal-overlay">
+            <div className="ram-modal confirm-cancel-modal">
+                <div className="ram-modal-header">
+                    <h3>Cancel Offer</h3>
+                    <button className="ram-modal-close" onClick={onClose}>
+                        <CloseIcon fontSize="small" />
+                    </button>
+                </div>
+                <div className="ram-modal-body">
+                    <div className="confirm-warning-icon">
+                        <WarningAmberIcon sx={{ fontSize: 48, color: '#f5b042' }} />
+                    </div>
+                    <p className="confirm-message">
+                        Are you sure you want to cancel the offer <strong>“{offerTitle}”</strong>?
+                    </p>
+                    <p className="confirm-submessage">This action cannot be undone.</p>
+                </div>
+                <div className="ram-modal-footer confirm-footer">
+                    <button className="ram-btn-cancel-modal" onClick={onClose}>
+                        No, Keep It
+                    </button>
+                    <button className="ram-btn-submit confirm-btn-danger" onClick={onConfirm}>
+                        Yes, Cancel Offer
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+// ========================================================
 
 const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName, volunteerName }) => {
     const [donorRating, setDonorRating] = useState(5);
@@ -120,6 +157,8 @@ const ReceiverAcceptedOffers = () => {
     const [actionLoading, setActionLoading] = useState(null);
     const [feedbackOffer, setFeedbackOffer] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // state for cancel confirmation modal
+    const [cancelConfirm, setCancelConfirm] = useState({ show: false, offerId: null, offerTitle: '' });
 
     const fetchAcceptedOffers = useCallback(async () => {
         if (!userId) return;
@@ -144,9 +183,17 @@ const ReceiverAcceptedOffers = () => {
         fetchAcceptedOffers();
     }, [userId, navigate, fetchAcceptedOffers]);
 
-    const handleCancel = async (offerId) => {
-        if (!window.confirm('Are you sure you want to cancel this offer?')) return;
+    // function to open confirmation modal instead of window.confirm
+    const handleCancelClick = (offerId, offerTitle) => {
+        setCancelConfirm({ show: true, offerId, offerTitle });
+    };
+
+    // actual cancel logic after confirmation
+    const confirmCancel = async () => {
+        const { offerId } = cancelConfirm;
+        if (!offerId) return;
         setActionLoading(offerId);
+        setCancelConfirm({ show: false, offerId: null, offerTitle: '' });
         try {
             const res = await fetch('http://localhost:5000/api/receiver/cancel-offer', {
                 method: 'POST',
@@ -155,7 +202,6 @@ const ReceiverAcceptedOffers = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Cancel failed');
-            alert('Offer cancelled successfully.');
             fetchAcceptedOffers();
         } catch (err) {
             alert(err.message);
@@ -290,7 +336,7 @@ const ReceiverAcceptedOffers = () => {
                                             <div className="rao-actions">
                                                 <button
                                                     className="rao-btn-cancel"
-                                                    onClick={() => handleCancel(offer.offer_id)}
+                                                    onClick={() => handleCancelClick(offer.offer_id, offer.title)}
                                                     disabled={actionLoading === offer.offer_id}
                                                 >
                                                     <CancelIcon fontSize="small" />
@@ -321,6 +367,14 @@ const ReceiverAcceptedOffers = () => {
                 offerTitle={feedbackOffer?.title || ''}
                 donorName={feedbackOffer?.donor_name || 'Donor'}
                 volunteerName={feedbackOffer?.volunteer_name || 'the volunteer'}
+            />
+
+            {/* Cancel Confirmation Modal */}
+            <ConfirmCancelModal
+                isOpen={cancelConfirm.show}
+                onClose={() => setCancelConfirm({ show: false, offerId: null, offerTitle: '' })}
+                onConfirm={confirmCancel}
+                offerTitle={cancelConfirm.offerTitle}
             />
         </div>
     );

@@ -45,6 +45,27 @@ import DonorFeedback from './Pages/Donor/DonorFeedback';
 import DonorNotifications from './Pages/Donor/DonorNotifications';
 
 
+// ── Volunteer section ──
+// VolunteerDashboard is protected — users should be signed in and have role = 'Volunteer'
+import VolunteerDashboard from './Pages/Volunteer/VolunteerDashboard';
+import VolunteerProfile from './Pages/Volunteer/VolunteerProfile';
+// import VolunteerHistory from './Pages/Volunteer/VolunteerHistory';
+// import VolunteerNotifications from './Pages/Volunteer/VolunteerNotifications';
+import VolunteerAvailableOffers from './Pages/Volunteer/VolunteerAvailableOffers';
+// import VolunteerMyDeliveries from './Pages/Volunteer/VolunteerMyDeliveries';
+
+
+// ── Admin section ──
+import AdminDashboard from './Pages/Admin/AdminDashboard';
+import AdminFoodOffers from './Pages/Admin/AdminFoodOffers';
+import AdminProfile from './Pages/Admin/AdminProfile';
+import AdminUsers from './Pages/Admin/AdminUsers';
+import AdminDeliveries from './Pages/Admin/AdminDeliveries';
+import AdminMoneyDonations from './Pages/Admin/AdminMoneyDonations';
+import AdminFundDistribution from './Pages/Admin/AdminFundDistribution';
+import AdminNotifications from './Pages/Admin/AdminNotifications';
+
+
 // ─────────────────────────────────────────────────────────────
 //  ProtectedRoute — A simple guard component.
 //  Reads the 'feedhope_user' item from localStorage (set on sign-in).
@@ -54,7 +75,7 @@ import DonorNotifications from './Pages/Donor/DonorNotifications';
 const ProtectedRoute = ({ children, requiredRole }) => {
     // Try to parse the user object saved in localStorage during sign-in
     const stored = localStorage.getItem('feedhope_user');
-    const user   = stored ? JSON.parse(stored) : null;
+    const user = stored ? JSON.parse(stored) : null;
 
     // Not logged in at all → go to sign-in page
     if (!user) return <Navigate to="/signin" replace />;
@@ -83,8 +104,8 @@ function App() {
                 <Route path="/donor-registration" element={<DonorRegister />} />
                 <Route path="/receiver-registration" element={<ReceiverRegister />} />
                 <Route path="/volunteer-registration" element={<VolunteerRegister />} />
-                
-                
+
+
 
                 {/* ── Receiver Section (Protected) ──
                     Both routes require the user to be signed in with role = 'Receiver'.
@@ -164,9 +185,9 @@ function App() {
                 />
 
 
-				
 
-				 {/* ── Donor Section (Protected) ──
+
+                {/* ── Donor Section (Protected) ──
             Both routes require the user to be signed in with role = 'Donor'.
             Any other user will be redirected to /signin or /. */}
                 <Route
@@ -212,11 +233,50 @@ function App() {
                 />
 
 
+                {/* ── Volunteer Section (Protected) ── */}
+                <Route
+                    path="/volunteer-dashboard"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerDashboard /></ProtectedRoute>}
+                />
+                <Route
+                    path="/volunteer-profile"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerProfile /></ProtectedRoute>}
+                />
+                <Route
+                    path="/volunteer-available-offers"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerAvailableOffers /></ProtectedRoute>}
+                />
+
+                {/* <Route
+                    path="/volunteer-my-deliveries"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerMyDeliveries /></ProtectedRoute>}
+                />
+                <Route
+                    path="/volunteer-history"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerHistory /></ProtectedRoute>}
+                />
+                <Route
+                    path="/volunteer-notifications"
+                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerNotifications /></ProtectedRoute>}
+                /> */}
+
+
+
+                {/* Admin Section (Protected) */}
+                <Route path="/admin-dashboard" element={<ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/admin-food-offers" element={<ProtectedRoute requiredRole="Admin"><AdminFoodOffers /></ProtectedRoute>} />
+                <Route path="/admin-profile" element={<ProtectedRoute requiredRole="Admin"><AdminProfile /></ProtectedRoute>} />
+                <Route path="/admin-users" element={<ProtectedRoute requiredRole="Admin"><AdminUsers /></ProtectedRoute>} />
+                <Route path="/admin-deliveries" element={<ProtectedRoute requiredRole="Admin"><AdminDeliveries /></ProtectedRoute>} />
+                <Route path="/admin-money-donations" element={<ProtectedRoute requiredRole="Admin"><AdminMoneyDonations /></ProtectedRoute>} />
+                <Route path="/admin-fund-distribution" element={<ProtectedRoute requiredRole="Admin"><AdminFundDistribution /></ProtectedRoute>} />
+                <Route path="/admin-notifications" element={<ProtectedRoute requiredRole="Admin"><AdminNotifications /></ProtectedRoute>} />
+
 
 
                 {/* ── Catch-all: anything unknown goes back to Home ── */}
                 <Route path="*" element={<Navigate to="/" replace />} />
-                    
+
             </Routes>
         </Router>
     );

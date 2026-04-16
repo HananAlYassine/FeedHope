@@ -1,4 +1,3 @@
-// DonorMoneyHistory.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
@@ -7,15 +6,15 @@ import '../../Styles/Donor/DonorMoneyHistory.css';
 
 // MUI Icons
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PendingIcon from '@mui/icons-material/Pending';
+import HistoryIcon from '@mui/icons-material/History';
 import PaymentIcon from '@mui/icons-material/Payment';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 const DonorMoneyHistory = () => {
     const [user, setUser] = useState(null);
     const [donations, setDonations] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ totalDonated: 0, completed: 0, pending: 0 });
+    const [stats, setStats] = useState({ totalDonated: 0, count: 0 });
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -33,30 +32,19 @@ const DonorMoneyHistory = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Replace with actual API call
-                // const res = await fetch(`http://localhost:5000/api/donor/money-donations/${user.user_id}`);
-                // const data = await res.json();
+                const res = await fetch(`http://localhost:5000/api/donor/money-donations/${user.user_id}`);
+                const data = await res.json();
 
-                // Mock data matching the image
-                const mockDonations = [
-                    { id: 1, amount: 500, paymentMethod: 'Bank Transfer', status: 'Completed', date: '2024-03-10' },
-                    { id: 2, amount: 1000, paymentMethod: 'WishMoney', status: 'Pending', date: '2024-03-14' },
-                    { id: 3, amount: 250, paymentMethod: 'OMT', status: 'Completed', date: '2024-03-05' },
-                    { id: 4, amount: 750, paymentMethod: 'Bank Transfer', status: 'Pending', date: '2024-03-12' },
-                ];
+                if (res.ok) {
+                    setDonations(data);
 
-                setDonations(mockDonations);
-
-                // Calculate stats
-                const total = mockDonations.reduce((sum, d) => sum + d.amount, 0);
-                const completed = mockDonations
-                    .filter(d => d.status === 'Completed')
-                    .reduce((sum, d) => sum + d.amount, 0);
-                const pending = mockDonations
-                    .filter(d => d.status === 'Pending')
-                    .reduce((sum, d) => sum + d.amount, 0);
-
-                setStats({ totalDonated: total, completed, pending });
+                    // Calculate totals for the stat cards
+                    const total = data.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+                    setStats({
+                        totalDonated: total.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+                        count: data.length
+                    });
+                }
             } catch (err) {
                 console.error('Failed to load donation history:', err);
             } finally {
@@ -72,9 +60,14 @@ const DonorMoneyHistory = () => {
         navigate('/signin');
     };
 
+    // Format date to show only Month, Day, Year
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+        return date.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
     };
 
     return (
@@ -82,16 +75,14 @@ const DonorMoneyHistory = () => {
             <DonorSidebar user={user} onLogout={handleLogout} />
 
             <main className="ddb-main">
-                {/* Banner */}
                 <div className="ddb-banner dmh-banner">
                     <div className="ddb-banner-text">
                         <p className="ddb-banner-greeting">Donor</p>
-                        <h1 className="ddb-banner-title">Donor History</h1>
-                        <p className="ddb-banner-subtitle">View your past monetary contributions</p>
+                        <h1 className="ddb-banner-title">History</h1>
+                        <p className="ddb-banner-subtitle">Review your past monetary contributions</p>
                     </div>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="dmh-stats-grid">
                     <div className="dmh-stat-card">
                         <div className="dmh-stat-icon total">
@@ -99,43 +90,31 @@ const DonorMoneyHistory = () => {
                         </div>
                         <div className="dmh-stat-content">
                             <span className="dmh-stat-value">${stats.totalDonated}</span>
-                            <span className="dmh-stat-label">Total Donated</span>
+                            <span className="dmh-stat-label">Total Amount</span>
                         </div>
                     </div>
 
                     <div className="dmh-stat-card">
                         <div className="dmh-stat-icon completed">
-                            <CheckCircleIcon />
+                            <HistoryIcon />
                         </div>
                         <div className="dmh-stat-content">
-                            <span className="dmh-stat-value">${stats.completed}</span>
-                            <span className="dmh-stat-label">Completed</span>
-                        </div>
-                    </div>
-
-                    <div className="dmh-stat-card">
-                        <div className="dmh-stat-icon pending">
-                            <PendingIcon />
-                        </div>
-                        <div className="dmh-stat-content">
-                            <span className="dmh-stat-value">${stats.pending}</span>
-                            <span className="dmh-stat-label">Pending</span>
+                            <span className="dmh-stat-value">{stats.count}</span>
+                            <span className="dmh-stat-label">Transactions</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Donations Table */}
                 <div className="ddb-card dmh-table-container">
                     <div className="ddb-card-header dmh-table-header">
-                        <h3 className="ddb-card-title">Monetary Donations</h3>
+                        <h3 className="ddb-card-title">Donation Records</h3>
                     </div>
 
                     {loading ? (
-                        <div className="dmh-loading">Loading your donation history...</div>
+                        <div className="dmh-loading">Fetching your records...</div>
                     ) : donations.length === 0 ? (
                         <div className="dmh-empty">
-                            <p>No monetary donations yet.</p>
-                            <p className="dmh-empty-sub">Your contributions will appear here.</p>
+                            <p>No donations recorded yet.</p>
                         </div>
                     ) : (
                         <div className="dmh-table-responsive">
@@ -143,22 +122,32 @@ const DonorMoneyHistory = () => {
                                 <thead>
                                     <tr>
                                         <th>Amount</th>
-                                        <th>Payment Method</th>
-                                        <th>Status</th>
+                                        <th>Method</th>
+                                        <th>Note</th>
                                         <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {donations.map((donation) => (
-                                        <tr key={donation.id}>
-                                            <td className="dmh-amount">${donation.amount}</td>
-                                            <td>{donation.paymentMethod}</td>
-                                            <td>
-                                                <span className={`dmh-status ${donation.status.toLowerCase()}`}>
-                                                    {donation.status}
-                                                </span>
+                                    {donations.map((donation, index) => (
+                                        <tr key={index}>
+                                            <td className="dmh-amount-cell">
+                                                ${parseFloat(donation.amount).toFixed(2)}
                                             </td>
-                                            <td>{formatDate(donation.date)}</td>
+                                            <td>
+                                                <div className="dmh-method-cell">
+                                                    {donation.method}
+                                                </div>
+                                            </td>
+                                            <td className="dmh-description">
+                                                {donation.note ? (
+                                                    <span className="dmh-note-text">
+                                                        {donation.note}
+                                                    </span>
+                                                ) : "-"}
+                                            </td>
+                                            <td className="dmh-date">
+                                                {formatDate(donation.date)}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

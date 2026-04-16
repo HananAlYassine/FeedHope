@@ -5,7 +5,32 @@
 import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";  // for password hashing
+
+// All of them are for the Profile Picture (Add/delete/change)
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create uploads folder if it doesn't exist
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, unique + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB limit
 
 const app = express();
 
@@ -15,10 +40,11 @@ app.use(cors());
 // Parse incoming JSON request bodies
 app.use(express.json());
 
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // ─────────────────────────────────────────────────────────────
 //  MySQL Connection Pool
-//  Using a pool (instead of a single connection) so multiple
-//  simultaneous requests can each get their own DB connection.
 // ─────────────────────────────────────────────────────────────
 const pool = mysql.createPool({
     host: "localhost",        // Database server address
@@ -29,6 +55,7 @@ const pool = mysql.createPool({
     connectionLimit: 10,      // Max 10 simultaneous connections in the pool
     queueLimit: 0             // 0 = unlimited queued requests
 }).promise(); // Use promise-based API so we can use async/await
+
 
 // Helper: validate password length rules (3–10 characters)
 const isValidPassword = (pwd) => pwd && pwd.length >= 3 && pwd.length <= 10;
@@ -114,6 +141,7 @@ app.post("/api/register/donor", async (req, res) => {
         conn.release();
     }
 });
+
 
 // ──── 2. Receiver Registration ────
 app.post("/api/register/receiver", async (req, res) => {
@@ -243,6 +271,7 @@ app.post("/api/register/volunteer", async (req, res) => {
     }
 });
 
+
 // ==============================================================
 // ──────────────── EMAIL VERIFICATION ──────────────────────────
 // ==============================================================
@@ -295,72 +324,103 @@ app.post("/api/verify-email", async (req, res) => {
     }
 });
 
+
+// ==============================================================
+// ──────────────── Admin Section ────────────────────────
+// ==============================================================
+
+// ── Fixed Admin Credentials (hardcoded) ──
+const ADMIN_EMAIL    = "admin@feedhope.com";   
+const ADMIN_PASSWORD = "Admin@1234";           
+
+
 // ==============================================================
 // ──────────────── SIGN IN ─────────────────────────────────────
 // ==============================================================
-
-// ──── 5. Sign In ────
-// Returns the user's basic info + role so the frontend can route them
-// to the correct dashboard (Receiver → /receiver-dashboard, etc.)
+// ──── 5. Sign In (Fixed with logging) ────
 app.post("/api/signin", async (req, res) => {
     const { email, password } = req.body;
     const conn = await pool.getConnection();
 
+
+    // 1️⃣ Check admin FIRST — before touching the database
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        return res.json({
+        user: {
+            id: 0,
+            name: "Admin",
+            email: ADMIN_EMAIL,
+            role: "Admin"
+        }
+        });
+    }
+
     try {
         // Find the user by email
         const [users] = await conn.query("SELECT * FROM User WHERE email = ?", [email]);
-
         if (users.length === 0) {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
         const user = users[0];
-
-        // Block sign-in if email has not been verified yet
         if (user.status === 'pending') {
             return res.status(403).json({ error: "Please verify your email before signing in." });
         }
-        // Block sign-in if account has been deactivated
         if (user.status !== "active") {
             return res.status(403).json({ error: "Account is not active." });
         }
 
-        // Compare the submitted plain-text password against the stored bcrypt hash
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
-        // Fetch the role(s) assigned to this user
         const [roles] = await conn.query("SELECT role_name FROM Role WHERE user_id = ?", [user.user_id]);
         const role = roles.length > 0 ? roles[0].role_name : null;
 
-        // Write a login event to the syslog
-        await conn.query(
+        // Insert Syslog entry – check if it actually writes
+        const [sysResult] = await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Login', `User logged in successfully as ${role || 'User'}`, user.user_id]
         );
+        console.log(`[DEBUG] Sign-in Syslog inserted, affected rows: ${sysResult.affectedRows}`);
 
-        // Return the user's basic info and role.
-        // The frontend stores this in localStorage and uses the role to redirect:
-        //   Receiver  → /receiver-dashboard
-        //   Donor     → /donor-dashboard
-        //   Volunteer → /volunteer-dashboard
         res.status(200).json({
             message: "Sign in successful!",
             user: {
-                user_id:      user.user_id,
-                name:         user.name,
-                email:        user.email,
+                user_id: user.user_id,
+                name: user.name,
+                email: user.email,
                 phone_number: user.phone_number,
-                role:         role
+                role: role
             }
         });
     } catch (err) {
-        console.error("Sign in error:", err);
+        console.error("[ERROR] Sign in error:", err);
         res.status(500).json({ error: "Sign in failed." });
     } finally {
         conn.release();
+    }
+});
+
+// ==============================================================
+// ──────────────── LOGOUT ─────────────────────────────────────
+// ==============================================================
+app.post("/api/logout", async (req, res) => {
+    const { userId, role } = req.body;
+
+    try {
+        if (userId) {
+            await pool.query(
+                "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+                ['Logout', `User logged out successfully from ${role || 'System'}`, userId]
+            );
+        }
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (err) {
+        console.error("[ERROR] Logout syslog error:", err);
+        // We still return 200 because we want the user to be able to leave even if syslog fails
+        res.status(200).json({ message: "Logged out" });
     }
 });
 
@@ -478,7 +538,10 @@ app.post('/api/contact-us', async (req, res) => {
     }
 });
 
+
+
 // ────────────────────────────── RECEIVER ────────────────────────────────────
+
 
 // ==============================================================
 // ──────────────── RECEIVER DASHBOARD API ──────────────────────
@@ -612,10 +675,10 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
         res.status(200).json({
             receiver,            // Full profile info
             stats: {
-                availableOffers:    Number(availableCount),   // Platform-wide available count
-                myAccepted:         Number(acceptedCount),    // This receiver's accepted count
+                availableOffers: Number(availableCount),   // Platform-wide available count
+                myAccepted: Number(acceptedCount),    // This receiver's accepted count
                 incomingDeliveries: Number(incomingCount),    // Active deliveries incoming
-                mealsReceived:      Number(mealsReceived)     // Total meals received historically
+                mealsReceived: Number(mealsReceived)     // Total meals received historically
             },
             offers,              // Latest available food offers
             notifications,       // Latest notifications for this user
@@ -689,7 +752,6 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
     }
 });
 
-
 // ==============================================================
 // ──────────────── RECEIVER Profile API ──────────────────────
 // ==============================================================
@@ -706,6 +768,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
                 u.email,
                 u.phone_number,
                 u.status,
+                u.profile_picture,
                 r.receiver_id,
                 r.organization_name,
                 r.business_type       AS org_type,
@@ -748,6 +811,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             AND d.delivery_status = 'completed'
         `, [profile.receiver_id]);
 
+
         // ── Step 4: People Served ──
         // Sum number_of_person across all completed offers for this receiver.
         // This represents the total meals/people that benefited from donations.
@@ -762,8 +826,8 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
         res.status(200).json({
             profile,
             stats: {
-                totalReceived:      Number(totalReceived),
-                peopleServed:       Number(peopleServed),
+                totalReceived: Number(totalReceived),
+                peopleServed: Number(peopleServed),
                 deliveriesReceived: Number(deliveriesReceived)
             }
         });
@@ -773,7 +837,6 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
         res.status(500).json({ error: "Failed to load profile." });
     }
 });
-
 
 // ==============================================================
 // ──── PUT /api/receiver/profile/:userIdb (Edit Profile) ───────
@@ -843,7 +906,7 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 //  • Maximum 10 characters
 // =====================================================================
 app.put("/api/receiver/change-password/:userId", async (req, res) => {
-    const { userId }                       = req.params;
+    const { userId } = req.params;
     const { currentPassword, newPassword } = req.body;
 
     // ── Validate new password length ──
@@ -894,15 +957,92 @@ app.put("/api/receiver/change-password/:userId", async (req, res) => {
 });
 
 
+// ==============================================================
+// ──── UPLOAD / DELETE PROFILE PICTURE (RECEIVER) ──────────────
+// ==============================================================
+
+app.post("/api/receiver/upload-profile-picture/:userId", upload.single("profilePicture"), async (req, res) => {
+    const { userId } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    try {
+        await pool.query(
+            "UPDATE User SET profile_picture = ? WHERE user_id = ?",
+            [imageUrl, userId]
+        );
+
+        // Insert notification for the receiver
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id)
+            VALUES (?, ?, ?, ?)`,
+            [
+                'Profile Picture Updated',
+                'Your profile picture has been successfully changed.',
+                'profile_update',
+                userId
+            ]
+        );
+
+        res.status(200).json({ profile_picture: imageUrl });
+    } catch (err) {
+        console.error("Upload profile picture error:", err);
+        res.status(500).json({ error: "Failed to save profile picture." });
+    }
+});
+
+// Delete profile picture
+app.delete("/api/receiver/delete-profile-picture/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Get current picture to delete file from disk
+        const [[user]] = await pool.query(
+            "SELECT profile_picture FROM User WHERE user_id = ?",
+            [userId]
+        );
+        if (user && user.profile_picture) {
+            const filePath = path.join(__dirname, user.profile_picture);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        await pool.query(
+            "UPDATE User SET profile_picture = NULL WHERE user_id = ?",
+            [userId]
+        );
+
+        // Insert notification for the receiver
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id)
+            VALUES (?, ?, ?, ?)`,
+            [
+                'Profile Picture Deleted',
+                'Your profile picture has been removed.',
+                'profile_update',
+                userId
+            ]
+        );
+
+        res.status(200).json({ message: "Profile picture deleted." });
+    } catch (err) {
+        console.error("Delete profile picture error:", err);
+        res.status(500).json({ error: "Failed to delete profile picture." });
+    }
+});
+
 
 // ==============================================================
-// ──────────────── RECEIVER Browse Offers API ──────────────────
+// ──────────────── RECEIVER Browse Offers API (with images) ────
 // ==============================================================
 
-// Returns ALL available food offers
+// Returns ALL available food offers including the first image URL
 app.get("/api/offers", async (req, res) => {
     try {
-
         const [offers] = await pool.query(`
             SELECT
                 fo.offer_id,
@@ -911,35 +1051,30 @@ app.get("/api/offers", async (req, res) => {
                 fo.number_of_person,
                 fo.quantity_by_kg,
                 fo.expiration_date_and_time,
-
+                fo.created_at,
                 u.name AS donor_name,
-
                 a.street,
                 a.city,
-
-                fc.category_name
-
+                fc.category_name,
+                fc.category_id,
+                -- Get the first image URL (oldest photo_id) for this offer
+                (
+                    SELECT fp.image_url
+                    FROM Food_photo fp
+                    WHERE fp.offer_id = fo.offer_id
+                    ORDER BY fp.photo_id ASC
+                    LIMIT 1
+                ) AS image_url
             FROM Food_offer fo
-
-            -- Get donor info
             JOIN Donor d ON d.donor_id = fo.donor_id
-
-            -- Get donor name
             JOIN User u ON u.user_id = d.user_id
-
-            -- Get donor address
             JOIN Address a ON a.address_id = d.address_id
-
-            --  Get category
             JOIN Food_category fc ON fc.category_id = fo.category_id
-
             WHERE fo.status = 'available'
-
             ORDER BY fo.offer_id DESC
         `);
 
         res.status(200).json(offers);
-
     } catch (err) {
         console.error("Fetch offers error:", err);
         res.status(500).json({ error: "Failed to fetch offers." });
@@ -947,11 +1082,13 @@ app.get("/api/offers", async (req, res) => {
 });
 
 
+
+
 // ──── Get all food categories (for dynamic filter dropdown) ────
 app.get("/api/categories", async (req, res) => {
     try {
         const [rows] = await pool.query(
-        "SELECT category_id, category_name, description FROM Food_category ORDER BY category_name"
+            "SELECT category_id, category_name, description FROM Food_category ORDER BY category_name"
         );
         res.status(200).json(rows);
     } catch (err) {
@@ -1129,7 +1266,7 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
 
         // Notify the donor
         await conn.query(
-        `INSERT INTO Notifications (message_title, message, type, user_id)
+            `INSERT INTO Notifications (message_title, message, type, user_id)
             SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id
             FROM Food_offer fo
             JOIN Donor d ON d.donor_id = fo.donor_id
@@ -1193,7 +1330,7 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
             return res.status(404).json({ error: "No completed delivery found for this offer." });
         }
 
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toISOString().slice(0, 10);
 
         // 2. Insert donor rating (volunteer_id = NULL)
         await conn.query(
@@ -1289,8 +1426,7 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
 // ──────────────── RECEIVER NOTIFICATIONS API ──────────────────
 // ==============================================================
 
-// ──── 16. Get all notifications for a receiver ────
-// GET /api/receiver/notifications/:userId?status=all|unread
+// ──── 16. Get all notifications for a receiver ─────────────────────
 // Returns all notifications for the user, ordered by date DESC.
 // This is a new endpoint because the dashboard only returns the latest 10.
 app.get("/api/receiver/notifications/:userId", async (req, res) => {
@@ -1325,8 +1461,7 @@ app.get("/api/receiver/notifications/:userId", async (req, res) => {
     }
 });
 
-// ──── 17. Mark all notifications as read for a receiver ────
-// POST /api/receiver/notifications/mark-all-read/:userId
+// ──── 17. Mark all notifications as read for a receiver ───────────────
 // Sets read_at = NOW() for all unread notifications of this user.
 // This is a new convenience endpoint to avoid multiple PATCH requests.
 app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) => {
@@ -1335,8 +1470,8 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
     try {
         const [result] = await pool.query(
             `UPDATE Notifications
-             SET read_at = NOW()
-             WHERE user_id = ? AND read_at IS NULL`,
+            SET read_at = NOW()
+            WHERE user_id = ? AND read_at IS NULL`,
             [userId]
         );
 
@@ -1350,11 +1485,173 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
 });
 
 
+// ──── 18. Mark a single notification as read ──────────────────
+// Sets read_at = NOW() for the given notification, only if it belongs to the user.
+// Also verifies the user owns this notification via user_id (passed in body).
+app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) => {
+    const { notificationId } = req.params;
+    const { userId } = req.body;   // We need userId to ensure ownership
+
+    if (!userId) {
+        return res.status(400).json({ error: "User ID is required." });
+    }
+
+    try {
+        // Verify the notification belongs to this user and is currently unread
+        const [notif] = await pool.query(
+            `SELECT notification_id FROM Notifications
+            WHERE notification_id = ? AND user_id = ? AND read_at IS NULL`,
+            [notificationId, userId]
+        );
+
+        if (notif.length === 0) {
+            return res.status(404).json({ error: "Notification not found, already read, or does not belong to you." });
+        }
+
+        // Mark as read
+        await pool.query(
+            `UPDATE Notifications SET read_at = NOW()
+            WHERE notification_id = ?`,
+            [notificationId]
+        );
+
+        res.status(200).json({ message: "Notification marked as read." });
+    } catch (err) {
+        console.error("Mark as read error:", err);
+        res.status(500).json({ error: "Failed to mark notification as read." });
+    }
+});
+
+// ──── 19. Delete all notifications for a user ─────────────────
+// Removes every notification row belonging to this user.
+app.delete("/api/receiver/notifications/clear/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Optional: count how many will be deleted
+        const [countResult] = await pool.query(
+            "SELECT COUNT(*) AS total FROM Notifications WHERE user_id = ?",
+            [userId]
+        );
+        const total = countResult[0].total;
+
+        // Delete all notifications for this user
+        const [result] = await pool.query(
+            "DELETE FROM Notifications WHERE user_id = ?",
+            [userId]
+        );
+
+        res.status(200).json({
+            message: `${result.affectedRows} notification(s) deleted.`,
+            deletedCount: result.affectedRows
+        });
+    } catch (err) {
+        console.error("Delete all notifications error:", err);
+        res.status(500).json({ error: "Failed to delete notifications." });
+    }
+});
+
+
+// ──── 20. Delete a single notification ─────────────────────
+app.delete("/api/receiver/notifications/:notificationId", async (req, res) => {
+    const { notificationId } = req.params;
+    const { userId } = req.body;   // userId must be sent in body for security
+
+    if (!userId) {
+        return res.status(400).json({ error: "User ID is required." });
+    }
+
+    try {
+        // Verify the notification belongs to this user
+        const [notif] = await pool.query(
+            "SELECT notification_id FROM Notifications WHERE notification_id = ? AND user_id = ?",
+            [notificationId, userId]
+        );
+
+        if (notif.length === 0) {
+            return res.status(404).json({ error: "Notification not found or does not belong to you." });
+        }
+
+        // Delete it
+        await pool.query(
+            "DELETE FROM Notifications WHERE notification_id = ?",
+            [notificationId]
+        );
+
+        res.status(200).json({ message: "Notification deleted successfully." });
+    } catch (err) {
+        console.error("Delete notification error:", err);
+        res.status(500).json({ error: "Failed to delete notification." });
+    }
+});
+
+
+
 
 
 
 // ────────────────────────────── Donor ────────────────────────────────────
 
+// ==============================================================
+// ──────────────── DONOR DASHBOARD API ─────────────────────────
+// ==============================================================
+
+app.get("/api/donor/dashboard/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // 1. Get Organization Name
+        const [donors] = await pool.query("SELECT donor_id, organization_name FROM Donor WHERE user_id = ?", [userId]);
+        if (donors.length === 0) return res.status(404).json({ error: "Donor profile not found" });
+        const donorId = donors[0].donor_id;
+
+        // 2. Aggregate Stats
+        // Active: Everything EXCEPT Delivered or Cancelled
+        const [[{ active }]] = await pool.query("SELECT COUNT(*) as active FROM Food_offer WHERE donor_id = ? AND status NOT IN ('delivered', 'cancelled')", [donorId]);
+
+        // Pending: Status is 'accepted' but not yet 'delivered'
+        const [[{ pending }]] = await pool.query("SELECT COUNT(*) as pending FROM Food_offer WHERE donor_id = ? AND status = 'accepted'", [donorId]);
+
+        // Completed: Status is 'delivered'
+        const [[{ completed }]] = await pool.query("SELECT COUNT(*) as completed FROM Food_offer WHERE donor_id = ? AND status = 'delivered'", [donorId]);
+
+        // Impact: SUM of persons and kg
+        const [[impact]] = await pool.query(
+            "SELECT SUM(number_of_person) as fed, SUM(quantity_by_kg) as kg FROM Food_offer WHERE donor_id = ? AND status = 'delivered'",
+            [donorId]
+        );
+
+        // 3. Recent Offers
+        const [recent] = await pool.query(
+            "SELECT offer_id, food_name, status, number_of_person, created_at FROM Food_offer WHERE donor_id = ? ORDER BY created_at DESC LIMIT 3",
+            [donorId]
+        );
+
+        // 4. Notifications
+        const [notifs] = await pool.query(
+            `SELECT * FROM Notifications WHERE user_id = ? ORDER BY (read_at IS NULL) DESC, date DESC LIMIT 3`,
+            [userId]
+        );
+
+        res.json({
+            organizationName: donors[0].organization_name,
+            stats: {
+                activeOffers: active,
+                pendingPickups: pending,
+                completedDonations: completed,
+                peopleFed: impact.fed || 0,
+                totalKg: impact.kg || 0
+            },
+            recentOffers: recent,
+            notifications: notifs,
+            unreadCount: notifs.length // Simplified for now
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
 
 // ==============================================================
 // ──── GET /api/donor/profile/:userId ─────────────────────────
@@ -1366,21 +1663,19 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
 
     try {
         const [rows] = await pool.query(`
-            SELECT
+            SELECT 
                 u.user_id,
                 u.name,
                 u.email,
                 u.phone_number,
-                u.status,
+                u.profile_picture,
+                u.created_at, -- Pulls the registration date
                 d.donor_id,
                 d.organization_name AS business_name,
                 d.business_type,
-                d.foundation_date,
                 a.street,
                 a.city,
-                a.country,
-                a.latitude,
-                a.longitude
+                a.country
             FROM User u
             JOIN Donor d ON d.user_id = u.user_id
             LEFT JOIN Address a ON a.user_id = u.user_id
@@ -1394,34 +1689,30 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
 
         const profile = rows[0];
 
-        // Stats
+        // Basic Stats
         const [[{ totalDonations }]] = await pool.query(
             "SELECT COUNT(*) AS totalDonations FROM Food_offer WHERE donor_id = ?",
             [profile.donor_id]
         );
 
         const [[{ peopleFed }]] = await pool.query(
-            `SELECT COALESCE(SUM(number_of_person), 0) AS peopleFed
-             FROM Food_offer
-             WHERE donor_id = ? AND status IN ('accepted', 'completed')`,
+            `SELECT COALESCE(SUM(number_of_person), 0) AS peopleFed 
+             FROM Food_offer 
+             WHERE donor_id = ? AND status IN ('accepted', 'completed', 'picked_up', 'in_transit')`,
             [profile.donor_id]
         );
-
-        const co2PerMeal = 0.5;
-        const co2Prevented = (peopleFed * co2PerMeal).toFixed(1);
 
         res.json({
             profile,
             stats: {
                 totalDonations: Number(totalDonations),
-                peopleFed: Number(peopleFed),
-                co2Prevented: Number(co2Prevented)
+                peopleFed: Number(peopleFed)
             }
         });
 
     } catch (err) {
         console.error("Donor profile GET error:", err);
-        res.status(500).json({ error: "Failed to load donor profile.", details: err.message });
+        res.status(500).json({ error: "Failed to load donor profile." });
     }
 });
 // ==============================================================
@@ -1433,11 +1724,13 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
 //
 //  Request body: { name, email, phone, street, business_type }
 // ==============================================================
+// ==============================================================
+// ──── PUT /api/donor/profile/:userId ─────────────────────────
+// ==============================================================
 app.put("/api/donor/profile/:userId", async (req, res) => {
     const { userId } = req.params;
     const { name, email, phone, street, city, business_type } = req.body;
 
-    // Validate required fields (country is NOT required)
     if (!name || !email || !phone || !street || !city || !business_type) {
         return res.status(400).json({ error: "All fields except country are required." });
     }
@@ -1446,83 +1739,137 @@ app.put("/api/donor/profile/:userId", async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // 1. Update User table
+        // 1. Update User table - Use conn
         await conn.query(
             "UPDATE User SET name = ?, email = ?, phone_number = ? WHERE user_id = ?",
             [name, email, phone, userId]
         );
 
-        // 2. Update Donor (organization_name and business_type)
+        // 2. Update Donor - Use conn
         await conn.query(
             "UPDATE Donor SET organization_name = ?, business_type = ? WHERE user_id = ?",
             [name, business_type, userId]
         );
 
-        // 3. Handle Address – preserve existing country, never update it
+        // 3. Handle Address - Use conn
         const [addr] = await conn.query(
-            "SELECT address_id, country FROM Address WHERE user_id = ? LIMIT 1",
+            "SELECT address_id FROM Address WHERE user_id = ? LIMIT 1",
             [userId]
         );
 
         if (addr.length === 0) {
-            // No address yet – insert with a fixed default country
-            const DEFAULT_COUNTRY = 'Lebanon'; // Change to your country
+            const DEFAULT_COUNTRY = 'Lebanon';
             await conn.query(
                 "INSERT INTO Address (user_id, street, city, country) VALUES (?, ?, ?, ?)",
                 [userId, street, city, DEFAULT_COUNTRY]
             );
         } else {
-            // Address exists – update only street and city, keep the existing country
             await conn.query(
                 "UPDATE Address SET street = ?, city = ? WHERE user_id = ?",
                 [street, city, userId]
             );
-            // country is NOT updated – remains whatever was in the database
         }
 
-        // 4. Log the change
+        // 4. Log the change - FIXED: Changed pool.query to conn.query
+        // This was likely the cause of your lock timeout.
         await conn.query(
-            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
-            ['Profile Update', 'Donor updated their profile information', userId]
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Profile Update Successful',
+                'Your profile information has been successfully updated in our system.',
+                'account',
+                userId
+            ]
         );
 
         await conn.commit();
         res.status(200).json({ message: "Profile updated successfully." });
 
     } catch (err) {
-        await conn.rollback();
+        if (conn) await conn.rollback();
         console.error("Donor profile PUT error:", err);
         res.status(500).json({ error: "Failed to update donor profile." });
     } finally {
-        conn.release();
+        if (conn) conn.release();
     }
 });
 
-// ==============================================================
-// ──── PUT /api/donor/profile-picture/:userId ─────────────────
-//
-//  Updates donor profile picture
-// ==============================================================
-// app.put("/api/donor/profile-picture/:userId", async (req, res) => {
-//     const { userId } = req.params;
-//     const { profile_picture } = req.body; // base64 string
+// Upload Donor Profile Picture
+app.post("/api/donor/upload-profile-picture/:userId", upload.single("profilePicture"), async (req, res) => {
+    const { userId } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+    }
 
-//     if (!profile_picture) {
-//         return res.status(400).json({ error: "Profile picture is required." });
-//     }
+    const imageUrl = `/uploads/${req.file.filename}`;
 
-//     try {
-//         // Assuming you have a column 'profile_picture' in Donor table
-//         await pool.query(
-//             "UPDATE Donor SET profile_picture = ? WHERE user_id = ?",
-//             [profile_picture, userId]
-//         );
-//         res.status(200).json({ message: "Profile picture updated successfully." });
-//     } catch (err) {
-//         console.error("Profile picture update error:", err);
-//         res.status(500).json({ error: "Failed to update profile picture." });
-//     }
-// });
+    try {
+        // Update the User table
+        await pool.query(
+            "UPDATE User SET profile_picture = ? WHERE user_id = ?",
+            [imageUrl, userId]
+        );
+
+        // 🔔 Add Notification
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Profile Picture Updated',
+                'Your donor profile picture has been successfully changed.',
+                'profile_update',
+                userId
+            ]
+        );
+
+        res.status(200).json({ profile_picture: imageUrl });
+    } catch (err) {
+        console.error("Donor upload error:", err);
+        res.status(500).json({ error: "Failed to save donor profile picture." });
+    }
+});
+
+// Delete Donor Profile Picture
+app.delete("/api/donor/delete-profile-picture/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [[user]] = await pool.query(
+            "SELECT profile_picture FROM User WHERE user_id = ?",
+            [userId]
+        );
+
+        if (user && user.profile_picture) {
+            const filePath = path.join(__dirname, user.profile_picture);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        await pool.query(
+            "UPDATE User SET profile_picture = NULL WHERE user_id = ?",
+            [userId]
+        );
+
+        // 🔔 Add Notification
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Profile Picture Removed',
+                'Your profile picture has been removed from your account.',
+                'profile_update',
+                userId
+            ]
+        );
+
+        res.status(200).json({ message: "Profile picture deleted." });
+    } catch (err) {
+        console.error("Donor delete error:", err);
+        res.status(500).json({ error: "Failed to delete donor profile picture." });
+    }
+});
 
 // ==============================================================
 // ──── PUT /api/donor/change-password/:userId ─────────────────
@@ -1535,162 +1882,697 @@ app.put("/api/donor/change-password/:userId", async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 3 || newPassword.length > 10) {
-        return res.status(400).json({
-            error: "New password must be between 3 and 10 characters long."
-        });
+        return res.status(400).json({ error: "New password must be between 3 and 10 characters." });
     }
 
     try {
-        // Fetch stored hash
-        const [[user]] = await pool.query(
-            "SELECT password FROM User WHERE user_id = ?",
-            [userId]
-        );
+        const [[user]] = await pool.query("SELECT password FROM User WHERE user_id = ?", [userId]);
+        if (!user) return res.status(404).json({ error: "User not found." });
 
-        if (!user) {
-            return res.status(404).json({ error: "User not found." });
-        }
-
-        // Verify current password
         const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ error: "Current password is incorrect." });
-        }
+        if (!isMatch) return res.status(401).json({ error: "Current password is incorrect." });
 
-        // Hash new password
         const newHash = await bcrypt.hash(newPassword, 10);
+        await pool.query("UPDATE User SET password = ? WHERE user_id = ?", [newHash, userId]);
 
-        // Update password
-        await pool.query(
-            "UPDATE User SET password = ? WHERE user_id = ?",
-            [newHash, userId]
-        );
-
-        // Log action
+        // 📜 Log to Syslog
         await pool.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Password Change', 'Donor changed their password', userId]
         );
 
-        res.status(200).json({ message: "Password changed successfully." });
+        // 🔔 Add Notification
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Security Alert: Password Changed',
+                'The password for your FeedHope account was recently updated. If this wasn\'t you, contact support.',
+                'security',
+                userId
+            ]
+        );
 
+        res.status(200).json({ message: "Password changed successfully." });
     } catch (err) {
         console.error("Donor change password error:", err);
         res.status(500).json({ error: "Failed to change password." });
     }
 });
 
-// ──── 13. Get All Food Categories ────
-app.get('/api/categories', async (req, res) => {
+
+
+// GET offers for a specific donor with optional status filtering
+// Get all offers for a specific donor with optional status filtering
+app.get('/api/donor/my-offers/:donorId', async (req, res) => {
+    const { donorId } = req.params;
+    const { status } = req.query;
+
     try {
-        const [rows] = await db.execute("SELECT category_id, category_name FROM Food_category");
+        let query = `
+            SELECT 
+        o.offer_id, 
+        o.food_name, 
+        c.category_name, 
+        o.quantity_by_kg, 
+        o.status,
+        o.created_at -- This contains Date + Hour/Min/Sec
+    FROM food_offer o
+    LEFT JOIN food_category c ON o.category_id = c.category_id
+    WHERE o.donor_id = ?
+        `;
+
+        const queryParams = [donorId];
+
+        if (status && status !== 'All') {
+            query += " AND o.status = ?";
+            queryParams.push(status);
+        }
+
+        // Sorting by created_at DESC ensures the most recent offers show first
+        query += " ORDER BY o.created_at DESC";
+
+        const [rows] = await pool.query(query, queryParams);
         res.json(rows);
+    } catch (error) {
+        console.error('SQL ERROR:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete an offer
+app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
+    const { offerId } = req.params;
+    const conn = await pool.getConnection();
+
+    try {
+        await conn.beginTransaction();
+
+        // Get details before deletion
+        const [details] = await conn.query(
+            "SELECT o.food_name, d.user_id FROM Food_offer o JOIN Donor d ON o.donor_id = d.donor_id WHERE o.offer_id = ?",
+            [offerId]
+        );
+
+        if (details.length > 0) {
+            const { food_name, user_id } = details[0];
+
+            await conn.query("DELETE FROM Food_offer WHERE offer_id = ?", [offerId]);
+
+            // Notify user of deletion
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+                ['Offer Removed', `The offer "${food_name}" has been deleted.`, 'deletion', user_id]
+            );
+        }
+
+        await conn.commit();
+        res.json({ message: 'Deleted successfully' });
+    } catch (error) {
+        await conn.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        conn.release();
+    }
+});
+// GET Donor Delivered History
+app.get('/api/donor/history/:donorId', async (req, res) => {
+    const { donorId } = req.params;
+
+    try {
+        const query = `
+            SELECT 
+                fo.offer_id AS id,
+                fo.food_name AS title,
+                COALESCE(u.name, 'Organization') AS receiver, 
+                COALESCE(fo.quantity_by_kg, 0) AS quantity,
+                COALESCE(fo.number_of_person, 0) AS people_helped, 
+                COALESCE(MAX(fb.rating), 0) AS rating,
+                fo.status
+            FROM Food_offer fo
+            LEFT JOIN Receiver r ON fo.receiver_id = r.receiver_id
+            LEFT JOIN User u ON r.user_id = u.user_id
+            LEFT JOIN Delivery d ON fo.offer_id = d.offer_id
+            LEFT JOIN Feedback_and_rating fb ON d.delivery_id = fb.delivery_id
+            WHERE fo.donor_id = ? AND fo.status = 'Delivered'
+            GROUP BY fo.offer_id
+            ORDER BY fo.offer_id DESC
+        `;
+
+        const [rows] = await pool.query(query, [donorId]);
+        res.json(rows);
+    } catch (error) {
+        console.error('Database Error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch history data' });
+    }
+});
+
+
+
+// ==============================================================
+// ──────────────── DONOR: CREATE NEW FOOD OFFER ─────────────────
+// ==============================================================
+
+// Configure multer storage for offer images (separate subfolder recommended)
+const offerUploadDir = path.join(__dirname, "uploads/offers");
+if (!fs.existsSync(offerUploadDir)) {
+    fs.mkdirSync(offerUploadDir, { recursive: true });
+}
+
+const offerStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, offerUploadDir),
+    filename: (req, file, cb) => {
+        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, unique + path.extname(file.originalname));
+    }
+});
+const uploadOfferImage = multer({ storage: offerStorage, limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
+
+
+
+// ──── Get all food categories (for dynamic filter dropdown) ────
+app.get("/api/categories", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            "SELECT category_id, category_name, description FROM Food_category ORDER BY category_name"
+        );
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Fetch categories error:", err);
+        res.status(500).json({ error: "Failed to load categories." });
+    }
+});
+
+
+app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async (req, res) => {
+    const {
+        foodName,
+        description,
+        categoryId,
+        quantityKg,
+        numPersons,
+        pickupTime,
+        expirationDate,
+        dietarySelections,
+        userId          // from frontend (User.user_id)
+    } = req.body;
+
+    console.log("Received create-offer request with userId:", userId);
+
+    // Basic validation
+    if (!foodName || !categoryId || !quantityKg || !pickupTime || !expirationDate || !userId) {
+        return res.status(400).json({ error: "Missing required fields: foodName, categoryId, quantityKg, pickupTime, expirationDate, userId" });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 1️⃣ Get donor_id from Donor table using user_id
+        const [donorRows] = await conn.query(
+            "SELECT donor_id FROM Donor WHERE user_id = ?",
+            [userId]
+        );
+
+        if (donorRows.length === 0) {
+            await conn.rollback();
+            console.error(`No donor record found for user_id: ${userId}`);
+            return res.status(404).json({ error: "Donor profile not found." });
+        }
+
+        const donorId = donorRows[0].donor_id;
+
+        // 2️⃣ Insert into Food_offer
+        const [offerResult] = await conn.query(
+            `INSERT INTO Food_offer
+            (food_name, description, category_id, quantity_by_kg, number_of_person,
+             pickup_time, expiration_date_and_time, dietary_information, donor_id, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')`,
+            [
+                foodName,
+                description || null,
+                categoryId,
+                quantityKg,
+                numPersons || 0,
+                pickupTime,
+                expirationDate,
+                dietarySelections || null,
+                donorId
+            ]
+        );
+
+        const newOfferId = offerResult.insertId;
+
+        // 3️⃣ Handle optional image upload
+        if (req.file) {
+            const imageUrl = `/uploads/offers/${req.file.filename}`;
+            await conn.query(
+                `INSERT INTO Food_photo (image_url, offer_id, uploaded_at)
+                 VALUES (?, ?, NOW())`,
+                [imageUrl, newOfferId]
+            );
+        }
+
+        // 4️⃣ Log the action in Syslog
+        await conn.query(
+            `INSERT INTO Syslog (action, description, user_id)
+            VALUES (?, ?, ?)`,
+            ['Create Offer', `Donor created new food offer: ${foodName}`, userId]
+        );
+
+        // 5️⃣ ADDED: Insert into Notifications table
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Offer Created Successfully',
+                `Your food offer "${foodName}" is now live and available for receivers.`,
+                'success',
+                userId
+            ]
+        );
+
+        await conn.commit();
+        res.status(201).json({ success: true, offerId: newOfferId });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error("Create offer error:", err);
+        res.status(500).json({ error: "Failed to create offer. " + err.message });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ==============================================================
+// ──────────────── DONOR MONEY DONATION ────────────────────────
+// ==============================================================
+
+// ──── 11. Process Money Donation (FIXED) ────
+app.post("/api/donor/donate-money", async (req, res) => {
+    // 1. Accept userId instead of donor_id to match your frontend storage
+    const { amount, payment_method, userId, description } = req.body;
+
+    // Validate input
+    if (!amount || !payment_method || !userId) {
+        return res.status(400).json({
+            error: "Missing required donation details.",
+            received: { amount, payment_method, userId }
+        });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 2. Look up the donor_id using the userId (Just like you do in create-offer)
+        const [donorRows] = await conn.query(
+            "SELECT donor_id FROM Donor WHERE user_id = ?",
+            [userId]
+        );
+
+        if (donorRows.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Donor profile not found for this user." });
+        }
+
+        const donorId = donorRows[0].donor_id;
+
+        // 3. Insert the donation record
+        const [result] = await conn.query(
+            `INSERT INTO Money_donation (donation_date, payment_method, amount, donor_id, description) 
+             VALUES (NOW(), ?, ?, ?, ?)`,
+            [payment_method, amount, donorId, description || null]
+        );
+
+        // 4. Log the action in Syslog
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Donation', `User made a monetary donation of $${amount} via ${payment_method}`, userId]
+        );
+
+        // 5. Add a Notification for the user (Optional but recommended for consistency)
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            ['Donation Received', `Thank you for your $${amount} donation via ${payment_method}!`, 'success', userId]
+        );
+
+        await conn.commit();
+        res.status(201).json({
+            message: "Thank you! Your donation was successful.",
+            donationId: result.insertId
+        });
+    } catch (err) {
+        await conn.rollback();
+        console.error("[ERROR] Donation API failure:", err.message);
+        res.status(500).json({ error: "Failed to process donation. Database error." });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ──── 12. Get Donor Money Donation History ────
+app.get("/api/donor/money-donations/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const [rows] = await pool.query(
+            `SELECT 
+                md.amount, 
+                md.payment_method AS method, 
+                md.description AS note, 
+                md.donation_date AS date
+             FROM Money_donation md
+             JOIN Donor d ON md.donor_id = d.donor_id
+             WHERE d.user_id = ?
+             ORDER BY md.donation_date DESC`,
+            [userId]
+        );
+
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Fetch donation history error:", err);
+        res.status(500).json({ error: "Failed to load donation history." });
+    }
+});
+
+// ==============================================================
+// ──────────────── DONOR: NOTIFICATIONS ─────────────────
+// ==============================================================
+// 1. Fetch all notifications for the Donor page
+app.get("/api/donor/notifications/all/:userId", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            "SELECT * FROM Notifications WHERE user_id = ? ORDER BY date DESC",
+            [req.params.userId]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to load notifications." });
+    }
+});
+
+// 2. Get unread count for Sidebar badge
+app.get("/api/donor/notifications/unread-count/:userId", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            "SELECT COUNT(*) as count FROM Notifications WHERE user_id = ? AND read_at IS NULL",
+            [req.params.userId]
+        );
+        res.json({ count: rows[0].count });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// // ──── 14. Create New Food Offer (With Image) ────
-// app.post('/api/donor/create-offer', upload.single('imageFile'), async (req, res) => {
-//     // 1. Get a connection from the pool for a transaction
-//     const connection = await db.getConnection(); 
-    
-//     try {
-//         await connection.beginTransaction();
-
-//         const { 
-//             foodName, description, categoryId, quantityKg, 
-//             numPersons, pickupTime, expirationDate, dietarySelections, donorId 
-//         } = req.body;
-
-//         // 2. Insert into Food_offer (Matches your schema exactly)
-//         const offerSql = `
-//             INSERT INTO Food_offer 
-//             (food_name, description, category_id, quantity_by_kg, number_of_person, 
-//              pickup_time, expiration_date_and_time, dietary_information, donor_id, status) 
-//             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Available')
-//         `;
-
-//         const [offerResult] = await connection.execute(offerSql, [
-//             foodName, 
-//             description || null, 
-//             categoryId, 
-//             quantityKg, 
-//             numPersons || 0, 
-//             pickupTime, 
-//             expirationDate, 
-//             dietarySelections, 
-//             donorId
-//         ]);
-
-//         const newOfferId = offerResult.insertId;
-
-//         // 3. Insert into Food_photo using the new newOfferId
-//         if (req.file) {
-//             const imageUrl = `/uploads/${req.file.filename}`;
-//             const photoSql = `
-//                 INSERT INTO Food_photo (image_url, offer_id, uploaded_at) 
-//                 VALUES (?, ?, NOW())
-//             `;
-//             await connection.execute(photoSql, [imageUrl, newOfferId]);
-//         }
-
-//         // 4. If everything is fine, save changes to DB
-//         await connection.commit();
-//         res.status(200).json({ success: true, offerId: newOfferId });
-
-//     } catch (err) {
-//         // If anything fails, undo all changes
-//         await connection.rollback();
-//         console.error("CRITICAL DATABASE ERROR:", err.message);
-//         res.status(500).json({ error: err.message });
-//     } finally {
-//         connection.release();
-//     }
-// });
-
-
-// GET offers for a specific donor with optional status filtering
-app.get('/api/donor/my-offers/:donorId', async (req, res) => {
+// 3. Mark SINGLE as read (When clicked)
+app.post("/api/donor/notifications/mark-read/:notifId", async (req, res) => {
     try {
-        const { donorId } = req.params;
-        const { status } = req.query; // e.g., ?status=Available
+        await pool.query(
+            "UPDATE Notifications SET read_at = NOW() WHERE notification_id = ? AND read_at IS NULL",
+            [req.params.notifId]
+        );
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to update notification." });
+    }
+});
 
-        let sql = `
-            SELECT 
-                fo.offer_id, 
-                fo.food_name, 
-                fo.quantity_by_kg, 
-                fo.status, 
-                fo.pickup_time,
-                fc.category_name,
-                fo.created_at
-            FROM Food_offer fo
-            JOIN Food_category fc ON fo.category_id = fc.category_id
-            WHERE fo.donor_id = ?
-        `;
-        
-        const params = [donorId];
+// 4. Mark ALL read (Following your exact Receiver logic)
+app.post("/api/donor/notifications/mark-all-read/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [result] = await pool.query(
+            `UPDATE Notifications 
+             SET read_at = NOW() 
+             WHERE user_id = ? AND read_at IS NULL`,
+            [userId]
+        );
+        res.status(200).json({ message: `${result.affectedRows} notification(s) marked as read.` });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to mark notifications as read." });
+    }
+});
 
-        // Add status filter if it's not "All" and exists
-        if (status && status !== 'All') {
-            sql += ` AND fo.status = ?`;
-            params.push(status);
+// 5. Delete ALL (To clear history)
+app.delete("/api/donor/notifications/delete-all/:userId", async (req, res) => {
+    try {
+        await pool.query("DELETE FROM Notifications WHERE user_id = ?", [req.params.userId]);
+        res.status(200).json({ message: "History cleared." });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to delete notifications." });
+    }
+});
+
+// 6. Delete a single notification
+app.delete("/api/donor/notifications/:notificationId", async (req, res) => {
+    const { notificationId } = req.params;
+    const { userId } = req.body;   // userId must be sent in body for security
+
+    if (!userId) {
+        return res.status(400).json({ error: "User ID is required." });
+    }
+
+    try {
+        // Verify the notification belongs to this user
+        const [notif] = await pool.query(
+            "SELECT notification_id FROM Notifications WHERE notification_id = ? AND user_id = ?",
+            [notificationId, userId]
+        );
+
+        if (notif.length === 0) {
+            return res.status(404).json({ error: "Notification not found or does not belong to you." });
         }
 
-        sql += ` ORDER BY fo.created_at DESC`;
+        // Delete it
+        await pool.query(
+            "DELETE FROM Notifications WHERE notification_id = ?",
+            [notificationId]
+        );
 
-        const [rows] = await db.execute(sql, params);
-        res.status(200).json(rows);
+        res.status(200).json({ message: "Notification deleted successfully." });
     } catch (err) {
-        console.error("Fetch Filtered Offers Error:", err);
-        res.status(500).json({ error: "Server error fetching offers" });
+        console.error("Delete notification error:", err);
+        res.status(500).json({ error: "Failed to delete notification." });
+    }
+});
+
+// Fetch all feedback received by a specific donor
+app.get("/api/donor/feedback/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // We select the feedback where the donor_id matches the logged-in user.
+        // We join the User table to get the name of the receiver who submitted it.
+        // Adjust "u.first_name" and "u.last_name" to match your actual User table columns (e.g., u.name or u.organization_name)
+        const [feedbackList] = await pool.query(
+            `SELECT 
+                f.rating, 
+                f.comment, 
+                f.feedback_date,
+                f.delivery_id,
+                u.first_name, 
+                u.last_name
+             FROM Feedback_and_rating f
+             LEFT JOIN User u ON f.given_by = u.user_id
+             WHERE f.donor_id = ?
+             ORDER BY f.feedback_date DESC`,
+            [userId]
+        );
+
+        res.status(200).json(feedbackList);
+    } catch (err) {
+        console.error("Error fetching donor feedback:", err);
+        res.status(500).json({ error: "Failed to retrieve feedback." });
     }
 });
 
 
 
 
+
+
+
+
+
+// ────────────────────── Admin ─────────────────────────
+
+
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/food-offers
+//  Returns all food offers with donor name + category, plus distinct
+//  statuses and categories for filter dropdowns.
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/food-offers', async (req, res) => {
+    try {
+        // All offers with donor name, category name, and donor city
+        const [offers] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.number_of_person AS portions,
+                fo.status,
+                fo.expiration_date_and_time AS expiry_date,
+                fo.pickup_time,
+                fo.description,
+                u.name AS donor_name,
+                a.city AS donor_city,
+                fc.category_name AS category
+            FROM Food_offer fo
+            JOIN Donor d ON fo.donor_id = d.donor_id
+            JOIN User u ON d.user_id = u.user_id
+            LEFT JOIN Address a ON a.user_id = u.user_id
+            LEFT JOIN Food_category fc ON fo.category_id = fc.category_id
+            ORDER BY fo.offer_id DESC
+        `);
+
+        // Distinct statuses (for dropdown)
+        const [statusRows] = await pool.query(`
+            SELECT DISTINCT status FROM Food_offer WHERE status IS NOT NULL ORDER BY status
+        `);
+
+        // Distinct categories (for dropdown) – from Food_category table
+        const [catRows] = await pool.query(`
+            SELECT category_name FROM Food_category ORDER BY category_name
+        `);
+
+        res.json({
+            offers,
+            statuses: statusRows.map(r => r.status),
+            categories: catRows.map(r => r.category_name),
+        });
+    } catch (err) {
+        console.error('GET /api/admin/food-offers error:', err);
+        res.status(500).json({ error: 'Failed to fetch food offers.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/volunteers
+//  Returns all active volunteers (for the Assign dropdown).
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/volunteers', async (req, res) => {
+    try {
+        const [volunteers] = await pool.query(`
+            SELECT u.user_id, u.name, u.phone_number AS phone
+            FROM User u
+            JOIN Role r ON u.user_id = r.user_id
+            WHERE r.role_name = 'Volunteer'
+            ORDER BY u.name ASC
+        `);
+        res.json({ volunteers });
+    } catch (err) {
+        console.error('GET /api/admin/volunteers error:', err);
+        res.status(500).json({ error: 'Failed to fetch volunteers.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/food-offers/assign-volunteer
+//  Assigns a volunteer to an offer and sets status to 'in_delivery'.
+//  Body: { offerId, volunteerId }
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
+    const { offerId, volunteerId } = req.body;
+    if (!offerId || !volunteerId) {
+        return res.status(400).json({ error: 'offerId and volunteerId are required.' });
+    }
+    try {
+        // Update the offer status – you may also insert into a Delivery table here
+        const [result] = await pool.query(`
+            UPDATE Food_offer
+            SET status = 'in_delivery'
+            WHERE offer_id = ?
+        `, [offerId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+
+        // Optional: insert a Delivery record
+        // await pool.query(`
+        //     INSERT INTO Delivery (offer_id, volunteer_id, delivery_status, assigned_at)
+        //     VALUES (?, ?, 'assigned', NOW())
+        // `, [offerId, volunteerId]);
+
+        res.json({ message: 'Volunteer assigned successfully.' });
+    } catch (err) {
+        console.error('PUT /api/admin/food-offers/assign-volunteer error:', err);
+        res.status(500).json({ error: 'Failed to assign volunteer.' });
+    }
+});
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/food-offers/:offerId/expire
+//  Marks an offer as expired.
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/food-offers/:offerId/expire', async (req, res) => {
+    const { offerId } = req.params;
+    try {
+        const [result] = await pool.query(`
+            UPDATE Food_offer
+            SET status = 'expired'
+            WHERE offer_id = ?
+        `, [offerId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+        res.json({ message: 'Offer marked as expired.' });
+    } catch (err) {
+        console.error('PUT /api/admin/food-offers/:offerId/expire error:', err);
+        res.status(500).json({ error: 'Failed to expire offer.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/food-offers/:offerId/cancel
+//  Cancels an offer.
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
+    const { offerId } = req.params;
+    try {
+        const [result] = await pool.query(`
+            UPDATE Food_offer
+            SET status = 'cancelled'
+            WHERE offer_id = ?
+        `, [offerId]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+        res.json({ message: 'Offer cancelled.' });
+    } catch (err) {
+        console.error('PUT /api/admin/food-offers/:offerId/cancel error:', err);
+        res.status(500).json({ error: 'Failed to cancel offer.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/notifications/unread-count
+//  Returns count of unread admin notifications.
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/notifications/unread-count', async (req, res) => {
+    try {
+        const [[row]] = await pool.query(`
+            SELECT COUNT(*) AS count
+            FROM notifications
+            WHERE recipient_role = 'Admin'
+            AND read_at IS NULL
+        `);
+        res.json({ count: row.count });
+    } catch (err) {
+        // If the table doesn't exist yet, just return 0 gracefully
+        res.json({ count: 0 });
+    }
+});
 
 
 

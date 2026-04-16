@@ -1,164 +1,134 @@
-// DonorFeedback.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
-import '../../Styles/Donor/DonorDashboard.css';
-import '../../Styles/Donor/DonorFeedback.css';
+import '../../Styles/Donor/DonorNotifications.css'; // Reusing your layout styles
 
 // MUI Icons
 import StarIcon from '@mui/icons-material/Star';
-import StarHalfIcon from '@mui/icons-material/StarHalf';
-import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import FeedbackIcon from '@mui/icons-material/Feedback';
-import PersonIcon from '@mui/icons-material/Person';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 const DonorFeedback = () => {
     const [user, setUser] = useState(null);
     const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [overallRating, setOverallRating] = useState(0);
-    const [totalReviews, setTotalReviews] = useState(0);
     const navigate = useNavigate();
 
-    // Load user
     useEffect(() => {
-        const storedUser = localStorage.getItem('feedhope_user');
+        const storedUser = JSON.parse(localStorage.getItem('feedhope_user'));
         if (!storedUser) {
             navigate('/signin');
-            return;
+        } else {
+            setUser(storedUser);
         }
-        setUser(JSON.parse(storedUser));
     }, [navigate]);
 
-    // Fetch feedbacks (mock)
     useEffect(() => {
-        if (!user) return;
-
-        const fetchFeedbacks = async () => {
-            setLoading(true);
+        const fetchFeedback = async () => {
+            if (!user) return;
             try {
-                // Mock data matching the image
-                const mockFeedbacks = [
-                    {
-                        id: 1,
-                        receiverName: 'Hope Community Shelter',
-                        deliverer: 'Sarah Johnson',
-                        comment: 'Excellent food quality and fast delivery! The curry was still warm when it arrived.',
-                        date: '2024-03-13',
-                        rating: 5,
-                    },
-                    {
-                        id: 2,
-                        receiverName: 'City Food Bank',
-                        deliverer: 'John Smith',
-                        comment: 'Good delivery, arrived a bit early but food was in great condition.',
-                        date: '2024-03-12',
-                        rating: 4,
-                    },
-                ];
-                setFeedbacks(mockFeedbacks);
-                const total = mockFeedbacks.length;
-                const avg = mockFeedbacks.reduce((sum, f) => sum + f.rating, 0) / total;
-                setOverallRating(avg);
-                setTotalReviews(total);
+                const res = await axios.get(`http://localhost:5000/api/donor/feedback/${user.user_id}`);
+                setFeedbacks(res.data);
             } catch (err) {
-                console.error('Failed to load feedbacks:', err);
+                console.error('Error fetching feedback:', err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchFeedbacks();
+        fetchFeedback();
     }, [user]);
 
-    const handleLogout = () => {
-        localStorage.removeItem('feedhope_user');
-        navigate('/signin');
-    };
-
-    // Helper to render stars based on rating
+    // Helper to render stars based on rating number
     const renderStars = (rating) => {
-        const fullStars = Math.floor(rating);
-        const hasHalfStar = rating % 1 >= 0.5;
         const stars = [];
-        for (let i = 0; i < fullStars; i++) {
-            stars.push(<StarIcon key={`full-${i}`} className="star-filled" />);
-        }
-        if (hasHalfStar) {
-            stars.push(<StarHalfIcon key="half" className="star-half" />);
-        }
-        const emptyStars = 5 - stars.length;
-        for (let i = 0; i < emptyStars; i++) {
-            stars.push(<StarOutlineIcon key={`empty-${i}`} className="star-empty" />);
+        for (let i = 1; i <= 5; i++) {
+            if (i <= rating) {
+                stars.push(<StarIcon key={i} sx={{ color: '#f5a623', fontSize: 20 }} />);
+            } else {
+                stars.push(<StarBorderIcon key={i} sx={{ color: '#e0e0e0', fontSize: 20 }} />);
+            }
         }
         return stars;
     };
 
-    const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
-    };
+    // Calculate average rating
+    const averageRating = feedbacks.length > 0
+        ? (feedbacks.reduce((acc, curr) => acc + curr.rating, 0) / feedbacks.length).toFixed(1)
+        : 0;
 
     return (
         <div className="ddb-layout">
-            <DonorSidebar user={user} onLogout={handleLogout} />
+            <DonorSidebar user={user} onLogout={() => navigate('/signin')} />
 
             <main className="ddb-main">
-                {/* Banner */}
-                <div className="ddb-banner dfb-banner">
+                <div className="ddb-banner dn-banner">
                     <div className="ddb-banner-text">
-                        <p className="ddb-banner-greeting">Donor</p>
-                        <h1 className="ddb-banner-title">Feedback</h1>
-                        <p className="ddb-banner-subtitle">View feedback and ratings from receivers</p>
-                    </div>
-                    <div className="ddb-banner-icon">
-                        <FeedbackIcon sx={{ fontSize: 48 }} />
+                        <h1 className="ddb-banner-title">My Feedback</h1>
+                        <p className="ddb-banner-subtitle">
+                            See what receivers are saying about your donations.
+                        </p>
                     </div>
                 </div>
 
-                {/* Overall Rating Card */}
-                <div className="dfb-rating-card">
-                    <div className="dfb-rating-stars">{renderStars(overallRating)}</div>
-                    <div className="dfb-rating-number">{overallRating.toFixed(1)}</div>
-                    <div className="dfb-rating-label">Based on {totalReviews} review{totalReviews !== 1 ? 's' : ''}</div>
-                </div>
-
-                {/* Feedbacks List */}
-                {loading ? (
-                    <div className="dfb-loading">Loading feedback...</div>
-                ) : feedbacks.length === 0 ? (
-                    <div className="dfb-empty">
-                        <p>No feedback yet.</p>
-                        <p className="dfb-empty-sub">When receivers rate your donations, they'll appear here.</p>
-                    </div>
-                ) : (
-                    <div className="dfb-feedbacks-list">
-                        {feedbacks.map((feedback) => (
-                            <div key={feedback.id} className="dfb-feedback-card">
-                                <div className="dfb-feedback-header">
-                                    <div className="dfb-receiver-info">
-                                        <PersonIcon className="dfb-icon" />
-                                        <div>
-                                            <h3 className="dfb-receiver-name">{feedback.receiverName}</h3>
-                                            <div className="dfb-deliverer-info">
-                                                <LocalShippingIcon className="dfb-small-icon" />
-                                                <span>Delivered by {feedback.deliverer}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="dfb-rating-stars-small">{renderStars(feedback.rating)}</div>
-                                </div>
-                                <div className="dfb-feedback-comment">
-                                    <p>"{feedback.comment}"</p>
-                                </div>
-                                <div className="dfb-feedback-date">
-                                    <CalendarTodayIcon className="dfb-small-icon" />
-                                    <span>{formatDate(feedback.date)}</span>
+                {/* Summary Card */}
+                {!loading && feedbacks.length > 0 && (
+                    <div className="dn-action-bar" style={{ background: '#fff', padding: '1.5rem', borderRadius: '10px', border: '1px solid #e0e0e0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#1a1a1a' }}>
+                                {averageRating}
+                            </div>
+                            <div>
+                                <div style={{ display: 'flex' }}>{renderStars(Math.round(averageRating))}</div>
+                                <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '4px' }}>
+                                    Based on {feedbacks.length} reviews
                                 </div>
                             </div>
-                        ))}
+                        </div>
+                    </div>
+                )}
+
+                {loading ? (
+                    <div className="dn-loading">Loading feedback...</div>
+                ) : feedbacks.length === 0 ? (
+                    <div className="dn-empty">
+                        <FeedbackIcon sx={{ fontSize: 40, color: '#ccc', marginBottom: '10px' }} />
+                        <h3>No Feedback Yet</h3>
+                        <p className="dn-empty-sub">You haven't received any feedback on your deliveries yet.</p>
+                    </div>
+                ) : (
+                    <div className="dn-notifications-container">
+                        <div className="dn-category-section">
+                            <div className="dn-category-header">
+                                <div className="dn-category-icon"><FeedbackIcon /></div>
+                                <h3 className="dn-category-title">RECEIVER REVIEWS</h3>
+                            </div>
+                            <div className="dn-category-items">
+                                {feedbacks.map((item, index) => (
+                                    <div key={index} className="dn-notification-item" style={{ cursor: 'default', flexDirection: 'column', gap: '10px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '1.05rem' }}>
+                                                {item.first_name} {item.last_name}
+                                            </div>
+                                            <div className="dn-notification-date">
+                                                {new Date(item.feedback_date).toLocaleDateString()}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '2px' }}>
+                                            {renderStars(item.rating)}
+                                        </div>
+
+                                        {item.comment && (
+                                            <div className="dn-notification-description" style={{ marginTop: '5px', fontStyle: 'italic' }}>
+                                                "{item.comment}"
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>

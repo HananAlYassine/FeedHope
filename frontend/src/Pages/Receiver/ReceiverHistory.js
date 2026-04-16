@@ -129,7 +129,7 @@ const ReceiverHistory = () => {
                 totalReceived: data.stats?.totalReceived ?? data.profile?.total_received ?? 0,
                 peopleServed: data.stats?.peopleServed ?? data.profile?.people_served ?? 0,
                 deliveriesReceived: data.stats?.deliveriesReceived ?? data.profile?.deliveries_received ?? 0,
-                memberSince: data.profile?.foundation_date || '—'
+                memberSince: data.profile?.joined_date || '—'
             });
         } catch (err) {
             console.error("Profile stats error:", err);

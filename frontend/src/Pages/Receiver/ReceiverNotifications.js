@@ -14,6 +14,7 @@ import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CancelIcon from '@mui/icons-material/Cancel';
 import InfoIcon from '@mui/icons-material/Info';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const formatNotificationDate = (dateStr) => {
     if (!dateStr) return '';
@@ -40,6 +41,32 @@ const getNotificationIcon = (type) => {
     }
 };
 
+// Clean white confirmation modal (no slide from top)
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onCancel}>
+            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                </div>
+                <div className="modal-content">
+                    <p>{message}</p>
+                </div>
+                <div className="modal-actions">
+                    <button className="modal-btn modal-btn-cancel" onClick={onCancel}>
+                        Cancel
+                    </button>
+                    <button className="modal-btn modal-btn-confirm" onClick={onConfirm}>
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ReceiverNotifications = () => {
     const navigate = useNavigate();
     const [user] = useState(() => {
@@ -55,6 +82,28 @@ const ReceiverNotifications = () => {
     const [error, setError] = useState(null);
     const [markingAll, setMarkingAll] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [totalNotificationsCount, setTotalNotificationsCount] = useState(0); // NEW: total count for delete all button
+    
+    // Modal state
+    const [modalState, setModalState] = useState({
+        open: false,
+        title: '',
+        message: '',
+        onConfirm: null
+    });
+
+    // Fetch total count of all notifications (for enabling/disabling Delete All)
+    const fetchTotalCount = useCallback(async () => {
+        if (!userId) return;
+        try {
+            const res = await fetch(`http://localhost:5000/api/receiver/notifications/${userId}?status=all`);
+            if (!res.ok) throw new Error('Failed to fetch total count');
+            const data = await res.json();
+            setTotalNotificationsCount(data.length);
+        } catch (err) {
+            console.error("Error fetching total count:", err);
+        }
+    }, [userId]);
 
     const fetchNotifications = useCallback(async () => {
         if (!userId) return;
@@ -76,30 +125,107 @@ const ReceiverNotifications = () => {
         }
     }, [userId, filter]);
 
+    // Refresh total count after any deletion
+    const refreshTotalCount = useCallback(() => {
+        fetchTotalCount();
+    }, [fetchTotalCount]);
+
     useEffect(() => {
         if (!userId) {
             navigate('/signin');
             return;
         }
         fetchNotifications();
-    }, [userId, navigate, fetchNotifications]);
+        fetchTotalCount(); // get initial total count
+    }, [userId, navigate, fetchNotifications, fetchTotalCount]);
 
+    // Mark single as read
     const markAsRead = async (notificationId) => {
         try {
-            await fetch(`http://localhost:5000/api/receiver/notifications/${notificationId}/read`, {
-                method: 'PATCH'
+            const res = await fetch(`http://localhost:5000/api/receiver/notifications/${notificationId}/read`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
             });
+            if (!res.ok) throw new Error('Failed to mark as read');
             setNotifications(prev =>
                 prev.map(n =>
                     n.notification_id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
                 )
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
-            // Notify sidebar to refresh its badge
             window.dispatchEvent(new Event('notification-read'));
         } catch (err) {
             console.error("Mark as read error:", err);
+            alert(err.message);
         }
+    };
+
+    // Delete single notification
+    const deleteSingleNotification = async (notificationId) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/receiver/notifications/${notificationId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+            if (!res.ok) throw new Error('Failed to delete notification');
+            await fetchNotifications();
+            refreshTotalCount(); // update total count after deletion
+            window.dispatchEvent(new Event('notification-read'));
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    // Delete all notifications
+    const deleteAllNotifications = async () => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/receiver/notifications/clear/${userId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) throw new Error('Failed to delete notifications');
+            await fetchNotifications();
+            refreshTotalCount(); // update total count after deletion
+            window.dispatchEvent(new Event('notification-read'));
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    // Open confirmation modal for single delete
+    const openDeleteSingleModal = (notificationId) => {
+        setModalState({
+            open: true,
+            title: 'Delete Notification',
+            message: 'Are you sure you want to delete this notification? This action cannot be undone.',
+            onConfirm: async () => {
+                await deleteSingleNotification(notificationId);
+                closeModal();
+            }
+        });
+    };
+
+    // Open confirmation modal for delete all
+    const openDeleteAllModal = () => {
+        setModalState({
+            open: true,
+            title: 'Delete All Notifications',
+            message: 'Are you sure you want to delete all notifications? This action cannot be undone.',
+            onConfirm: async () => {
+                await deleteAllNotifications();
+                closeModal();
+            }
+        });
+    };
+
+    const closeModal = () => {
+        setModalState({
+            open: false,
+            title: '',
+            message: '',
+            onConfirm: null
+        });
     };
 
     const markAllAsRead = async () => {
@@ -196,14 +322,24 @@ const ReceiverNotifications = () => {
                             Unread Notifications
                         </button>
                     </div>
-                    <button
-                        className="rn-mark-all-btn"
-                        onClick={markAllAsRead}
-                        disabled={markingAll || !hasUnread}
-                    >
-                        <DoneAllIcon fontSize="small" />
-                        {markingAll ? 'Marking…' : 'Mark All Read'}
-                    </button>
+                    
+                    <div className="rn-action-buttons">
+                        <button
+                            className="rn-mark-all-btn"
+                            onClick={markAllAsRead}
+                            disabled={markingAll || !hasUnread}
+                        >
+                            <DoneAllIcon fontSize="small" />
+                            {markingAll ? 'Marking…' : 'Mark All Read'}
+                        </button>
+                        <button
+                            className="rn-delete-all-btn"
+                            onClick={openDeleteAllModal}
+                            disabled={totalNotificationsCount === 0}   // Disabled when no notifications exist
+                        >
+                            🗑️ Delete All
+                        </button>
+                    </div>
                 </div>
 
                 <div className="rn-list-container">
@@ -225,18 +361,39 @@ const ReceiverNotifications = () => {
                                 <div className="rn-notification-content">
                                     <div className="rn-notification-header">
                                         <span className="rn-notification-title">{notif.title}</span>
-                                        <span className="rn-notification-time">
-                                            {formatNotificationDate(notif.date)}
-                                        </span>
                                     </div>
                                     <p className="rn-notification-message">{notif.message}</p>
                                 </div>
-                                {!notif.read_at && <div className="rn-unread-dot" />}
+                                <div className="rn-notification-actions">
+                                    <span className="rn-notification-time">
+                                        {formatNotificationDate(notif.date)}
+                                    </span>
+                                    <button
+                                        className="rn-delete-single-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            openDeleteSingleModal(notif.notification_id);
+                                        }}
+                                        aria-label="Delete notification"
+                                    >
+                                        <DeleteIcon fontSize="small" />
+                                    </button>
+                                    {!notif.read_at && <div className="rn-unread-dot" />}
+                                </div>
                             </div>
                         ))
                     )}
                 </div>
             </main>
+
+            {/* Clean White Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={modalState.open}
+                title={modalState.title}
+                message={modalState.message}
+                onConfirm={modalState.onConfirm}
+                onCancel={closeModal}
+            />
         </div>
     );
 };

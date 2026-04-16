@@ -264,3 +264,119 @@
     .rcp-banner-actions { flex-direction: row; flex-wrap: wrap; }
     .rcp-modal { max-width: 100%; }
 }
+
+
+/* ====================================*/
+/* Profile Picture Styles              
+/* ====================================*/
+
+/* Banner avatar (top right circle) */
+.rdb-banner-avatar {
+    font-size: 36px;
+    font-weight: 700;
+    color: #fff;
+    position: relative;
+    cursor: default;
+    user-select: none;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1976d2, #0d47a1);
+    overflow: hidden;
+}
+
+/* Account avatar (larger circle in right column) */
+.rcp-account-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1976d2, #0d47a1);
+    color: #fff;
+    font-size: 34px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.35);
+    overflow: hidden;
+}
+
+/* Banner layout – keeps avatar and buttons side by side */
+.rdb-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.rdb-banner-icon {
+    margin: 0;
+}
+
+/* Wrapper for account avatar + text + buttons */
+.rcp-account-avatar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px 24px;
+}
+
+/* Action buttons (Change / Delete) below account avatar */
+.rcp-picture-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 16px;
+}
+
+.rcp-picture-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+/* Change button (blue) */
+.rcp-change-btn {
+    background: #f0f7ff;
+    color: #1976d2;
+    border-color: #b9d4f0;
+}
+
+.rcp-change-btn:hover:not(:disabled) {
+    background: #e3f0ff;
+    border-color: #1976d2;
+}
+
+/* Delete button (red) */
+.rcp-delete-btn {
+    background: #fff5f5;
+    color: #d32f2f;
+    border-color: #f5c6cb;
+}
+
+.rcp-delete-btn:hover:not(:disabled) {
+    background: #ffe5e5;
+    border-color: #d32f2f;
+}
+
+/* Disabled state for both buttons */
+.rcp-picture-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+

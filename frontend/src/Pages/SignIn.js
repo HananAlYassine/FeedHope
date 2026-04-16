@@ -37,7 +37,9 @@ const SignIn = () => {
       localStorage.setItem("feedhope_user", JSON.stringify(data.user));
 
       const role = data.user.role;
-      if (role === "Donor")          navigate("/donor-dashboard");
+
+      if      (role === "Admin")     navigate("/admin-dashboard");  
+      else if (role === "Donor")     navigate("/donor-dashboard");
       else if (role === "Receiver")  navigate("/receiver-dashboard");
       else if (role === "Volunteer") navigate("/volunteer-dashboard");
       else navigate("/");

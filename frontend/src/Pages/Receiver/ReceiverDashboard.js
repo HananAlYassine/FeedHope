@@ -20,7 +20,6 @@ import NotificationsIcon   from '@mui/icons-material/Notifications';
 import PlaceIcon           from '@mui/icons-material/Place';
 import AccessTimeIcon      from '@mui/icons-material/AccessTime';
 import ChevronRightIcon    from '@mui/icons-material/ChevronRight';
-import PeopleIcon          from '@mui/icons-material/People';
 import CancelIcon          from '@mui/icons-material/Cancel';
 import InfoIcon            from '@mui/icons-material/Info';
 
@@ -29,6 +28,9 @@ const formatTime = (datetimeStr) => {
     if (!datetimeStr) return '—';
     return new Date(datetimeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+// helper: first letter of name
+const getInitial = (name = '') => name.trim().charAt(0).toUpperCase() || '?';
 
 // ── Format a full date+time notification timestamp ──
 const formatNotifDate = (dateStr) => {
@@ -183,8 +185,17 @@ const ReceiverDashboard = () => {
                                 : 'No new offers right now. Check back soon!'}
                         </p>
                     </div>
-                    <div className="rdb-banner-icon">
-                        <PeopleIcon sx={{ fontSize: 64, opacity: 0.9 }} />
+                    
+                    <div className="rdb-banner-icon rdb-banner-avatar">
+                        {receiver.profile_picture ? (
+                            <img 
+                                src={`http://localhost:5000${receiver.profile_picture}`} 
+                                alt="profile" 
+                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                        ) : (
+                            getInitial(receiver.organization_name || receiver.name)
+                        )}
                     </div>
                     <button
                         className="rdb-banner-btn"

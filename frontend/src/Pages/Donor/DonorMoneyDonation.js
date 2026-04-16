@@ -20,7 +20,6 @@ const DonorMoneyDonation = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
 
-    // Load user from localStorage
     useEffect(() => {
         const storedUser = localStorage.getItem('feedhope_user');
         if (!storedUser) {
@@ -40,27 +39,37 @@ const DonorMoneyDonation = () => {
         setErrorMessage('');
         setSuccessMessage('');
 
-        if (!amount || parseFloat(amount) <= 0) {
-            setErrorMessage('Please enter a valid donation amount.');
-            return;
-        }
-        if (!paymentMethod) {
-            setErrorMessage('Please select a payment method.');
+        // 1. Changed check: Use user_id which is guaranteed to be in your localStorage object
+        if (!user || !user.user_id) {
+            setErrorMessage("Error: User session not found. Please re-login.");
             return;
         }
 
         setLoading(true);
         try {
-            // API call placeholder
-            // ...
+            const response = await fetch('http://localhost:5000/api/donor/donate-money', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: parseFloat(amount),
+                    payment_method: paymentMethod,
+                    // 2. Send userId instead of donor_id
+                    userId: user.user_id,
+                    description: description
+                }),
+            });
 
-            // Mock success
-            setSuccessMessage(`Thank you for your generous donation of $${amount}!`);
-            setAmount('');
-            setDescription('');
-            setTimeout(() => setSuccessMessage(''), 4000);
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccessMessage(data.message);
+                setAmount('');
+                setDescription('');
+            } else {
+                setErrorMessage(data.error || 'Request failed');
+            }
         } catch (err) {
-            setErrorMessage(err.message);
+            setErrorMessage('Could not connect to the server. Please check your connection.');
         } finally {
             setLoading(false);
         }
@@ -71,18 +80,14 @@ const DonorMoneyDonation = () => {
             <DonorSidebar user={user} onLogout={handleLogout} />
 
             <main className="ddb-main">
-                {/* Banner Header */}
                 <div className="ddb-banner dmd-banner">
                     <div className="ddb-banner-text">
                         <p className="ddb-banner-greeting">Donor Dashboard</p>
                         <h1 className="ddb-banner-title">Make an Impact</h1>
-                        <p className="ddb-banner-subtitle">
-                            Your monetary contribution directly supports our food recovery initiatives and helps feed those in need.
-                        </p>
+                        <p className="ddb-banner-subtitle">Your contribution directly supports food recovery efforts.</p>
                     </div>
                 </div>
 
-                {/* Donation Form Card */}
                 <div className="dmd-form-container">
                     <div className="dmd-form-card">
                         <div className="dmd-form-header">
@@ -91,12 +96,12 @@ const DonorMoneyDonation = () => {
                             </div>
                             <div>
                                 <h2 className="dmd-form-title">Donation Details</h2>
-                                <p className="dmd-form-subtitle">Choose your amount and payment method securely.</p>
+                                <p className="dmd-form-subtitle">Securely enter your donation information below.</p>
                             </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="dmd-form-body">
-                            {/* Amount Field */}
+                            {/* Amount Input */}
                             <div className="dmd-form-group">
                                 <label className="dmd-label">Donation Amount</label>
                                 <div className="dmd-amount-input-wrapper">
@@ -116,62 +121,35 @@ const DonorMoneyDonation = () => {
                                 </div>
                             </div>
 
-                            {/* Payment Method */}
+                            {/* Payment Method Icons */}
                             <div className="dmd-form-group">
                                 <label className="dmd-label">Payment Method</label>
                                 <div className="dmd-payment-options">
-
-                                    {/* OMT Tile */}
-                                    <label className={`dmd-payment-tile ${paymentMethod === 'OMT' ? 'selected' : ''}`}>
-                                        <input
-                                            type="radio"
-                                            name="paymentMethod"
-                                            value="OMT"
-                                            checked={paymentMethod === 'OMT'}
-                                            onChange={(e) => setPaymentMethod(e.target.value)}
-                                            disabled={loading}
-                                        />
-                                        <PaymentsIcon className="dmd-payment-icon" />
-                                        <span className="dmd-payment-name">OMT</span>
-                                    </label>
-
-                                    {/* WishMoney Tile */}
-                                    <label className={`dmd-payment-tile ${paymentMethod === 'WishMoney' ? 'selected' : ''}`}>
-                                        <input
-                                            type="radio"
-                                            name="paymentMethod"
-                                            value="WishMoney"
-                                            checked={paymentMethod === 'WishMoney'}
-                                            onChange={(e) => setPaymentMethod(e.target.value)}
-                                            disabled={loading}
-                                        />
-                                        <PhoneIphoneIcon className="dmd-payment-icon" />
-                                        <span className="dmd-payment-name">WishMoney</span>
-                                    </label>
-
-                                    {/* Bank Transfer Tile */}
-                                    <label className={`dmd-payment-tile ${paymentMethod === 'Bank Transfer' ? 'selected' : ''}`}>
-                                        <input
-                                            type="radio"
-                                            name="paymentMethod"
-                                            value="Bank Transfer"
-                                            checked={paymentMethod === 'Bank Transfer'}
-                                            onChange={(e) => setPaymentMethod(e.target.value)}
-                                            disabled={loading}
-                                        />
-                                        <AccountBalanceIcon className="dmd-payment-icon" />
-                                        <span className="dmd-payment-name">Bank Transfer</span>
-                                    </label>
-
+                                    {['OMT', 'WishMoney', 'Bank Transfer'].map((method) => (
+                                        <label key={method} className={`dmd-payment-tile ${paymentMethod === method ? 'selected' : ''}`}>
+                                            <input
+                                                type="radio"
+                                                name="paymentMethod"
+                                                value={method}
+                                                checked={paymentMethod === method}
+                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                                disabled={loading}
+                                            />
+                                            {method === 'OMT' && <PaymentsIcon className="dmd-payment-icon" />}
+                                            {method === 'WishMoney' && <PhoneIphoneIcon className="dmd-payment-icon" />}
+                                            {method === 'Bank Transfer' && <AccountBalanceIcon className="dmd-payment-icon" />}
+                                            <span className="dmd-payment-name">{method}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
 
-                            {/* Reason / Description */}
+                            {/* Optional Note */}
                             <div className="dmd-form-group">
                                 <label className="dmd-label">Note (Optional)</label>
                                 <textarea
                                     rows="3"
-                                    placeholder="Is there a specific campaign or reason inspiring your gift today?"
+                                    placeholder="Leave a message with your donation..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     className="dmd-textarea"
@@ -179,11 +157,10 @@ const DonorMoneyDonation = () => {
                                 />
                             </div>
 
-                            {/* Error / Success Messages */}
+                            {/* Status Alerts */}
                             {errorMessage && <div className="dmd-alert dmd-error">{errorMessage}</div>}
                             {successMessage && <div className="dmd-alert dmd-success">{successMessage}</div>}
 
-                            {/* Action Buttons */}
                             <div className="dmd-actions">
                                 <button
                                     type="button"
@@ -193,11 +170,7 @@ const DonorMoneyDonation = () => {
                                 >
                                     Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    className="dmd-btn dmd-btn-confirm"
-                                    disabled={loading}
-                                >
+                                <button type="submit" className="dmd-btn dmd-btn-confirm" disabled={loading}>
                                     {loading ? 'Processing...' : 'Complete Donation'}
                                 </button>
                             </div>
