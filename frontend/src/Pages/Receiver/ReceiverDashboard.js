@@ -111,6 +111,10 @@ const ReceiverDashboard = () => {
                 const refreshRes  = await fetch(`http://localhost:5000/api/receiver/dashboard/${user.user_id}`);
                 const refreshData = await refreshRes.json();
                 if (refreshRes.ok) setDashboardData(refreshData); //re-render UI with new data
+
+            // Dispatch event so sidebar refreshes unread count
+            window.dispatchEvent(new Event('notification-read'));
+
             } else {
                 alert(data.error || 'Could not accept offer.');
             }

@@ -1,4 +1,8 @@
-import React from 'react';
+// ==========================
+//  FeedHope — Omar & Hanan 
+// ==========================
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../../Styles/Receiver/ReceiverSidebar.css';
@@ -22,10 +26,33 @@ const NAV_ITEMS = [
     { section: 'ACTIVITY', key: 'notifications', label: 'Notifications', Icon: NotificationsIcon, path: '/receiver-notifications', hasBadge: true },
 ];
 
-const ReceiverSidebar = ({ unreadCount, activePage }) => {
+const ReceiverSidebar = ({ activePage }) => {  // removed unreadCount from props
     const navigate = useNavigate();
     const storedUser = localStorage.getItem('feedhope_user');
     const user = storedUser ? JSON.parse(storedUser) : null;
+    const userId = user?.user_id;
+
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Fetch unread count from backend
+    const fetchUnreadCount = async () => {
+        if (!userId) return;
+        try {
+            const response = await axios.get(`http://localhost:5000/api/receiver/notifications/unread-count/${userId}`);
+            setUnreadCount(response.data.count);
+        } catch (err) {
+            console.error("Failed to fetch unread count:", err);
+        }
+    };
+
+    // Listen for notification-read events (dispatched when notifications are marked read or deleted)
+    useEffect(() => {
+        fetchUnreadCount();
+        window.addEventListener('notification-read', fetchUnreadCount);
+        return () => {
+            window.removeEventListener('notification-read', fetchUnreadCount);
+        };
+    }, [userId]);
 
     // --- LOGOUT WITH SYSLOG ---
     const handleLogout = async () => {

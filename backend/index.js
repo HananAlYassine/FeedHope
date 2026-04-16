@@ -562,6 +562,7 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
                 u.name,
                 u.email,
                 u.phone_number,
+                u.profile_picture,
                 r.receiver_id,
                 r.organization_name,
                 r.business_type   AS org_type,
@@ -675,10 +676,10 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
         res.status(200).json({
             receiver,            // Full profile info
             stats: {
-                availableOffers: Number(availableCount),   // Platform-wide available count
-                myAccepted: Number(acceptedCount),    // This receiver's accepted count
+                availableOffers:    Number(availableCount),   // Platform-wide available count
+                myAccepted:         Number(acceptedCount),    // This receiver's accepted count
                 incomingDeliveries: Number(incomingCount),    // Active deliveries incoming
-                mealsReceived: Number(mealsReceived)     // Total meals received historically
+                mealsReceived:      Number(mealsReceived)     // Total meals received historically
             },
             offers,              // Latest available food offers
             notifications,       // Latest notifications for this user
@@ -767,6 +768,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
                 u.name,
                 u.email,
                 u.phone_number,
+                u.created_at AS joined_date,   
                 u.status,
                 u.profile_picture,
                 r.receiver_id,
@@ -801,7 +803,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             WHERE receiver_id = ? AND status IN ('accepted', 'completed')
         `, [profile.receiver_id]);
 
-        // ── Step 3: Deliveries Received ──
+         // ── Step 3: Deliveries Received ──
         // Count completed deliveries that correspond to this receiver's accepted offers.
         const [[{ deliveriesReceived }]] = await pool.query(`
             SELECT COUNT(*) AS deliveriesReceived
@@ -811,8 +813,8 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             AND d.delivery_status = 'completed'
         `, [profile.receiver_id]);
 
-
-        // ── Step 4: People Served ──
+        
+       // ── Step 4: People Served ──
         // Sum number_of_person across all completed offers for this receiver.
         // This represents the total meals/people that benefited from donations.
         const [[{ peopleServed }]] = await pool.query(`
@@ -826,8 +828,8 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
         res.status(200).json({
             profile,
             stats: {
-                totalReceived: Number(totalReceived),
-                peopleServed: Number(peopleServed),
+                totalReceived:      Number(totalReceived),
+                peopleServed:       Number(peopleServed),
                 deliveriesReceived: Number(deliveriesReceived)
             }
         });
@@ -1487,7 +1489,6 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
 
 // ──── 18. Mark a single notification as read ──────────────────
 // Sets read_at = NOW() for the given notification, only if it belongs to the user.
-// Also verifies the user owns this notification via user_id (passed in body).
 app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) => {
     const { notificationId } = req.params;
     const { userId } = req.body;   // We need userId to ensure ownership
@@ -1586,7 +1587,20 @@ app.delete("/api/receiver/notifications/:notificationId", async (req, res) => {
 });
 
 
-
+// ──── 21. Get unread notification count for a receiver ────
+app.get("/api/receiver/notifications/unread-count/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[{ count }]] = await pool.query(
+            "SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND read_at IS NULL",
+            [userId]
+        );
+        res.json({ count });
+    } catch (err) {
+        console.error("Unread count error:", err);
+        res.status(500).json({ error: "Failed to get unread count." });
+    }
+});
 
 
 

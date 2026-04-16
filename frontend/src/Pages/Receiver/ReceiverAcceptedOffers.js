@@ -202,6 +202,10 @@ const ReceiverAcceptedOffers = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Cancel failed');
+
+             // Dispatch event so sidebar refreshes unread count
+            window.dispatchEvent(new Event('notification-read'));
+
             fetchAcceptedOffers();
         } catch (err) {
             alert(err.message);

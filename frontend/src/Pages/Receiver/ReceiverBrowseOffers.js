@@ -198,6 +198,10 @@ const ReceiverBrowseOffers = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
+
+      // Dispatch event so sidebar refreshes unread count
+      window.dispatchEvent(new Event('notification-read'));
+
       fetchOffers();
     } catch (err) {
       alert(err.message);
