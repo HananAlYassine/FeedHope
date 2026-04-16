@@ -64,19 +64,33 @@ header {
     transform: scale(1.03);
 }
 
+
 .logo-circle {
-    width: 55px;  /* Your requested bigger size */
-    height: 55px; 
+    width: 55px;
+    height: 55px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .header-logo-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    display: block !important;
+    box-shadow: none !important;
 }
+
 
 nav ul {
     display: flex;
