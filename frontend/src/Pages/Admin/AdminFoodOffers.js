@@ -14,6 +14,7 @@ import DeliveryDiningIcon   from '@mui/icons-material/DeliveryDining';
 import EventBusyIcon        from '@mui/icons-material/EventBusy';
 import CancelIcon           from '@mui/icons-material/Cancel';
 import RestaurantMenuIcon   from '@mui/icons-material/RestaurantMenu';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 // ── Helpers ──────────────────────────────────────────────────
 const formatDate = (dateStr) => {
@@ -269,8 +270,8 @@ const AdminFoodOffers = () => {
                         <p className="afo-banner-subtitle">Monitor and manage all food donation offers</p>
                     </div>
                     <div className="afo-banner-date">
-                        <RestaurantMenuIcon sx={{ fontSize: 18, opacity: 0.8 }} />
-                        {todayFormatted()}
+                        <CalendarTodayIcon sx={{ fontSize: 16 }} />
+                            {todayFormatted()}
                     </div>
                 </div>
 

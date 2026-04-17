@@ -2415,6 +2415,10 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
 // ────────────────────── Admin ─────────────────────────
 
 
+// ==============================================================
+// ──────────────── Admin Food Offers Page  ─────────────────
+// ==============================================================
+
 // ──────────────────────────────────────────────────────────────
 //  GET /api/admin/food-offers
 //  Returns all food offers with donor name + category, plus distinct
@@ -2589,8 +2593,35 @@ app.get('/api/admin/notifications/unread-count', async (req, res) => {
 });
 
 
+// ==============================================================
+// ──────────────── Admin Money Donations Page  ─────────────────
+// ==============================================================
 
-
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/money-donations
+//  Returns all money donations with donor name, amount, payment method, date.
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/money-donations', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+        SELECT
+            md.donation_id,
+            md.amount,
+            md.payment_method,
+            md.description,  
+            md.donation_date,
+            u.name AS donor_name
+        FROM Money_donation md
+        JOIN Donor d ON md.donor_id = d.donor_id
+        JOIN User u ON d.user_id = u.user_id
+        ORDER BY md.donation_date DESC
+        `);
+        res.json(rows);
+    } catch   (err) {
+        console.error('GET /api/admin/money-donations error:', err);
+        res.status(500).json({ error: 'Failed to fetch money donations.' });
+    }
+});
 
 
 
