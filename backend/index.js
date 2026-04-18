@@ -2627,6 +2627,303 @@ app.get('/api/admin/money-donations', async (req, res) => {
 
 
 
+// ==============================================================
+// ──────────────── Admin User Management Page  ─────────────────
+// ==============================================================
+
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/users
+//  Returns every registered user with their role, status,
+//  address, and (for Donors) total food donations count.
+//  Used to populate the User Management table.
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const [users] = await pool.query(`
+            SELECT
+                u.user_id,
+                u.name,
+                u.email,
+                u.phone_number        AS phone,
+                u.status,
+                u.profile_picture,
+                u.created_at,
+                r.role_name           AS role,
+                a.street,
+                a.city,
+                a.country,
+                CONCAT_WS(', ', a.street, a.city, a.country) AS address,
+
+                -- Common role fields
+                COALESCE(d.business_type, rec.business_type) AS business_type,
+
+                -- Total food donations (Donor only)
+                (
+                    SELECT COUNT(*)
+                    FROM Food_offer fo
+                    WHERE fo.donor_id = d.donor_id
+                ) AS total_donations,
+
+                -- Volunteer specific fields
+                v.vehicle_type,
+                v.plate_number,
+                (
+                    SELECT COUNT(*)
+                    FROM Delivery del
+                    WHERE del.volunteer_id = v.volunteer_id
+                ) AS total_deliveries,
+                (
+                    SELECT AVG(fr.rating)
+                    FROM Feedback_and_rating fr
+                    WHERE fr.volunteer_id = v.volunteer_id
+                ) AS volunteer_rating,
+
+                -- Receiver specific fields
+                (
+                    SELECT COUNT(*)
+                    FROM Food_offer fo
+                    WHERE fo.receiver_id = rec.receiver_id
+                    AND fo.status IN ('accepted', 'completed')
+                ) AS total_received,
+                (
+                    SELECT COALESCE(SUM(fo.number_of_person), 0)
+                    FROM Food_offer fo
+                    WHERE fo.receiver_id = rec.receiver_id
+                    AND fo.status IN ('accepted', 'completed')
+                ) AS people_served,
+
+                -- Donor rating
+                (
+                    SELECT AVG(fr.rating)
+                    FROM Feedback_and_rating fr
+                    WHERE fr.donor_id = d.donor_id
+                ) AS donor_rating
+
+            FROM User u
+            LEFT JOIN Role    r   ON r.user_id   = u.user_id
+            LEFT JOIN Address a   ON a.user_id   = u.user_id
+            LEFT JOIN Donor   d   ON d.user_id   = u.user_id
+            LEFT JOIN Receiver rec ON rec.user_id = u.user_id
+            LEFT JOIN Volunteer v  ON v.user_id   = u.user_id
+            ORDER BY u.created_at DESC
+        `);
+
+        // Normalise ratings to a number or null
+        const formattedUsers = users.map(user => ({
+            ...user,
+            volunteer_rating: user.volunteer_rating ? parseFloat(user.volunteer_rating).toFixed(1) : null,
+            donor_rating: user.donor_rating ? parseFloat(user.donor_rating).toFixed(1) : null,
+            total_deliveries: user.total_deliveries || 0,
+            total_received: user.total_received || 0,
+            people_served: user.people_served || 0,
+            total_donations: user.total_donations || 0
+        }));
+
+        res.json({ users: formattedUsers });
+    } catch (err) {
+        console.error('GET /api/admin/users error:', err);
+        res.status(500).json({ error: 'Failed to fetch users.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/users/:id
+//  Edits a user's basic info: name, email, phone, status.
+//  Body: { name, email, phone, status }
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/users/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, email, phone, status } = req.body;
+
+    // Validate that required fields were sent
+    if (!name || !email) {
+        return res.status(400).json({ error: 'Name and email are required.' });
+    }
+
+    // Only allow known status values to prevent garbage data
+    const allowedStatuses = ['active', 'blocked', 'pending', 'Active', 'Blocked'];
+    if (status && !allowedStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status value.' });
+    }
+
+    try {
+        const [result] = await pool.query(`
+            UPDATE User
+            SET
+                name         = ?,
+                email        = ?,
+                phone_number = ?,
+                status       = ?
+            WHERE user_id = ?
+        `, [name, email, phone || null, status || 'active', id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Write an audit log entry so admins can track changes
+        await pool.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['AdminEditUser', `Admin updated profile for user_id ${id}`, id]
+        );
+
+        res.json({ message: 'User updated successfully.' });
+    } catch (err) {
+        console.error('PUT /api/admin/users/:id error:', err);
+        res.status(500).json({ error: 'Failed to update user.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/users/:id/block
+//  Sets a user's status to 'blocked' so they cannot sign in.
+//  No request body needed — the action is always "block".
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/users/:id/block', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const [result] = await pool.query(`
+            UPDATE User
+            SET status = 'blocked'
+            WHERE user_id = ?
+        `, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Audit log: record which user was blocked and when
+        await pool.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['AdminBlockUser', `Admin blocked user_id ${id}`, id]
+        );
+
+        res.json({ message: 'User blocked successfully.' });
+    } catch (err) {
+        console.error('PUT /api/admin/users/:id/block error:', err);
+        res.status(500).json({ error: 'Failed to block user.' });
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  DELETE /api/admin/users/:id
+//  Permanently removes a user and all their related records.
+//  Deletion order respects FK constraints:
+//    Syslog → Email_verification → Password_reset_token
+//    → User_Role → Role → Address
+//    → (Donor / Receiver / Volunteer specific tables)
+//    → User
+// ──────────────────────────────────────────────────────────────
+app.delete('/api/admin/users/:id', async (req, res) => {
+    const { id } = req.params;
+    const conn = await pool.getConnection();
+
+    try {
+        await conn.beginTransaction();
+
+        // 1. Remove syslog entries referencing this user
+        await conn.query("DELETE FROM Syslog WHERE user_id = ?", [id]);
+
+        // 2. Remove email verification record
+        await conn.query("DELETE FROM Email_verification WHERE user_id = ?", [id]);
+
+        // 3. Remove password reset token
+        await conn.query("DELETE FROM Password_reset_token WHERE user_id = ?", [id]);
+
+        // 4. Remove the User_Role link (junction table)
+        await conn.query("DELETE FROM User_Role WHERE user_id = ?", [id]);
+
+        // 5. Remove the Role record
+        await conn.query("DELETE FROM Role WHERE user_id = ?", [id]);
+
+        // 6. Remove Address record(s) for this user
+        await conn.query("DELETE FROM Address WHERE user_id = ?", [id]);
+
+        // 7. Remove role-specific records
+        //    Each role has its own child table — delete whichever exists.
+        //    These queries are safe even if the row doesn't exist (affectedRows = 0).
+        await conn.query("DELETE FROM Donor     WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Receiver  WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Volunteer WHERE user_id = ?", [id]);
+
+        // 8. Finally delete the User row itself
+        const [result] = await conn.query("DELETE FROM User WHERE user_id = ?", [id]);
+
+        if (result.affectedRows === 0) {
+            // User didn't exist — roll back and tell the frontend
+            await conn.rollback();
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Commit only if every delete succeeded
+        await conn.commit();
+        res.json({ message: 'User deleted successfully.' });
+    } catch (err) {
+        // Any failure rolls back the whole transaction so the DB stays consistent
+        await conn.rollback();
+        console.error('DELETE /api/admin/users/:id error:', err);
+        res.status(500).json({ error: 'Failed to delete user.' });
+    } finally {
+        // Always return the connection to the pool
+        conn.release();
+    }
+});
+
+
+// ──────────────────────────────────────────────────────────────
+//  PUT /api/admin/users/:id/unblock
+//  Sets a user's status back to 'active' so they can sign in again.
+//  No request body needed — the action is always "unblock".
+// ──────────────────────────────────────────────────────────────
+app.put('/api/admin/users/:id/unblock', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Make sure the user exists and is currently blocked before unblocking
+        const [[user]] = await pool.query(
+            "SELECT status FROM User WHERE user_id = ?",
+            [id]
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        if (user.status !== 'blocked') {
+            return res.status(400).json({ error: 'User is not blocked.' });
+        }
+
+        const [result] = await pool.query(`
+            UPDATE User
+            SET status = 'active'
+            WHERE user_id = ?
+        `, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Audit log: record which user was unblocked and when
+        await pool.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['AdminUnblockUser', `Admin unblocked user_id ${id}`, id]
+        );
+
+        res.json({ message: 'User unblocked successfully.' });
+    } catch (err) {
+        console.error('PUT /api/admin/users/:id/unblock error:', err);
+        res.status(500).json({ error: 'Failed to unblock user.' });
+    }
+});
+
+
+
+
+
 
 
 
