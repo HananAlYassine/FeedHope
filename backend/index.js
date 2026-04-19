@@ -2732,52 +2732,123 @@ app.get('/api/admin/users', async (req, res) => {
 
 
 // ──────────────────────────────────────────────────────────────
-//  PUT /api/admin/users/:id
-//  Edits a user's basic info: name, email, phone, status.
-//  Body: { name, email, phone, status }
+//  PUT /api/admin/users/:id  (EDIT USER)
+//  Updates name, email, phone, status. Also:
+//    - Syncs organization_name in Donor/Receiver if name changed
+//    - Inserts a notification for the affected user
 // ──────────────────────────────────────────────────────────────
 app.put('/api/admin/users/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, phone, status } = req.body;
 
-    // Validate that required fields were sent
+    // Validate required fields
     if (!name || !email) {
         return res.status(400).json({ error: 'Name and email are required.' });
     }
 
-    // Only allow known status values to prevent garbage data
     const allowedStatuses = ['active', 'blocked', 'pending', 'Active', 'Blocked'];
     if (status && !allowedStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status value.' });
     }
 
+    const conn = await pool.getConnection();
     try {
-        const [result] = await pool.query(`
-            UPDATE User
-            SET
-                name         = ?,
-                email        = ?,
-                phone_number = ?,
-                status       = ?
-            WHERE user_id = ?
-        `, [name, email, phone || null, status || 'active', id]);
+        await conn.beginTransaction();
 
-        if (result.affectedRows === 0) {
+        // 1. Fetch current user data to detect what changed
+        const [[oldUser]] = await conn.query(
+            `SELECT name, email, phone_number, status FROM User WHERE user_id = ?`,
+            [id]
+        );
+        if (!oldUser) {
+            await conn.rollback();
             return res.status(404).json({ error: 'User not found.' });
         }
 
-        // Write an audit log entry so admins can track changes
-        await pool.query(
-            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
-            ['AdminEditUser', `Admin updated profile for user_id ${id}`, id]
+        // 2. Update the User table
+        const [updateResult] = await conn.query(
+            `UPDATE User
+             SET name = ?, email = ?, phone_number = ?, status = ?
+             WHERE user_id = ?`,
+            [name, email, phone || null, status || oldUser.status, id]
         );
 
-        res.json({ message: 'User updated successfully.' });
+        if (updateResult.affectedRows === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // 3. If name changed, sync with role-specific tables
+        if (name !== oldUser.name) {
+            // Check user's role
+            const [[roleRow]] = await conn.query(
+                `SELECT role_name FROM Role WHERE user_id = ? LIMIT 1`,
+                [id]
+            );
+            if (roleRow) {
+                const role = roleRow.role_name;
+                if (role === 'Donor') {
+                    await conn.query(
+                        `UPDATE Donor SET organization_name = ? WHERE user_id = ?`,
+                        [name, id]
+                    );
+                } else if (role === 'Receiver') {
+                    await conn.query(
+                        `UPDATE Receiver SET organization_name = ? WHERE user_id = ?`,
+                        [name, id]
+                    );
+                }
+                // Volunteer has no organization_name – nothing to sync
+            }
+        }
+
+        // 4. Build notification message describing the changes
+        const changes = [];
+        if (name !== oldUser.name) changes.push(`name from "${oldUser.name}" to "${name}"`);
+        if (email !== oldUser.email) changes.push(`email from "${oldUser.email}" to "${email}"`);
+        if (phone !== oldUser.phone_number) changes.push(`phone number from "${oldUser.phone_number || 'not set'}" to "${phone || 'not set'}"`);
+        if (status && status !== oldUser.status) changes.push(`account status from "${oldUser.status}" to "${status}"`);
+
+        let notificationMessage = '';
+        if (changes.length > 0) {
+            notificationMessage = `An administrator updated your ${changes.join(', ')}.`;
+        } else {
+            notificationMessage = 'An administrator reviewed your account information. No changes were made.';
+        }
+
+        // 5. Insert notification for the user
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, ?, NOW())`,
+            ['Account Updated by Admin', notificationMessage, 'admin_action', id]
+        );
+
+        // 6. Audit log 
+        await conn.query(
+            `INSERT INTO Syslog (action, description, user_id)
+            VALUES (?, ?, ?)`,
+            ['AdminEditUser', `Admin updated user_id ${id}`, id]
+        );
+
+        await conn.commit();
+
+        // Return success with the list of changes 
+        res.json({
+            message: 'User updated successfully.',
+            changes: changes.length ? changes : ['No changes applied']
+        });
+
     } catch (err) {
+        await conn.rollback();
         console.error('PUT /api/admin/users/:id error:', err);
         res.status(500).json({ error: 'Failed to update user.' });
+    } finally {
+        conn.release();
     }
 });
+
+
+
 
 
 // ──────────────────────────────────────────────────────────────
