@@ -326,73 +326,73 @@ app.post("/api/verify-email", async (req, res) => {
 
 
 // ==============================================================
-// ──────────────── Admin Section ────────────────────────
-// ==============================================================
-
-// ── Fixed Admin Credentials (hardcoded) ──
-const ADMIN_EMAIL    = "admin@feedhope.com";   
-const ADMIN_PASSWORD = "Admin@1234";           
-
-
-// ==============================================================
 // ──────────────── SIGN IN ─────────────────────────────────────
 // ==============================================================
-// ──── 5. Sign In (Fixed with logging) ────
 app.post("/api/signin", async (req, res) => {
     const { email, password } = req.body;
     const conn = await pool.getConnection();
 
-
-    // 1️⃣ Check admin FIRST — before touching the database
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        return res.json({
-        user: {
-            id: 0,
-            name: "Admin",
-            email: ADMIN_EMAIL,
-            role: "Admin"
-        }
-        });
-    }
-
     try {
-        // Find the user by email
-        const [users] = await conn.query("SELECT * FROM User WHERE email = ?", [email]);
+        // 1. Find user by email in the User table
+        const [users] = await conn.query(
+            "SELECT * FROM User WHERE email = ?",
+            [email]
+        );
         if (users.length === 0) {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
         const user = users[0];
+
+        // 2. Reject unverified or non-active accounts
         if (user.status === 'pending') {
             return res.status(403).json({ error: "Please verify your email before signing in." });
         }
-        if (user.status !== "active") {
+        if (user.status !== 'active') {
             return res.status(403).json({ error: "Account is not active." });
         }
 
+        // 3. Compare the submitted password against the stored bcrypt hash
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
-        const [roles] = await conn.query("SELECT role_name FROM Role WHERE user_id = ?", [user.user_id]);
-        const role = roles.length > 0 ? roles[0].role_name : null;
+        // 4. Check if this user is an admin by looking up the admin table
+        const [[adminRow]] = await conn.query(
+            "SELECT admin_id FROM Admin WHERE user_id = ?",
+            [user.user_id]
+        );
+        const isAdmin = !!adminRow; // true if a matching row exists
 
-        // Insert Syslog entry – check if it actually writes
-        const [sysResult] = await conn.query(
+        // 5. Determine role: Admin takes priority, otherwise fetch from Role table
+        let role = null;
+        if (isAdmin) {
+            role = "Admin";
+        } else {
+            const [roles] = await conn.query(
+                "SELECT role_name FROM Role WHERE user_id = ?",
+                [user.user_id]
+            );
+            role = roles.length > 0 ? roles[0].role_name : null;
+        }
+
+        // 6. Write a syslog entry
+        await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Login', `User logged in successfully as ${role || 'User'}`, user.user_id]
         );
-        console.log(`[DEBUG] Sign-in Syslog inserted, affected rows: ${sysResult.affectedRows}`);
 
+        // 7. Return the user object — same shape as before, plus admin_id if applicable
         res.status(200).json({
             message: "Sign in successful!",
             user: {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
+                user_id:  user.user_id,
+                name:     user.name,
+                email:    user.email,
                 phone_number: user.phone_number,
-                role: role
+                role:     role,
+                ...(isAdmin && { admin_id: adminRow.admin_id }) // only included for admins
             }
         });
     } catch (err) {
@@ -402,6 +402,10 @@ app.post("/api/signin", async (req, res) => {
         conn.release();
     }
 });
+
+
+
+
 
 // ==============================================================
 // ──────────────── LOGOUT ─────────────────────────────────────
@@ -2259,10 +2263,10 @@ app.get("/api/donor/money-donations/:userId", async (req, res) => {
                 md.payment_method AS method, 
                 md.description AS note, 
                 md.donation_date AS date
-             FROM Money_donation md
-             JOIN Donor d ON md.donor_id = d.donor_id
-             WHERE d.user_id = ?
-             ORDER BY md.donation_date DESC`,
+                FROM Money_donation md
+                JOIN Donor d ON md.donor_id = d.donor_id
+                WHERE d.user_id = ?
+                ORDER BY md.donation_date DESC`,
             [userId]
         );
 
@@ -2921,6 +2925,164 @@ app.put('/api/admin/users/:id/unblock', async (req, res) => {
 });
 
 
+
+// ==============================================================
+// ──────────────── Admin Fund Distribution Page  ─────────────────
+// ==============================================================
+
+// ──────────────────────────────────────────────────────────────
+//  GET /api/admin/fund-distribution
+//  Returns:
+//    - totalCollected   : sum of ALL money donations (no status column)
+//    - totalDistributed : sum of ALL completed fund distributions
+//    - balance          : totalCollected - totalDistributed
+//    - distributions    : all rows from Fund_Distribution, newest first
+// ──────────────────────────────────────────────────────────────
+app.get('/api/admin/fund-distribution', async (req, res) => {
+    try {
+        const [[{ totalCollected }]] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation
+        `);
+        const [[{ totalDistributed }]] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) AS totalDistributed
+            FROM Fund_Distribution
+            WHERE status = 'completed'
+        `);
+        const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
+
+        const [distributions] = await pool.query(`
+            SELECT
+                fd.distribution_id,
+                fd.amount,
+                fd.distribution_date,
+                fd.payment_method,
+                fd.status,
+                fd.confirmation AS recipient_org,
+                fd.purpose      AS confirmation_purpose,
+                fd.admin_id,
+                fd.volunteer_id
+            FROM Fund_Distribution fd
+            ORDER BY fd.distribution_date DESC, fd.distribution_id DESC
+        `);
+
+        res.json({
+            totalCollected:   Number(totalCollected),
+            totalDistributed: Number(totalDistributed),
+            balance:          balance,
+            distributions,
+        });
+    } catch (err) {
+        console.error('GET /api/admin/fund-distribution error:', err);
+        res.status(500).json({ error: 'Failed to load fund distribution data.' });
+    }
+});
+
+// ──────────────────────────────────────────────────────────────
+//  POST /api/admin/fund-distribution
+//  Creates a new Fund_Distribution record.
+// ──────────────────────────────────────────────────────────────
+app.post('/api/admin/fund-distribution', async (req, res) => {
+    const { amount, paymentMethod, confirmationPurpose, recipientOrg, adminId } = req.body;
+
+    // Basic field validation — reject early if anything is missing
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'A valid positive amount is required.' });
+    }
+    if (!paymentMethod?.trim()) {
+        return res.status(400).json({ error: 'Payment method is required.' });
+    }
+    if (!confirmationPurpose?.trim()) {
+        return res.status(400).json({ error: 'Reason for distribution is required.' });
+    }
+    if (!recipientOrg?.trim()) {
+        return res.status(400).json({ error: 'Recipient organization is required.' });
+    }
+
+    try {
+        // ── Look up the admin in the DB using the adminId sent from the frontend ──
+        // We do this server-side so we never blindly trust the frontend's value.
+        // If the adminId is missing or doesn't exist in the admin table, we fall
+        // back to fetching the one admin that exists in the system.
+        let resolvedAdminId = null;
+
+        if (adminId) {
+            // Check that the adminId the frontend sent actually exists in our admin table
+            const [[adminRow]] = await pool.query(
+                "SELECT admin_id FROM Admin WHERE admin_id = ?",
+                [adminId]
+            );
+            if (adminRow) {
+                // Valid — use the confirmed admin_id from the DB
+                resolvedAdminId = adminRow.admin_id;
+            }
+        }
+
+        // Fallback: if adminId was null or invalid, look up the single admin in the system
+        if (!resolvedAdminId) {
+            const [[fallbackAdmin]] = await pool.query(
+                "SELECT admin_id FROM Admin LIMIT 1"
+            );
+            resolvedAdminId = fallbackAdmin?.admin_id ?? null;
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // Calculate how much money is currently available to distribute
+        const [[{ totalCollected }]] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation
+        `);
+        const [[{ totalDistributed }]] = await pool.query(`
+            SELECT COALESCE(SUM(amount), 0) AS totalDistributed
+            FROM Fund_Distribution
+            WHERE status = 'completed'
+        `);
+        const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
+
+        // Reject if the requested amount exceeds the available balance
+        if (Number(amount) > balance) {
+            return res.status(400).json({
+                error: `Insufficient balance. Available: $${balance.toFixed(2)}`
+            });
+        }
+
+        // Insert the new distribution record using the verified admin_id
+        const [insertResult] = await pool.query(`
+            INSERT INTO Fund_Distribution
+                (amount, distribution_date, payment_method, status,
+                confirmation, purpose, admin_id)
+            VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?)
+        `, [
+            Number(amount),
+            paymentMethod.trim(),
+            recipientOrg.trim(),        // stored in the `confirmation` column
+            confirmationPurpose.trim(), // stored in the `purpose` column
+            resolvedAdminId             // the real admin_id confirmed from the DB
+        ]);
+
+        // Also get the user_id of this admin so we can write a proper syslog entry
+        // (Syslog requires a user_id, not an admin_id)
+        const [[adminUser]] = await pool.query(
+            "SELECT user_id FROM Admin WHERE admin_id = ?",
+            [resolvedAdminId]
+        );
+
+        await pool.query(`
+            INSERT INTO Syslog (action, description, user_id)
+            VALUES (?, ?, ?)
+        `, [
+            'FundDistribution',
+            `Admin distributed $${Number(amount).toFixed(2)} to ${recipientOrg.trim()} via ${paymentMethod.trim()}`,
+            adminUser?.user_id ?? resolvedAdminId, // use admin's user_id for the syslog
+        ]);
+
+        res.status(201).json({
+            message: 'Distribution confirmed successfully.',
+            distributionId: insertResult.insertId,
+        });
+    } catch (err) {
+        console.error('POST /api/admin/fund-distribution error:', err);
+        res.status(500).json({ error: 'Failed to create distribution record: ' + err.message });
+    }
+});
 
 
 
