@@ -2945,8 +2945,7 @@ app.get('/api/admin/fund-distribution', async (req, res) => {
         `);
         const [[{ totalDistributed }]] = await pool.query(`
             SELECT COALESCE(SUM(amount), 0) AS totalDistributed
-            FROM Fund_Distribution
-            WHERE status = 'completed'
+            FROM Fund_Distribution WHERE status = 'completed'
         `);
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
@@ -2957,132 +2956,258 @@ app.get('/api/admin/fund-distribution', async (req, res) => {
                 fd.distribution_date,
                 fd.payment_method,
                 fd.status,
-                fd.confirmation AS recipient_org,
-                fd.purpose      AS confirmation_purpose,
+                fd.purpose,
                 fd.admin_id,
-                fd.volunteer_id
+                fd.donor_id,
+                u.name AS donor_name
             FROM Fund_Distribution fd
+            LEFT JOIN Donor d ON d.donor_id = fd.donor_id
+            LEFT JOIN User  u ON u.user_id  = d.user_id
             ORDER BY fd.distribution_date DESC, fd.distribution_id DESC
         `);
 
-        res.json({
-            totalCollected:   Number(totalCollected),
-            totalDistributed: Number(totalDistributed),
-            balance:          balance,
-            distributions,
-        });
+        res.json({ totalCollected: Number(totalCollected), totalDistributed: Number(totalDistributed), balance, distributions });
     } catch (err) {
         console.error('GET /api/admin/fund-distribution error:', err);
         res.status(500).json({ error: 'Failed to load fund distribution data.' });
     }
 });
 
+
 // ──────────────────────────────────────────────────────────────
 //  POST /api/admin/fund-distribution
 //  Creates a new Fund_Distribution record.
 // ──────────────────────────────────────────────────────────────
 app.post('/api/admin/fund-distribution', async (req, res) => {
-    const { amount, paymentMethod, confirmationPurpose, recipientOrg, adminId } = req.body;
+    const { amount, paymentMethod, purpose, donorName, adminId } = req.body;
 
-    // Basic field validation — reject early if anything is missing
-    if (!amount || amount <= 0) {
+    if (!amount || amount <= 0)
         return res.status(400).json({ error: 'A valid positive amount is required.' });
-    }
-    if (!paymentMethod?.trim()) {
+    if (!paymentMethod?.trim())
         return res.status(400).json({ error: 'Payment method is required.' });
-    }
-    if (!confirmationPurpose?.trim()) {
+    if (!purpose?.trim())
         return res.status(400).json({ error: 'Reason for distribution is required.' });
-    }
-    if (!recipientOrg?.trim()) {
-        return res.status(400).json({ error: 'Recipient organization is required.' });
-    }
+    if (!donorName?.trim())
+        return res.status(400).json({ error: 'Recipient donor name is required.' });
 
     try {
-        // ── Look up the admin in the DB using the adminId sent from the frontend ──
-        // We do this server-side so we never blindly trust the frontend's value.
-        // If the adminId is missing or doesn't exist in the admin table, we fall
-        // back to fetching the one admin that exists in the system.
+        // Look up donor_id by the name the admin typed
+        const [[donorRow]] = await pool.query(`
+            SELECT d.donor_id
+            FROM Donor d
+            JOIN User u ON u.user_id = d.user_id
+            WHERE u.name = ?
+            LIMIT 1
+        `, [donorName.trim()]);
+
+        if (!donorRow)
+            return res.status(400).json({ error: `No donor found with the name "${donorName.trim()}". Please check the name and try again.` });
+
+        const donorId = donorRow.donor_id;
+
+        // Resolve admin
         let resolvedAdminId = null;
-
         if (adminId) {
-            // Check that the adminId the frontend sent actually exists in our admin table
-            const [[adminRow]] = await pool.query(
-                "SELECT admin_id FROM Admin WHERE admin_id = ?",
-                [adminId]
-            );
-            if (adminRow) {
-                // Valid — use the confirmed admin_id from the DB
-                resolvedAdminId = adminRow.admin_id;
-            }
+            const [[adminRow]] = await pool.query("SELECT admin_id FROM Admin WHERE admin_id = ?", [adminId]);
+            if (adminRow) resolvedAdminId = adminRow.admin_id;
         }
-
-        // Fallback: if adminId was null or invalid, look up the single admin in the system
         if (!resolvedAdminId) {
-            const [[fallbackAdmin]] = await pool.query(
-                "SELECT admin_id FROM Admin LIMIT 1"
-            );
+            const [[fallbackAdmin]] = await pool.query("SELECT admin_id FROM Admin LIMIT 1");
             resolvedAdminId = fallbackAdmin?.admin_id ?? null;
         }
-        // ─────────────────────────────────────────────────────────────────────────
 
-        // Calculate how much money is currently available to distribute
-        const [[{ totalCollected }]] = await pool.query(`
-            SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation
-        `);
-        const [[{ totalDistributed }]] = await pool.query(`
-            SELECT COALESCE(SUM(amount), 0) AS totalDistributed
-            FROM Fund_Distribution
-            WHERE status = 'completed'
-        `);
+        // Check balance
+        const [[{ totalCollected }]] = await pool.query(
+            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation`
+        );
+        const [[{ totalDistributed }]] = await pool.query(
+            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status = 'completed'`
+        );
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
-        // Reject if the requested amount exceeds the available balance
-        if (Number(amount) > balance) {
-            return res.status(400).json({
-                error: `Insufficient balance. Available: $${balance.toFixed(2)}`
-            });
-        }
+        if (Number(amount) > balance)
+            return res.status(400).json({ error: `Insufficient balance. Available: $${balance.toFixed(2)}` });
 
-        // Insert the new distribution record using the verified admin_id
+        // Insert
         const [insertResult] = await pool.query(`
-            INSERT INTO Fund_Distribution
-                (amount, distribution_date, payment_method, status,
-                confirmation, purpose, admin_id)
+            INSERT INTO Fund_Distribution (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id)
             VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?)
-        `, [
-            Number(amount),
-            paymentMethod.trim(),
-            recipientOrg.trim(),        // stored in the `confirmation` column
-            confirmationPurpose.trim(), // stored in the `purpose` column
-            resolvedAdminId             // the real admin_id confirmed from the DB
-        ]);
+        `, [Number(amount), paymentMethod.trim(), purpose.trim(), resolvedAdminId, donorId]);
 
-        // Also get the user_id of this admin so we can write a proper syslog entry
-        // (Syslog requires a user_id, not an admin_id)
-        const [[adminUser]] = await pool.query(
-            "SELECT user_id FROM Admin WHERE admin_id = ?",
-            [resolvedAdminId]
-        );
-
-        await pool.query(`
-            INSERT INTO Syslog (action, description, user_id)
-            VALUES (?, ?, ?)
-        `, [
+        // Syslog
+        const [[adminUser]] = await pool.query("SELECT user_id FROM Admin WHERE admin_id = ?", [resolvedAdminId]);
+        await pool.query(`INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`, [
             'FundDistribution',
-            `Admin distributed $${Number(amount).toFixed(2)} to ${recipientOrg.trim()} via ${paymentMethod.trim()}`,
-            adminUser?.user_id ?? resolvedAdminId, // use admin's user_id for the syslog
+            `Admin distributed $${Number(amount).toFixed(2)} to donor "${donorName.trim()}" via ${paymentMethod.trim()}`,
+            adminUser?.user_id ?? resolvedAdminId,
         ]);
 
-        res.status(201).json({
-            message: 'Distribution confirmed successfully.',
-            distributionId: insertResult.insertId,
-        });
+        res.status(201).json({ message: 'Distribution confirmed successfully.', distributionId: insertResult.insertId });
     } catch (err) {
         console.error('POST /api/admin/fund-distribution error:', err);
         res.status(500).json({ error: 'Failed to create distribution record: ' + err.message });
     }
 });
+
+
+
+// ==============================================================
+// ──────────────── Admin Profile Page ──────────────────────────
+// ==============================================================
+
+// GET /api/admin/profile/:userId
+// Loads the admin's own profile data (name, email, phone, picture, joined date).
+// Joins User + Admin to confirm the user is actually an admin.
+app.get('/api/admin/profile/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[profile]] = await pool.query(`
+            SELECT
+                u.user_id,
+                u.name,
+                u.email,
+                u.phone_number,
+                u.profile_picture,
+                u.status,
+                u.created_at AS joined_date,
+                a.admin_id
+            FROM User u
+            JOIN Admin a ON a.user_id = u.user_id
+            WHERE u.user_id = ?
+            LIMIT 1
+        `, [userId]);
+
+        if (!profile) {
+            return res.status(404).json({ error: 'Admin profile not found.' });
+        }
+
+        res.json({ profile });
+    } catch (err) {
+        console.error('GET /api/admin/profile error:', err);
+        res.status(500).json({ error: 'Failed to load admin profile.' });
+    }
+});
+
+
+// PUT /api/admin/change-password/:userId
+// Verifies the admin's current password with bcrypt, then hashes and stores the new one.
+// Password rule: 3-10 characters.
+app.put('/api/admin/change-password/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate length before touching the DB
+    if (!newPassword || newPassword.length < 3 || newPassword.length > 10) {
+        return res.status(400).json({ error: 'New password must be between 3 and 10 characters.' });
+    }
+
+    try {
+        // Fetch the stored bcrypt hash
+        const [[user]] = await pool.query(
+            'SELECT password FROM User WHERE user_id = ?',
+            [userId]
+        );
+
+        if (!user) return res.status(404).json({ error: 'Admin not found.' });
+
+        // Compare typed password against the stored hash
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Current password is incorrect.' });
+        }
+
+        // Hash the new password (10 salt rounds, same as registration)
+        const newHash = await bcrypt.hash(newPassword, 10);
+
+        // Save the new hash
+        await pool.query('UPDATE User SET password = ? WHERE user_id = ?', [newHash, userId]);
+
+        // Audit log
+        await pool.query(
+            'INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)',
+            ['Password Change', 'Admin changed their password', userId]
+        );
+
+         // Notification
+        await pool.query(
+            'INSERT INTO notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)',
+            [
+                'Password Changed',
+                'Your account password has been changed successfully. If you did not make this change, please contact support immediately.',
+                'profile_update',
+                userId
+            ]
+        );
+
+        res.json({ message: 'Password changed successfully.' });
+    } catch (err) {
+        console.error('PUT /api/admin/change-password error:', err);
+        res.status(500).json({ error: 'Failed to change password.' });
+    }
+});
+
+
+// POST /api/admin/upload-profile-picture/:userId
+// Receives a file via multer (field name: "profilePicture"), saves it to disk,
+// then stores the relative URL in User.profile_picture.
+app.post('/api/admin/upload-profile-picture/:userId', upload.single('profilePicture'), async (req, res) => {
+    const { userId } = req.params;
+
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+    // The relative URL is what gets stored in the DB and served statically
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    try {
+        await pool.query('UPDATE User SET profile_picture = ? WHERE user_id = ?', [imageUrl, userId]);
+
+        // Notification so the admin sees it in the notifications page
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)`,
+            ['Profile Picture Updated', 'Your profile picture has been successfully changed.', 'profile_update', userId]
+        );
+
+        // Return the new URL so the frontend can update the avatar immediately without a reload
+        res.json({ profile_picture: imageUrl });
+    } catch (err) {
+        console.error('POST /api/admin/upload-profile-picture error:', err);
+        res.status(500).json({ error: 'Failed to save profile picture.' });
+    }
+});
+
+
+// DELETE /api/admin/delete-profile-picture/:userId
+// Deletes the image file from disk and sets profile_picture = NULL in the DB.
+app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Get the current picture path so we can delete the file from disk
+        const [[user]] = await pool.query('SELECT profile_picture FROM User WHERE user_id = ?', [userId]);
+
+        if (user && user.profile_picture) {
+            const filePath = path.join(__dirname, user.profile_picture);
+            // Only delete the file if it physically exists on disk
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        }
+
+        // Set the column to NULL in the DB
+        await pool.query('UPDATE User SET profile_picture = NULL WHERE user_id = ?', [userId]);
+
+        // Notification
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)`,
+            ['Profile Picture Removed', 'Your profile picture has been removed.', 'profile_update', userId]
+        );
+
+        res.json({ message: 'Profile picture deleted.' });
+    } catch (err) {
+        console.error('DELETE /api/admin/delete-profile-picture error:', err);
+        res.status(500).json({ error: 'Failed to delete profile picture.' });
+    }
+});
+
+
 
 
 

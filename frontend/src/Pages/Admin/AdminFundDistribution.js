@@ -29,10 +29,8 @@ const AdminFundDistribution = () => {
     const navigate = useNavigate();
 
     // ── Read the logged-in admin's info from localStorage ──────────────────
-    // When the admin signs in, the server saves their user object in localStorage
-    // under the key 'feedhope_user'. We parse it here to get the admin_id.
     const storedUser = JSON.parse(localStorage.getItem('feedhope_user') || '{}');
-    const adminId    = storedUser.admin_id ?? null; // the real admin_id from the DB
+    const adminId    = storedUser.admin_id ?? null;
     // ───────────────────────────────────────────────────────────────────────
 
     const [stats, setStats] = useState({ totalDistributed: 0, balance: 0 });
@@ -43,8 +41,10 @@ const AdminFundDistribution = () => {
     const [toast,         setToast]         = useState(null);
     const [showModal,     setShowModal]     = useState(false);
 
+    // donorName: the admin types the donor's name manually
+    // the backend will look up the matching donor_id by name
     const [form, setForm] = useState({
-        recipientOrg:  '',
+        donorName:     '',
         amount:        '',
         paymentMethod: '',
         reason:        '',
@@ -89,8 +89,8 @@ const AdminFundDistribution = () => {
     };
 
     const handleSubmit = async () => {
-        if (!form.recipientOrg.trim())
-            return showToast('Recipient organization is required.', 'error');
+        if (!form.donorName.trim())
+            return showToast('Recipient donor name is required.', 'error');
         if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0)
             return showToast('Please enter a valid amount.', 'error');
         if (!form.paymentMethod)
@@ -106,17 +106,17 @@ const AdminFundDistribution = () => {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    amount:              Number(form.amount),
-                    paymentMethod:       form.paymentMethod,
-                    confirmationPurpose: form.reason,
-                    recipientOrg:        form.recipientOrg,
-                    adminId:             adminId, // real admin_id read from localStorage — no longer null
+                    amount:        Number(form.amount),
+                    paymentMethod: form.paymentMethod,
+                    purpose:       form.reason,
+                    donorName:     form.donorName.trim(),
+                    adminId:       adminId,
                 }),
             });
             const data = await res.json();
             if (!res.ok) { showToast(data.error || 'Failed to submit.', 'error'); return; }
             showToast('Distribution confirmed successfully!');
-            setForm({ recipientOrg: '', amount: '', paymentMethod: '', reason: '' });
+            setForm({ donorName: '', amount: '', paymentMethod: '', reason: '' });
             fetchData();
         } catch {
             showToast('Server error. Please try again.', 'error');
@@ -143,7 +143,7 @@ const AdminFundDistribution = () => {
                     <div className="afd-banner">
                         <div className="afd-banner-text">
                             <h1 className="afd-banner-title">Fund Distribution</h1>
-                            <p className="afd-banner-subtitle">Distribute collected funds to organizations</p>
+                            <p className="afd-banner-subtitle">Distribute collected funds to donors</p>
                         </div>
                         <div className="afd-banner-date">
                             <CalendarTodayIcon sx={{ fontSize: 16 }} />
@@ -190,14 +190,14 @@ const AdminFundDistribution = () => {
                                     </div>
                                     <div className="afd-form">
                                         <div className="afd-field">
-                                            <label className="afd-label">Recipient Organization</label>
+                                            <label className="afd-label">Recipient Donor Name</label>
                                             <input
                                                 className="afd-input"
                                                 type="text"
-                                                name="recipientOrg"
-                                                value={form.recipientOrg}
+                                                name="donorName"
+                                                value={form.donorName}
                                                 onChange={handleChange}
-                                                placeholder="Enter organization name"
+                                                placeholder="Enter donor name"
                                             />
                                         </div>
                                         <div className="afd-field">
@@ -266,7 +266,7 @@ const AdminFundDistribution = () => {
                                                     <div key={item.distribution_id} className="afd-history-card">
                                                         <div className="afd-hcard-row afd-hcard-row--top">
                                                             <span className="afd-hcard-org">
-                                                                {item.recipient_org || '—'}
+                                                                {item.donor_name || '—'}
                                                             </span>
                                                             <span className="afd-hcard-amount">
                                                                 ${Number(item.amount).toFixed(0)}
@@ -317,15 +317,15 @@ const AdminFundDistribution = () => {
                                 history.map((item) => (
                                     <div key={item.distribution_id} className="afd-history-card afd-modal-history-card">
                                         <div className="afd-hcard-row afd-hcard-row--top">
-                                            <span className="afd-hcard-org">{item.recipient_org || '—'}</span>
+                                            <span className="afd-hcard-org">{item.donor_name || '—'}</span>
                                             <span className="afd-hcard-amount">${Number(item.amount).toFixed(0)}</span>
                                         </div>
                                         <div className="afd-hcard-row afd-hcard-row--sub">
                                             <span className="afd-hcard-method">{item.payment_method || '—'}</span>
                                             <span className="afd-hcard-date">{formatDate(item.distribution_date)}</span>
                                         </div>
-                                        {item.confirmation_purpose && (
-                                            <p className="afd-hcard-reason">{item.confirmation_purpose}</p>
+                                        {item.purpose && (
+                                            <p className="afd-hcard-reason">{item.purpose}</p>
                                         )}
                                     </div>
                                 ))
