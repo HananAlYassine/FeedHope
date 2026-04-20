@@ -101,6 +101,18 @@ const AdminNotifications = () => {
     // Toast: temporary feedback message shown after user actions
     const [toast, setToast] = useState(null);
 
+    // ── Modal state ────────────────────────────────────────────
+    // deleteSingleTarget: holds the notification ID to delete when the
+    //   single-delete confirmation modal is open; null means modal is closed.
+    const [deleteSingleTarget, setDeleteSingleTarget] = useState(null);
+
+    // showDeleteAllModal: boolean — true while the "Delete All" modal is open.
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+
+    // actionLoading: true while an async delete request is in-flight,
+    //   used to disable the confirm button and show a loading label.
+    const [actionLoading, setActionLoading] = useState(false);
+
     // ── Show a toast message for 3 seconds ────────────────────
     const showToast = (msg, type = 'success') => {
         setToast({ msg, type });
@@ -155,37 +167,69 @@ const AdminNotifications = () => {
         }
     };
 
-    // ── Delete ALL notifications table ───
-    const handleDeleteAll = async () => {
-        if (!window.confirm('Delete ALL notifications? This cannot be undone.')) return;
+    // ── Open the "Delete All" styled modal ────────────────────
+    // Replaces the old window.confirm('Delete ALL notifications?…') call.
+    // We simply set the boolean flag to true — the modal JSX renders below.
+    const handleDeleteAllClick = () => {
+        setShowDeleteAllModal(true);
+    };
+
+    // ── Confirmed: actually delete ALL notifications ───────────
+    // Called when the admin clicks "Delete All" inside the confirmation modal.
+    const handleDeleteAllConfirm = async () => {
+        setActionLoading(true);
         try {
-            const notifRes = await fetch('http://localhost:5000/api/admin/notifications/delete-all', { method: 'DELETE' });
+            const notifRes = await fetch(
+                'http://localhost:5000/api/admin/notifications/delete-all',
+                { method: 'DELETE' }
+            );
             if (!notifRes.ok) throw new Error(await notifRes.text());
 
+            // Clear local state so the list empties immediately
             setNotifications([]);
+            // Tell the sidebar badge to reset to 0
             window.dispatchEvent(new Event('notification-read'));
             showToast('All notifications deleted.');
         } catch (err) {
             console.error(err);
             showToast('Failed to delete notifications.', 'error');
+        } finally {
+            setActionLoading(false);
+            // Always close the modal whether the request succeeded or failed
+            setShowDeleteAllModal(false);
         }
     };
 
-    // ── Delete a SINGLE notification ───────────────────────────
-    const handleDeleteOne = async (notificationId) => {
-        if (!window.confirm('Delete this notification?')) return;
+    // ── Open the "Delete Single" styled modal ─────────────────
+    // Replaces the old window.confirm('Delete this notification?') call.
+    // We store the target ID so the confirm handler knows which one to delete.
+    const handleDeleteOneClick = (notificationId) => {
+        setDeleteSingleTarget(notificationId);
+    };
+
+    // ── Confirmed: actually delete ONE notification ────────────
+    // Called when the admin clicks "Delete" inside the single-delete modal.
+    const handleDeleteOneConfirm = async () => {
+        if (!deleteSingleTarget) return;
+        setActionLoading(true);
         try {
             const res = await fetch(
-                `http://localhost:5000/api/admin/notifications/${notificationId}`,
+                `http://localhost:5000/api/admin/notifications/${deleteSingleTarget}`,
                 { method: 'DELETE' }
             );
             if (!res.ok) throw new Error();
             // Remove it from local state without a full refetch
-            setNotifications(prev => prev.filter(n => n.notification_id !== notificationId));
+            setNotifications(prev =>
+                prev.filter(n => n.notification_id !== deleteSingleTarget)
+            );
             window.dispatchEvent(new Event('notification-read'));
             showToast('Notification deleted.');
         } catch {
             showToast('Failed to delete notification.', 'error');
+        } finally {
+            setActionLoading(false);
+            // Clear the target and close the modal
+            setDeleteSingleTarget(null);
         }
     };
 
@@ -332,11 +376,12 @@ const AdminNotifications = () => {
                                 Mark All as Read
                             </button>
 
-                            {/* Delete All — clears Notifications table AND Syslog table entirely.
+                            {/* Delete All — now opens the styled confirmation modal
+                                instead of the native window.confirm dialog.
                                 Disabled when the notification list is already empty. */}
                             <button
                                 className="an-action-btn an-action-btn--delete"
-                                onClick={handleDeleteAll}
+                                onClick={handleDeleteAllClick}
                                 disabled={notifications.length === 0}
                                 title="Permanently delete all notifications"
                             >
@@ -418,11 +463,15 @@ const AdminNotifications = () => {
                                             <span className="an-unread-dot" title="Unread" />
                                         )}
 
-                                        {/* Trash icon to delete this individual notification.
+                                        {/* Trash icon — now opens the styled single-delete modal
+                                            instead of the native window.confirm dialog.
                                             stopPropagation prevents the mark-as-read click from firing. */}
                                         <button
                                             className="an-delete-single-btn"
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteOne(item.id); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteOneClick(item.id);
+                                            }}
                                             aria-label="Delete this notification"
                                         >
                                             <DeleteIcon sx={{ fontSize: 16 }} />
@@ -443,6 +492,143 @@ const AdminNotifications = () => {
 
                 </div>
             </main>
+
+            {/* ════════════════════════════════════════════════════════
+                MODAL — DELETE SINGLE NOTIFICATION CONFIRMATION
+                Opens when the admin clicks the trash icon on any row.
+                deleteSingleTarget holds the ID of the notification to delete.
+                Clicking the backdrop (the dimmed overlay) cancels the action.
+            ════════════════════════════════════════════════════════ */}
+            {deleteSingleTarget && (
+                /* Backdrop — full-viewport dimmed overlay with blur.
+                   Clicking it sets deleteSingleTarget back to null (cancel). */
+                <div
+                    className="an-modal-backdrop"
+                    onClick={() => setDeleteSingleTarget(null)}
+                >
+                    {/* Modal card — stopPropagation so clicks inside don't close the backdrop */}
+                    <div
+                        className="an-modal an-modal--confirm"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* ── Modal Header ──────────────────────────────────
+                            Red gradient background, trash icon, and title —
+                            identical to the Delete User header in AdminUsers. */}
+                        <div className="an-modal-header an-modal-header--danger">
+                            {/* Semi-transparent circular icon holder */}
+                            <div className="an-modal-header-icon an-modal-header-icon--danger">
+                                <DeleteIcon sx={{ fontSize: 20 }} />
+                            </div>
+                            <h2 className="an-modal-title an-modal-title--light">
+                                Delete Notification
+                            </h2>
+                        </div>
+
+                        {/* ── Modal Body ────────────────────────────────────
+                            Centred text layout: headline question + sub-warning */}
+                        <div className="an-modal-body an-modal-body--confirm">
+                            <p className="an-confirm-headline">
+                                Are you sure you want to permanently delete this notification?
+                            </p>
+                            <p className="an-confirm-sub">
+                                This action cannot be undone.
+                            </p>
+
+                            {/* ── Action buttons row ────────────────────────
+                                Cancel closes the modal; Delete triggers the API call. */}
+                            <div className="an-modal-actions">
+                                {/* Cancel button — outlined style, closes modal with no side-effect */}
+                                <button
+                                    className="an-btn-cancel"
+                                    onClick={() => setDeleteSingleTarget(null)}
+                                >
+                                    Cancel
+                                </button>
+
+                                {/* Confirm / Delete button — red filled, triggers the actual delete.
+                                    Disabled while the request is in-flight to prevent double-clicks. */}
+                                <button
+                                    className="an-btn-confirm an-btn-danger"
+                                    onClick={handleDeleteOneConfirm}
+                                    disabled={actionLoading}
+                                >
+                                    {actionLoading ? 'Deleting…' : 'Delete'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════
+                MODAL — DELETE ALL NOTIFICATIONS CONFIRMATION
+                Opens when the admin clicks the "Delete All" toolbar button.
+                showDeleteAllModal is the boolean flag that controls visibility.
+                Clicking the backdrop cancels the action.
+            ════════════════════════════════════════════════════════ */}
+            {showDeleteAllModal && (
+                /* Backdrop — same full-viewport dimmed overlay.
+                   Clicking it sets showDeleteAllModal to false (cancel). */
+                <div
+                    className="an-modal-backdrop"
+                    onClick={() => setShowDeleteAllModal(false)}
+                >
+                    {/* Modal card */}
+                    <div
+                        className="an-modal an-modal--confirm"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* ── Modal Header ──────────────────────────────────
+                            Same red gradient as the single-delete modal,
+                            but uses DeleteSweepIcon to signal a bulk operation. */}
+                        <div className="an-modal-header an-modal-header--danger">
+                            {/* Semi-transparent icon holder */}
+                            <div className="an-modal-header-icon an-modal-header-icon--danger">
+                                <DeleteSweepIcon sx={{ fontSize: 20 }} />
+                            </div>
+                            <h2 className="an-modal-title an-modal-title--light">
+                                Delete All Notifications
+                            </h2>
+                        </div>
+
+                        {/* ── Modal Body ────────────────────────────────────
+                            Slightly stronger warning copy since this is irreversible
+                            and affects every notification at once. */}
+                        <div className="an-modal-body an-modal-body--confirm">
+                            <p className="an-confirm-headline">
+                                Are you sure you want to permanently delete{' '}
+                                <strong>all notifications</strong>?
+                            </p>
+                            <p className="an-confirm-sub">
+                                This will remove every notification from the system.
+                                This action cannot be undone.
+                            </p>
+
+                            {/* ── Action buttons row ────────────────────────
+                                Cancel closes the modal; Delete All triggers the bulk API call. */}
+                            <div className="an-modal-actions">
+                                {/* Cancel button */}
+                                <button
+                                    className="an-btn-cancel"
+                                    onClick={() => setShowDeleteAllModal(false)}
+                                >
+                                    Cancel
+                                </button>
+
+                                {/* Confirm / Delete All button — red filled.
+                                    Disabled while the request is in-flight. */}
+                                <button
+                                    className="an-btn-confirm an-btn-danger"
+                                    onClick={handleDeleteAllConfirm}
+                                    disabled={actionLoading}
+                                >
+                                    {actionLoading ? 'Deleting…' : 'Delete All'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Toast — slides in from bottom-right for 3 seconds */}
             {toast && (

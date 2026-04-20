@@ -1,7 +1,5 @@
 /* ============================================================
     FeedHope — Omar & Hanan — AdminNotifications.css
-    Follows the exact same design language as AdminFoodOffers
-    and AdminMoneyDonations (slate/blue-grey palette, same spacing).
 ============================================================ */
 
 
@@ -537,6 +535,199 @@ body {
 }
 
 
+/* ════════════════════════════════════════════════════════════
+   MODAL SYSTEM
+   Shared styles for both confirmation modals:
+     • Delete Single Notification  (an-modal--confirm)
+     • Delete All Notifications    (an-modal--confirm)
+
+   Design mirrors the Delete User modal in AdminUsers exactly:
+   red gradient header, white card body, Cancel + Delete buttons.
+════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ─────────────────────────────────────────────
+   Full-viewport fixed overlay that sits on top of everything.
+   Semi-transparent dark tint + a subtle background blur give the
+   classic "modal dimming" effect without a hard black cutout.    */
+.an-modal-backdrop {
+    position:        fixed;       /* covers the whole viewport         */
+    inset:           0;           /* shorthand for top/right/bottom/left: 0 */
+    background:      rgba(30, 40, 50, 0.45); /* dark tint, 45% opacity */
+    backdrop-filter: blur(3px);   /* frosted-glass blur on the page behind */
+    z-index:         1000;        /* above all page content            */
+    display:         flex;
+    align-items:     center;      /* vertically centres the modal card */
+    justify-content: center;      /* horizontally centres the modal card */
+    padding:         20px;        /* small gap on very small screens   */
+    box-sizing:      border-box;
+}
+
+/* ── Modal card ──────────────────────────────────────────
+   White rounded card that holds the header + body sections.
+   The spring-like cubic-bezier gives a friendly "pop" entrance. */
+.an-modal {
+    background:    #ffffff;
+    border-radius: var(--an-radius-lg);       /* 14px rounded corners  */
+    box-shadow:
+        0 4px 6px  rgba(0, 0, 0, 0.05),       /* close, soft shadow    */
+        0 20px 60px rgba(0, 0, 0, 0.22);       /* far, dramatic shadow  */
+    width:         560px;
+    max-width:     100%;                       /* full-width on mobile  */
+    max-height:    90vh;                       /* never overflows screen */
+    overflow-y:    auto;
+    text-align:    left;
+    /* Scale + fade entrance animation */
+    animation:     an-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Keyframe: card scales from 92% → 100% and rises 10px → 0 */
+@keyframes an-modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* Narrow variant used for all confirmation dialogs (400px wide).
+   This matches aum-modal--confirm from AdminUsers exactly.       */
+.an-modal--confirm { width: 400px; }
+
+
+/* ── Modal Header ────────────────────────────────────────
+   The "danger" header uses the same red gradient that AdminUsers
+   uses for its Delete User and Block User modal headers.
+   It rounds only the top two corners to blend into the card.     */
+.an-modal-header {
+    display:       flex;
+    align-items:   center;
+    gap:           12px;
+    padding:       20px 24px 16px;
+    border-bottom: 1px solid var(--an-border);
+    background:    #f8f9fa;         /* default neutral header           */
+    border-radius: var(--an-radius-lg) var(--an-radius-lg) 0 0;
+}
+
+/* Red gradient override — applied to both delete modals.
+   Gradient direction and stops copied from .aum-modal-header--danger. */
+.an-modal-header--danger {
+    background:    linear-gradient(135deg, #c62828 0%, #e53935 100%);
+    border-bottom: none;            /* gradient replaces the border     */
+}
+
+/* ── Icon container beside the title ─────────────────────
+   A rounded square (or circle-ish) holder for the MUI icon.
+   On danger headers we use a semi-transparent white background
+   so the white icon is still clearly visible against the red.    */
+.an-modal-header-icon {
+    width:          38px;
+    height:         38px;
+    border-radius:  10px;           /* slightly rounded square          */
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    flex-shrink:    0;
+    color:          #fff;
+}
+
+/* Semi-transparent white background for icon on danger (red) header */
+.an-modal-header-icon--danger {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Modal title text */
+.an-modal-title {
+    flex:        1;
+    font-size:   16px;
+    font-weight: 700;
+    color:       var(--an-text-main);   /* dark by default              */
+    margin:      0;
+    line-height: 1.3;
+}
+
+/* White title override — used inside the red danger header
+   so the text stays readable against the coloured background.    */
+.an-modal-title--light { color: #fff; }
+
+
+/* ── Modal Body ──────────────────────────────────────────
+   Default body padding for all modals.                           */
+.an-modal-body {
+    padding: 22px 24px 20px;
+}
+
+/* Centred layout used for confirmation dialogs.
+   Text and buttons are all horizontally centred.                 */
+.an-modal-body--confirm {
+    text-align: center;
+    padding:    28px 28px 24px;     /* a little more breathing room    */
+}
+
+
+/* ── Confirmation copy ───────────────────────────────────
+   Two paragraphs: a bold question and a muted sub-warning.       */
+
+/* Main question — "Are you sure you want to…?" */
+.an-confirm-headline {
+    font-size:   15.5px;
+    font-weight: 600;
+    color:       var(--an-text-main);
+    margin:      0 0 10px;
+    line-height: 1.5;
+}
+
+/* Sub-warning — "This action cannot be undone." */
+.an-confirm-sub {
+    font-size:   13.5px;
+    color:       var(--an-text-sub);
+    margin:      0 0 24px;          /* space above button row          */
+    line-height: 1.6;
+}
+
+
+/* ── Action button row ───────────────────────────────────
+   Cancel and Confirm buttons sit side-by-side, centred.          */
+.an-modal-actions {
+    display:         flex;
+    justify-content: center;        /* centre the pair horizontally    */
+    gap:             10px;
+    margin-top:      6px;
+}
+
+/* Cancel button — outlined white pill, low emphasis.
+   Clicking it closes the modal without making any API calls.     */
+.an-btn-cancel {
+    padding:       9px 22px;
+    border-radius: var(--an-radius-sm);
+    font-size:     14px;
+    font-weight:   500;
+    border:        1px solid var(--an-border);
+    background:    #fff;
+    color:         var(--an-text-sub);
+    cursor:        pointer;
+    transition:    background 0.15s;
+}
+.an-btn-cancel:hover { background: #f5f5f5; }
+
+/* Confirm button — filled, high emphasis (slate by default).     */
+.an-btn-confirm {
+    padding:       9px 24px;
+    border-radius: var(--an-radius-sm);
+    font-size:     14px;
+    font-weight:   600;
+    background:    var(--an-gray);  /* slate — safe default            */
+    color:         #fff;
+    border:        none;
+    cursor:        pointer;
+    transition:    background 0.15s;
+}
+.an-btn-confirm:hover    { background: var(--an-gray-dark); }
+/* Disabled state while the DELETE request is in-flight */
+.an-btn-confirm:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Red / danger override — applied to both delete confirm buttons.
+   !important ensures it wins over the slate default above.       */
+.an-btn-danger       { background: #c62828 !important; }
+.an-btn-danger:hover { background: #b71c1c !important; }
+
+
 /* ── Responsive — mobile breakpoint ──────────────────────── */
 @media (max-width: 768px) {
 
@@ -577,4 +768,20 @@ body {
     /* Item row: slightly tighter on mobile */
     .an-item { padding: 14px 16px; gap: 12px; }
     .an-item-icon { width: 34px; height: 34px; }
+
+    /* Modals go full-width and anchor to the bottom of the screen
+       (matching the same mobile behaviour as AdminUsers modals).   */
+    .an-modal,
+    .an-modal--confirm {
+        width:         100%;
+        max-width:     100%;
+        border-radius: var(--an-radius-md); /* slightly less rounding   */
+    }
+
+    /* On mobile the backdrop aligns modal to the bottom edge
+       so it feels like a native bottom sheet on phones.             */
+    .an-modal-backdrop {
+        padding:     12px;
+        align-items: flex-end;
+    }
 }
