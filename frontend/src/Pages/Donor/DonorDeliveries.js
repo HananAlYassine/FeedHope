@@ -8,9 +8,9 @@ import '../../Styles/Donor/DonorDeliveries.css';
 // MUI Icons
 import SearchIcon from '@mui/icons-material/Search';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 
 const DonorDeliveries = () => {
     const [user, setUser] = useState(null);
@@ -31,23 +31,22 @@ const DonorDeliveries = () => {
         setUser(JSON.parse(storedUser));
     }, [navigate]);
 
-    // Fetch deliveries (mock)
+    // Fetch deliveries from API
     useEffect(() => {
         if (!user) return;
 
         const fetchDeliveries = async () => {
             setLoading(true);
             try {
-                // Mock data matching the image
-                const mockDeliveries = [
-                    { id: 1, title: 'Rice & Curry Dishes', volunteer: 'Sarah Johnson', status: 'Delivered', eta: '14:00', statusCode: 'delivered' },
-                    { id: 2, title: 'Soup & Sandwiches', volunteer: 'Unassigned', status: 'Pending Pickup', eta: '—', statusCode: 'pending' },
-                    { id: 3, title: 'Fresh Vegetables', volunteer: 'John Smith', status: 'Delivered', eta: '10:00', statusCode: 'delivered' },
-                    { id: 4, title: 'Bread & Pastries', volunteer: 'Mike Ross', status: 'In Transit', eta: '16:30', statusCode: 'transit' },
-                    { id: 5, title: 'Canned Goods', volunteer: 'Unassigned', status: 'Pending Pickup', eta: '—', statusCode: 'pending' },
-                ];
-                setDeliveries(mockDeliveries);
-                setFilteredDeliveries(mockDeliveries);
+                const response = await fetch(`http://localhost:5000/api/donor/deliveries/${user.user_id}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    setDeliveries(data);
+                    setFilteredDeliveries(data);
+                } else {
+                    console.error('Failed to fetch deliveries:', data);
+                }
             } catch (err) {
                 console.error('Failed to load deliveries:', err);
             } finally {
@@ -59,22 +58,27 @@ const DonorDeliveries = () => {
     }, [user]);
 
     // Calculate stats
-    const pendingCount = deliveries.filter(d => d.statusCode === 'pending').length;
-    const transitCount = deliveries.filter(d => d.statusCode === 'transit').length;
-    const deliveredCount = deliveries.filter(d => d.statusCode === 'delivered').length;
+    const acceptedCount = deliveries.filter(d => d.delivery_status === 'accepted by delivery').length;
+    const inDeliverCount = deliveries.filter(d => d.delivery_status === 'in deliver').length;
+    const deliveredCount = deliveries.filter(d => d.delivery_status === 'delivered').length;
 
     // Filter deliveries based on search & status
     useEffect(() => {
         let filtered = deliveries;
 
         if (statusFilter !== 'All') {
-            filtered = filtered.filter(d => d.statusCode === statusFilter.toLowerCase());
+            const statusMap = {
+                'Accepted': 'accepted by delivery',
+                'In Deliver': 'in deliver',
+                'Delivered': 'delivered'
+            };
+            filtered = filtered.filter(d => d.delivery_status === statusMap[statusFilter]);
         }
 
         if (searchTerm.trim() !== '') {
             filtered = filtered.filter(d =>
-                d.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                d.volunteer.toLowerCase().includes(searchTerm.toLowerCase())
+                d.food_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (d.volunteer_name && d.volunteer_name.toLowerCase().includes(searchTerm.toLowerCase()))
             );
         }
 
@@ -87,18 +91,33 @@ const DonorDeliveries = () => {
     };
 
     // Status badge style
-    const getStatusClass = (statusCode) => {
-        switch (statusCode) {
+    const getStatusClass = (status) => {
+        switch (status) {
             case 'delivered': return 'status-delivered';
-            case 'transit': return 'status-transit';
-            default: return 'status-pending';
+            case 'in deliver': return 'status-transit';
+            case 'accepted by delivery': return 'status-accepted';
+            default: return 'status-accepted';
         }
     };
 
     const getStatusText = (status) => {
-        if (status === 'Pending Pickup') return 'Pending Pickup';
-        if (status === 'In Transit') return 'In Transit';
-        return status;
+        switch (status) {
+            case 'accepted by delivery': return 'Accepted by Delivery';
+            case 'in deliver': return 'In Deliver';
+            case 'delivered': return 'Delivered';
+            default: return status;
+        }
+    };
+
+    // Format time
+    const formatTime = (timeStr) => {
+        if (!timeStr) return '—';
+        const time = new Date(timeStr);
+        return time.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
     };
 
     return (
@@ -121,12 +140,12 @@ const DonorDeliveries = () => {
                 {/* Stats Cards */}
                 <div className="ddel-stats-row">
                     <div className="ddel-stat-card">
-                        <div className="ddel-stat-icon pending-icon">
-                            <PendingActionsIcon />
+                        <div className="ddel-stat-icon accepted-icon">
+                            <AssignmentTurnedInIcon />
                         </div>
                         <div className="ddel-stat-info">
-                            <span className="ddel-stat-number">{pendingCount}</span>
-                            <span className="ddel-stat-label">Pending</span>
+                            <span className="ddel-stat-number">{acceptedCount}</span>
+                            <span className="ddel-stat-label">Accepted</span>
                         </div>
                     </div>
                     <div className="ddel-stat-card">
@@ -134,8 +153,8 @@ const DonorDeliveries = () => {
                             <DirectionsCarIcon />
                         </div>
                         <div className="ddel-stat-info">
-                            <span className="ddel-stat-number">{transitCount}</span>
-                            <span className="ddel-stat-label">In Transit</span>
+                            <span className="ddel-stat-number">{inDeliverCount}</span>
+                            <span className="ddel-stat-label">In Deliver</span>
                         </div>
                     </div>
                     <div className="ddel-stat-card">
@@ -169,16 +188,16 @@ const DonorDeliveries = () => {
                             All
                         </button>
                         <button
-                            className={`ddel-filter-btn ${statusFilter === 'Pending' ? 'active' : ''}`}
-                            onClick={() => setStatusFilter('Pending')}
+                            className={`ddel-filter-btn ${statusFilter === 'Accepted' ? 'active' : ''}`}
+                            onClick={() => setStatusFilter('Accepted')}
                         >
-                            Pending
+                            Accepted
                         </button>
                         <button
-                            className={`ddel-filter-btn ${statusFilter === 'Transit' ? 'active' : ''}`}
-                            onClick={() => setStatusFilter('Transit')}
+                            className={`ddel-filter-btn ${statusFilter === 'In Deliver' ? 'active' : ''}`}
+                            onClick={() => setStatusFilter('In Deliver')}
                         >
-                            In Transit
+                            In Deliver
                         </button>
                         <button
                             className={`ddel-filter-btn ${statusFilter === 'Delivered' ? 'active' : ''}`}
@@ -207,23 +226,27 @@ const DonorDeliveries = () => {
                             <table className="ddel-table">
                                 <thead>
                                     <tr>
-                                        <th>Deliverer</th>
+                                        <th>Food Item</th>
                                         <th>Volunteer</th>
                                         <th>Status</th>
-                                        <th>ETA</th>
+                                        <th>Pickup Time</th>
+                                        <th>Delivery Time</th>
+                                        <th>Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredDeliveries.map((delivery) => (
-                                        <tr key={delivery.id}>
-                                            <td className="ddel-title">{delivery.title}</td>
-                                            <td>{delivery.volunteer}</td>
+                                        <tr key={delivery.delivery_id}>
+                                            <td className="ddel-title">{delivery.food_name}</td>
+                                            <td>{delivery.volunteer_name || 'Unassigned'}</td>
                                             <td>
-                                                <span className={`ddel-status ${getStatusClass(delivery.statusCode)}`}>
-                                                    {getStatusText(delivery.status)}
+                                                <span className={`ddel-status ${getStatusClass(delivery.delivery_status)}`}>
+                                                    {getStatusText(delivery.delivery_status)}
                                                 </span>
                                             </td>
-                                            <td>{delivery.eta}</td>
+                                            <td>{formatTime(delivery.pickup_time)}</td>
+                                            <td>{formatTime(delivery.delivery_time)}</td>
+                                            <td className="ddel-notes">{delivery.notes || '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>

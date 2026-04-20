@@ -17,10 +17,11 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const getInitial = (name = '') => name.trim().charAt(0).toUpperCase() || '?';
 
-// FIXED: Updated to show Full Date (Day, Month Date, Year)
 const formatFullDate = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -65,36 +66,32 @@ const DonorProfile = () => {
     const [pwError, setPwError] = useState('');
     const [pwSuccess, setPwSuccess] = useState('');
 
+    // Eye toggle state
+    const [showCurrentPw, setShowCurrentPw] = useState(false);
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [showConfirmPw, setShowConfirmPw] = useState(false);
+
     useEffect(() => {
         const storedUser = localStorage.getItem('feedhope_user');
-        if (!storedUser) {
-            navigate('/signin');
-            return;
-        }
+        if (!storedUser) { navigate('/signin'); return; }
         setUser(JSON.parse(storedUser));
     }, [navigate]);
 
     useEffect(() => {
         if (!user) return;
-
         const fetchProfile = async () => {
             try {
                 setLoading(true);
                 const res = await fetch(`http://localhost:5000/api/donor/profile/${user.user_id}`);
                 const data = await res.json();
-                if (!res.ok) {
-                    setError(data.error || 'Failed to load profile.');
-                    return;
-                }
+                if (!res.ok) { setError(data.error || 'Failed to load profile.'); return; }
                 setProfile(data.profile);
                 setStats(data.stats);
-
                 if (data.profile.profile_picture) {
                     setProfilePicture(data.profile.profile_picture);
                     const updatedUser = { ...user, profile_picture: data.profile.profile_picture };
                     localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
                 }
-
                 setEditForm({
                     name: data.profile.business_name || data.profile.name || '',
                     email: data.profile.email || '',
@@ -109,21 +106,17 @@ const DonorProfile = () => {
                 setLoading(false);
             }
         };
-
         fetchProfile();
     }, [user]);
 
     const handlePictureUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const formData = new FormData();
         formData.append('profilePicture', file);
-
         try {
             const res = await fetch(`http://localhost:5000/api/donor/upload-profile-picture/${user.user_id}`, {
-                method: 'POST',
-                body: formData
+                method: 'POST', body: formData
             });
             const data = await res.json();
             if (res.ok) {
@@ -138,8 +131,7 @@ const DonorProfile = () => {
     };
 
     const handleDeletePicture = async () => {
-        if (!window.confirm("Are you sure you want to remove your profile picture?")) return;
-
+        if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
         try {
             const res = await fetch(`http://localhost:5000/api/donor/delete-profile-picture/${user.user_id}`, {
                 method: 'DELETE'
@@ -170,10 +162,7 @@ const DonorProfile = () => {
                 body: JSON.stringify(editForm)
             });
             const data = await res.json();
-            if (!res.ok) {
-                setEditError(data.error || 'Failed to save changes.');
-                return;
-            }
+            if (!res.ok) { setEditError(data.error || 'Failed to save changes.'); return; }
             setProfile(prev => ({
                 ...prev,
                 business_name: editForm.name,
@@ -200,7 +189,16 @@ const DonorProfile = () => {
         setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowPwModal(true);
     };
-    const handleClosePw = () => setShowPwModal(false);
+
+    const handleClosePw = () => {
+        setShowPwModal(false);
+        setPwError('');
+        setPwSuccess('');
+        setShowCurrentPw(false);
+        setShowNewPw(false);
+        setShowConfirmPw(false);
+    };
+
     const handlePwChange = (e) => setPwForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
     const handlePwSubmit = async () => {
@@ -262,7 +260,6 @@ const DonorProfile = () => {
                         <button className="ddb-banner-btn" onClick={handleOpenEdit}>
                             <EditIcon style={{ fontSize: 15, marginRight: 6 }} /> Edit Profile
                         </button>
-
                         <button
                             className={`ddb-banner-btn ddb-banner-btn--danger ${!profilePicture ? 'is-inactive' : ''}`}
                             onClick={handleDeletePicture}
@@ -270,7 +267,6 @@ const DonorProfile = () => {
                         >
                             <DeleteIcon style={{ fontSize: 15, marginRight: 6 }} /> Delete Photo
                         </button>
-
                         <button className="ddb-banner-btn ddb-banner-btn--outline" onClick={handleOpenPw}>
                             <LockIcon style={{ fontSize: 15, marginRight: 6 }} /> Change Password
                         </button>
@@ -361,7 +357,7 @@ const DonorProfile = () => {
                 </div>
             </main>
 
-            {/* Modals for Edit/Password */}
+            {/* Edit Profile Modal */}
             {showEditModal && (
                 <div className="dcp-modal-overlay" onClick={handleCloseEdit}>
                     <div className="dcp-modal" onClick={(e) => e.stopPropagation()}>
@@ -371,10 +367,10 @@ const DonorProfile = () => {
                         </div>
                         <div className="dcp-modal-body">
                             <label className="dcp-form-label">Business Name <input className="dcp-form-input" name="name" value={editForm.name} onChange={handleEditChange} /></label>
-                            <label className="dcp-form-label">Email <input className="dcp-form-input" type="email" name="email" value={editForm.email} onChange={handleEditChange} /></label>
-                            <label className="dcp-form-label">Phone <input className="dcp-form-input" type="tel" name="phone" value={editForm.phone} onChange={handleEditChange} /></label>
-                            <label className="dcp-form-label">Street Address <input className="dcp-form-input" name="street" value={editForm.street} onChange={handleEditChange} /></label>
-                            <label className="dcp-form-label">City <input className="dcp-form-input" name="city" value={editForm.city} onChange={handleEditChange} /></label>
+                            <label className="dcp-form-label">Email         <input className="dcp-form-input" name="email" value={editForm.email} onChange={handleEditChange} type="email" /></label>
+                            <label className="dcp-form-label">Phone         <input className="dcp-form-input" name="phone" value={editForm.phone} onChange={handleEditChange} type="tel" /></label>
+                            <label className="dcp-form-label">Street Address<input className="dcp-form-input" name="street" value={editForm.street} onChange={handleEditChange} /></label>
+                            <label className="dcp-form-label">City          <input className="dcp-form-input" name="city" value={editForm.city} onChange={handleEditChange} /></label>
                             <label className="dcp-form-label">Business Type <input className="dcp-form-input" name="business_type" value={editForm.business_type} onChange={handleEditChange} /></label>
                             {editError && <p className="dcp-form-error">{editError}</p>}
                             {editSuccess && <p className="dcp-form-success">{editSuccess}</p>}
@@ -387,6 +383,7 @@ const DonorProfile = () => {
                 </div>
             )}
 
+            {/* Change Password Modal */}
             {showPwModal && (
                 <div className="dcp-modal-overlay" onClick={handleClosePw}>
                     <div className="dcp-modal" onClick={(e) => e.stopPropagation()}>
@@ -395,9 +392,49 @@ const DonorProfile = () => {
                             <button className="dcp-modal-close" onClick={handleClosePw}>×</button>
                         </div>
                         <div className="dcp-modal-body">
-                            <label className="dcp-form-label">Current Password <input className="dcp-form-input" type="password" name="currentPassword" value={pwForm.currentPassword} onChange={handlePwChange} /></label>
-                            <label className="dcp-form-label">New Password <input className="dcp-form-input" type="password" name="newPassword" value={pwForm.newPassword} onChange={handlePwChange} /></label>
-                            <label className="dcp-form-label">Confirm New Password <input className="dcp-form-input" type="password" name="confirmPassword" value={pwForm.confirmPassword} onChange={handlePwChange} /></label>
+
+                            <label className="dcp-form-label">Current Password</label>
+                            <div className="dcp-password-wrapper">
+                                <input
+                                    className="dcp-form-input dcp-pw-input"
+                                    type={showCurrentPw ? 'text' : 'password'}
+                                    name="currentPassword"
+                                    value={pwForm.currentPassword}
+                                    onChange={handlePwChange}
+                                />
+                                <button type="button" className="dcp-eye-btn" tabIndex={-1} onClick={() => setShowCurrentPw(p => !p)}>
+                                    {showCurrentPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                                </button>
+                            </div>
+
+                            <label className="dcp-form-label">New Password</label>
+                            <div className="dcp-password-wrapper">
+                                <input
+                                    className="dcp-form-input dcp-pw-input"
+                                    type={showNewPw ? 'text' : 'password'}
+                                    name="newPassword"
+                                    value={pwForm.newPassword}
+                                    onChange={handlePwChange}
+                                />
+                                <button type="button" className="dcp-eye-btn" tabIndex={-1} onClick={() => setShowNewPw(p => !p)}>
+                                    {showNewPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                                </button>
+                            </div>
+
+                            <label className="dcp-form-label">Confirm New Password</label>
+                            <div className="dcp-password-wrapper">
+                                <input
+                                    className="dcp-form-input dcp-pw-input"
+                                    type={showConfirmPw ? 'text' : 'password'}
+                                    name="confirmPassword"
+                                    value={pwForm.confirmPassword}
+                                    onChange={handlePwChange}
+                                />
+                                <button type="button" className="dcp-eye-btn" tabIndex={-1} onClick={() => setShowConfirmPw(p => !p)}>
+                                    {showConfirmPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                                </button>
+                            </div>
+
                             {pwError && <p className="rdb-error-msg" style={{ fontSize: '13px' }}>{pwError}</p>}
                             {pwSuccess && <p className="dcp-form-success">{pwSuccess}</p>}
                         </div>

@@ -1,7 +1,6 @@
 /* ===============================
    FILE: DonorMyOffers.css
    Independent styles for My Offers page
-   Updated: green buttons → orange
    =============================== */
 
 /* Layout (ensures sidebar is fixed left, main scrolls) */
@@ -40,7 +39,6 @@
     font-weight: 700;
     color: #1e2a3e;
     margin-bottom: 0.25rem;
-
 }
 
 .subtitle {
@@ -187,7 +185,7 @@
     color: #1e2a3e;
 }
 
-/* Status badge colors (unchanged - keep semantic meaning) */
+/* Status badge colors */
 .status-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
@@ -209,7 +207,8 @@
     color: #1a56db;
 }
 
-.status-badge.in-transit {
+.status-badge.in-transit,
+.status-badge.in_delivery {
     background: #fff3e0;
     color: #b45309;
 }
@@ -226,50 +225,11 @@
 
 /* Actions column */
 .actions-cell {
-    text-align: center;
-    width: 70px;
-}
-
-.action-icon {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: #5b6e8c;
-    transition: 0.2s;
-    padding: 6px;
-    border-radius: 30px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.action-icon:hover {
-    background: #f1f5f9;
-    color: #f97316;
-    /* orange on hover */
-}
-
-/* Empty row */
-.empty-row td {
-    text-align: center;
-    padding: 3rem;
-    color: #7f8c9a;
-    font-weight: 500;
-}
-
-/* Footer summary */
-.offers-footer {
-    margin-top: 1.2rem;
-    text-align: right;
-    font-size: 0.8rem;
-    color: #5b6e8c;
-    padding: 0.5rem 0;
-}
-
-.actions-cell {
     display: flex;
     gap: 10px;
     justify-content: center;
+    align-items: center;
+    position: relative;
 }
 
 .action-btn {
@@ -294,14 +254,92 @@
     transform: translateY(-2px);
 }
 
-.delete-btn {
-    color: #f44336;
-    background-color: #ffebee;
+/* Action Menu Wrapper and Dropdown */
+.action-menu-wrapper {
+    position: relative;
+    display: inline-block;
 }
 
-.delete-btn:hover {
-    background-color: #ffcdd2;
-    transform: translateY(-2px);
+.menu-btn {
+    color: #64748b;
+    background-color: #f1f5f9;
+}
+
+.menu-btn:hover {
+    background-color: #e2e8f0;
+    color: #f97316;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+    animation: slideDown 0.2s ease;
+}
+
+.dropdown-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    text-align: left;
+    color: #334155;
+}
+
+.dropdown-menu button:hover {
+    background-color: #f8fafc;
+}
+
+.dropdown-menu button.danger {
+    color: #ef4444;
+    border-top: 1px solid #f0f2f7;
+}
+
+.dropdown-menu button.danger:hover {
+    background-color: #fef2f2;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Empty row */
+.empty-row td {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c9a;
+    font-weight: 500;
+}
+
+/* Footer summary */
+.offers-footer {
+    margin-top: 1.2rem;
+    text-align: right;
+    font-size: 0.8rem;
+    color: #5b6e8c;
+    padding: 0.5rem 0;
 }
 
 /* Overlay Background */
@@ -312,9 +350,7 @@
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.4);
-    /* Dark dim */
     backdrop-filter: blur(8px);
-    /* The magic blur effect */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -324,7 +360,7 @@
 
 /* The Glass Form */
 .details-form-container {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.95);
     width: 100%;
     max-width: 500px;
     padding: 30px;
@@ -355,6 +391,11 @@
     font-size: 28px;
     cursor: pointer;
     color: #636e72;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #f97316;
 }
 
 .detail-row {
@@ -383,25 +424,114 @@
     padding: 8px 12px;
     border-radius: 8px;
     margin: 0;
+    word-break: break-word;
+}
+
+/* Edit Input Group Styles */
+.edit-input-group {
+    margin-bottom: 20px;
+}
+
+.edit-input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    text-transform: none;
+}
+
+.edit-input-group input,
+.edit-input-group textarea,
+.edit-input-group select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    color: #1f2937;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.edit-input-group input:focus,
+.edit-input-group textarea:focus,
+.edit-input-group select:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.edit-input-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Details Footer Buttons */
+.details-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
 }
 
 .done-btn {
-    width: 100%;
+    flex: 1;
     padding: 12px;
-    background: #27ae60;
+    background: linear-gradient(105deg, #f97316, #ea580c);
     color: white;
     border: none;
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 20px;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .done-btn:hover {
-    background: #219150;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
 
+.cancel-btn {
+    flex: 1;
+    padding: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+    background: #e2e8f0;
+}
+
+.submit-btn {
+    flex: 1;
+    padding: 12px;
+    background: linear-gradient(105deg, #f97316, #ea580c);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.submit-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Animations */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -421,6 +551,27 @@
     to {
         transform: translateY(0);
         opacity: 1;
+    }
+}
+
+/* Loading Spinner */
+.loading-container {
+    text-align: center;
+    padding: 3rem;
+}
+
+.rdb-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
@@ -451,4 +602,334 @@
     .offers-table td {
         padding: 0.8rem;
     }
+
+    .detail-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .details-form-container {
+        margin: 1rem;
+        padding: 20px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .dropdown-menu {
+        position: fixed;
+        right: 20px;
+        left: auto;
+        min-width: 160px;
+    }
+}
+
+/* Status Text in Details Modal */
+.status-text {
+    font-weight: 600;
+}
+
+.status-text.available {
+    color: #1f6e43;
+}
+
+.status-text.accepted {
+    color: #1a56db;
+}
+
+.status-text.in_delivery {
+    color: #b45309;
+}
+
+.status-text.delivered {
+    color: #2b6e3c;
+}
+
+.status-text.expired {
+    color: #b91c1c;
+}
+
+/* Dietary Information Styles */
+.dietary-group {
+    margin-top: 10px;
+}
+
+.dietary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.dietary-check:hover {
+    background: #e2e8f0;
+}
+
+.dietary-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #f97316;
+}
+
+.dietary-check span {
+    user-select: none;
+}
+
+/* Dietary Tags for View Modal */
+.dietary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.dietary-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-tag svg {
+    font-size: 16px;
+    color: #f97316;
+}
+
+/* Edit Modal adjustments */
+.edit-modal .details-body {
+    max-height: calc(90vh - 180px);
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar-thumb {
+    background: #f97316;
+    border-radius: 10px;
+}
+
+/* Responsive adjustments for dietary grid */
+@media (max-width: 768px) {
+    .dietary-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .dietary-check {
+        padding: 8px 12px;
+    }
+}
+
+/* Fixed Size Edit Modal - No Scroll */
+.edit-modal-fixed {
+    max-width: 750px !important;
+    width: 90% !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 25px 30px !important;
+}
+
+.edit-modal-fixed .details-header {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+}
+
+.edit-form-fixed {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.edit-form-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 20px;
+}
+
+/* Custom scrollbar for content */
+.edit-form-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.edit-form-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.edit-form-content::-webkit-scrollbar-thumb {
+    background: #f97316;
+    border-radius: 10px;
+}
+
+.edit-form-content::-webkit-scrollbar-thumb:hover {
+    background: #ea580c;
+}
+
+.details-footer-edit {
+    flex-shrink: 0;
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Dietary Grid for Edit Modal */
+.dietary-grid-edit {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-check-edit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #334155;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.dietary-check-edit:hover {
+    background: #e2e8f0;
+}
+
+.dietary-check-edit input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #f97316;
+}
+
+.dietary-check-edit span {
+    user-select: none;
+}
+
+/* Two columns layout for edit modal */
+.row-2cols-edit {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 5px;
+}
+
+/* Adjust input sizes for compact view */
+.edit-input-group input,
+.edit-input-group select,
+.edit-input-group textarea {
+    font-size: 14px;
+    padding: 8px 10px;
+}
+
+.edit-input-group textarea {
+    resize: vertical;
+    min-height: 50px;
+}
+
+.edit-input-group label {
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .edit-modal-fixed {
+        width: 95% !important;
+        padding: 20px !important;
+    }
+
+    .dietary-grid-edit {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .row-2cols-edit {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .details-footer-edit {
+        flex-direction: column;
+    }
+
+    .cancel-btn,
+    .submit-btn {
+        width: 100%;
+    }
+}
+
+
+/* Alternative Style - Darker labels with background contrast */
+.alternative-details .detail-group label {
+    color: #475569;
+    background: none;
+    -webkit-text-fill-color: #475569;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alternative-details .detail-group p {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 15px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Or with icons next to labels */
+.detail-group-with-icon {
+    position: relative;
+}
+
+.detail-group-with-icon label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-group-with-icon label svg {
+    font-size: 16px;
+    color: #f97316;
 }

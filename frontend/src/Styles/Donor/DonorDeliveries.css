@@ -36,7 +36,7 @@
     flex-shrink: 0;
 }
 
-.pending-icon {
+.accepted-icon {
     background: #fff3e0;
     color: #f57c00;
 }
@@ -185,6 +185,15 @@
     color: #0f172a;
 }
 
+.ddel-notes {
+    color: #64748b;
+    font-size: 0.85rem;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Status badges */
 .ddel-status {
     display: inline-block;
@@ -204,7 +213,7 @@
     color: #0369a1;
 }
 
-.status-pending {
+.status-accepted {
     background: #fef3c7;
     color: #b45309;
 }
@@ -268,5 +277,9 @@
     .ddel-table th,
     .ddel-table td {
         padding: 0.75rem 1rem;
+    }
+
+    .ddel-notes {
+        max-width: 150px;
     }
 }

@@ -8,7 +8,49 @@
     font-size: 20px;
 }
 
-/* ── Banner avatar (blue gradient) ──────────────────────────── */
+/* ── Banner wrapper (blue gradient background) ───────────────── */
+.vdb-banner {
+    background: linear-gradient(135deg, #1976d2, #0d47a1);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    color: #fff;
+}
+
+/* Banner left text group */
+.vdb-banner-text {
+    flex: 1;
+}
+
+.vdb-banner-greeting {
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 8px 0;
+    opacity: 0.85;
+}
+
+.vdb-banner-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.vdb-banner-subtitle {
+    font-size: 14px;
+    margin: 0;
+    opacity: 0.9;
+    max-width: 500px;
+}
+
+/* Banner avatar (blue gradient circle) */
 .vdb-banner-avatar {
     font-size: 42px;
     font-weight: 700;
@@ -16,7 +58,8 @@
     position: relative;
     cursor: default;
     user-select: none;
-    background: linear-gradient(135deg, #1976d2, #0d47a1);
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(2px);
     width: 90px;
     height: 90px;
     border-radius: 50%;
@@ -24,6 +67,7 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .vdb-banner-avatar img {
@@ -32,44 +76,48 @@
     object-fit: cover;
 }
 
-/* Camera overlay on banner avatar (optional) */
-.vcp-avatar-camera {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.45);
-    border: 1.5px solid rgba(255, 255, 255, 0.7);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-
-.vcp-avatar-camera:hover {
-    background: rgba(0, 0, 0, 0.65);
-}
-
-/* Two-button row in banner */
+/* Button container inside banner (horizontal row) */
 .vcp-banner-actions {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
     flex-shrink: 0;
-    z-index: 1;
 }
 
-/* Outline banner button */
+/* Base banner button style */
+.vdb-banner-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    backdrop-filter: blur(4px);
+}
+
+.vdb-banner-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Outline variant (Change Password) */
 .vdb-banner-btn--outline {
     background: transparent;
-    border-color: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .vdb-banner-btn--outline:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #fff;
 }
 
 /* ========== STATS ROW (4‑column grid) ========== */
@@ -491,12 +539,18 @@
     .vdb-banner {
         flex-direction: column;
         text-align: center;
+        align-items: center;
+    }
+
+    .vdb-banner-text {
+        text-align: center;
     }
 
     .vcp-banner-actions {
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
+        width: 100%;
     }
 
     .vdb-stats-row {
@@ -507,4 +561,45 @@
         border-right: none;
         border-bottom: 1px solid #e2e8f0;
     }
+}
+
+/* Disable Edge/Chrome native password eye icon */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+    display: none !important;
+}
+
+/* Password field wrapper */
+.vcp-password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+/* Input takes full width, leaves room for eye button */
+.vcp-pw-input {
+    width: 100%;
+    padding-right: 42px !important;
+    margin-bottom: 0 !important;
+}
+
+/* Eye toggle button */
+.vcp-eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    line-height: 1;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.vcp-eye-btn:hover {
+    color: #333;
 }

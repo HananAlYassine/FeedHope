@@ -11,6 +11,7 @@ import SecurityIcon from '@mui/icons-material/Security';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 const DonorNotifications = () => {
     const [user, setUser] = useState(null);
@@ -164,6 +165,7 @@ const DonorNotifications = () => {
             case 'profile_update': return <RestaurantIcon />;
             case 'security': return <SecurityIcon />;
             case 'deletion': return <DeleteSweepIcon />;
+            case 'fund_distribution': return <AccountBalanceWalletIcon />;
             default: return <NotificationsIcon />;
         }
     };

@@ -311,3 +311,36 @@
     }
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+.dcp-password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.dcp-pw-input {
+    width: 100%;
+    padding-right: 42px !important;
+    margin-bottom: 0 !important;
+}
+
+.dcp-eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.dcp-eye-btn:hover {
+    color: #333;
+}

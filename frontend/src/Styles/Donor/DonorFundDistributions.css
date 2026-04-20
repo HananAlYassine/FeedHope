@@ -1,0 +1,245 @@
+/* DonorFundDistributions.css - Matching DonorHistory.css style */
+
+/* Banner adjustment */
+.dfd-banner {
+    margin-bottom: 1.5rem;
+}
+
+/* Metrics row - matching dh-metrics */
+.dfd-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.dfd-metric-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dfd-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dfd-metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* Orange theme for icons - matching the orange gradient */
+.dfd-metric-icon.total {
+    background: #fff7ed;
+    color: #f97316;
+}
+
+.dfd-metric-icon.count {
+    background: #fff7ed;
+    color: #f97316;
+}
+
+.dfd-metric-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.dfd-metric-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.dfd-metric-label {
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+/* Table container */
+.dfd-table-container {
+    overflow: hidden;
+    padding: 0;
+}
+
+.dfd-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+    background: #fefefe;
+}
+
+.dfd-table-responsive {
+    overflow-x: auto;
+}
+
+.dfd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.dfd-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dfd-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+.dfd-table tbody tr:hover {
+    background: #fafcff;
+}
+
+/* Amount cell - orange color */
+.dfd-amount-cell {
+    font-weight: 600;
+    color: #f97316;
+    font-size: 1rem;
+}
+
+/* Method cell - orange themed */
+.dfd-method-cell {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    background: #fff7ed;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #f97316;
+    font-weight: 500;
+}
+
+.dfd-purpose {
+    max-width: 300px;
+}
+
+.dfd-purpose-text {
+    display: flex;
+    align-items: center;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.dfd-date {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+/* Status badges - keeping original colors for status */
+.dfd-status {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.dfd-status.completed {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.dfd-status.active {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.dfd-status.pending {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.dfd-status.cancelled {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Confirmation badges */
+.dfd-confirmation {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.dfd-confirmation.confirmed {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.dfd-confirmation.pending {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+/* Empty & loading states */
+.dfd-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+}
+
+.dfd-loading {
+    text-align: center;
+    padding: 3rem;
+    color: #475569;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dfd-metrics {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .dfd-table th,
+    .dfd-table td {
+        padding: 0.75rem 1rem;
+    }
+
+    .dfd-table-header {
+        padding: 1rem;
+    }
+
+    .dfd-purpose {
+        max-width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dfd-metric-value {
+        font-size: 1.4rem;
+    }
+
+    .dfd-table th,
+    .dfd-table td {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+}
