@@ -59,13 +59,21 @@ const AdminSidebar = ({ onLogout, activePage }) => {
     const navigate = useNavigate();
     const [unreadCount, setUnreadCount] = useState(0);
 
+
+    // Get logged‑in admin user from localStorage
+    const storedUser = localStorage.getItem('feedhope_user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const adminUserId = user?.user_id;
+
+
     const fetchUnreadCount = async () => {
+        if (!adminUserId) return;
         try {
-            const res  = await fetch(`http://localhost:5000/api/admin/notifications/unread-count`);
+            const res = await fetch(`http://localhost:5000/api/admin/notifications/unread-count/${adminUserId}`);
             const data = await res.json();
             setUnreadCount(data.count || 0);
         } catch (err) {
-            // silently fail
+            console.error("Failed to fetch unread count:", err);
         }
     };
 
@@ -74,7 +82,7 @@ const AdminSidebar = ({ onLogout, activePage }) => {
         const handleRead = () => fetchUnreadCount();
         window.addEventListener('notification-read', handleRead);
         return () => window.removeEventListener('notification-read', handleRead);
-    }, []);
+    }, [adminUserId]);
 
     return (
         <aside className="asb-sidebar">

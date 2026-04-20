@@ -57,8 +57,10 @@ const pool = mysql.createPool({
 }).promise(); // Use promise-based API so we can use async/await
 
 
-// Helper: validate password length rules (3–10 characters)
+// ───── Helper: validate password length rules (3–10 characters) ─────
 const isValidPassword = (pwd) => pwd && pwd.length >= 3 && pwd.length <= 10;
+
+
 
 // ==============================================================
 // ──────────────── REGISTRATIONS ───────────────────────────────
@@ -124,6 +126,19 @@ app.post("/api/register/donor", async (req, res) => {
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Registration', 'Donor account created — email verification pending', uid]
+        );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: new registration ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Registration',
+                `Donor "${organizationName}" (${email}) has registered and is pending email verification.`,
+                'new_registration'
+            ]
         );
 
         // Commit all inserts as one atomic operation
@@ -202,6 +217,19 @@ app.post("/api/register/receiver", async (req, res) => {
             ['Registration', 'Receiver account created — email verification pending', uid]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: new registration ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Registration',
+                `Receiver "${organizationName}" (${email}) has registered and is pending email verification.`,
+                'new_registration'
+            ]
+        );
+
         await conn.commit();
         res.status(201).json({
             message: "Receiver registered successfully. Please verify your email.",
@@ -256,6 +284,19 @@ app.post("/api/register/volunteer", async (req, res) => {
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Registration', 'Volunteer account created — email verification pending', uid]
+        );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: new registration ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Registration',
+                `Volunteer "${fullName}" (${email}) has registered and is pending email verification.`,
+                'new_registration'
+            ]
         );
 
         await conn.commit();
@@ -383,7 +424,7 @@ app.post("/api/signin", async (req, res) => {
             ['Login', `User logged in successfully as ${role || 'User'}`, user.user_id]
         );
 
-        // 7. Return the user object — same shape as before, plus admin_id if applicable
+        //8. Return the user object — same shape as before, plus admin_id if applicable
         res.status(200).json({
             message: "Sign in successful!",
             user: {
@@ -402,8 +443,6 @@ app.post("/api/signin", async (req, res) => {
         conn.release();
     }
 });
-
-
 
 
 
@@ -533,6 +572,21 @@ app.post('/api/contact-us', async (req, res) => {
         await pool.query(
             `INSERT INTO Contact_us (full_name, email, message, user_id) VALUES (?, ?, ?, ?)`,
             [full_name.trim(), email.trim(), message.trim(), user_id]
+        );
+
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: new contact message ──
+        const msgPreview = message.length > 100 ? message.substring(0, 100) + '...' : message;
+        
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Contact Message',
+                `From: ${full_name} (${email})\nMessage: ${msgPreview}`,
+                'contact_message'
+            ]
         );
 
         res.status(201).json({ message: 'Your message has been sent successfully!' });
@@ -712,10 +766,12 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
         await conn.beginTransaction();
 
         // 1 - Get the actual receiver_id from the Receiver table using the user_id
+
         const [[receiver]] = await conn.query(
-            "SELECT receiver_id FROM Receiver WHERE user_id = ?",
+            "SELECT receiver_id, organization_name FROM Receiver WHERE user_id = ?",
             [userId]
         );
+
         if (!receiver) {
             await conn.rollback();
             return res.status(404).json({ error: "Receiver profile not found." });
@@ -738,11 +794,34 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
             [receiverId, offerId]
         );
 
-        // 4 - Notify the receiver
+        // 4 - Notify the receiver that they successfully accepted the offer
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id)
             VALUES ('Offer Accepted', ?, 'offer_accepted', ?)`,
             [`You have successfully accepted the offer: "${offer.food_name}"`, userId]
+        );
+
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: offer accepted ──
+        // Get donor name for better context
+        const [[donorInfo]] = await conn.query(`
+            SELECT u.name AS donor_name
+            FROM Donor d
+            JOIN User u ON u.user_id = d.user_id
+            WHERE d.donor_id = ?
+        `, [offer.donor_id]);
+
+        const donorName = donorInfo ? donorInfo.donor_name : 'Unknown donor';
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Offer Accepted',
+                `Receiver "${receiver.organization_name || 'Organization'}" accepted the offer "${offer.food_name}" from ${donorName}.`,
+                'offer_accepted'
+            ]
         );
 
         await conn.commit();
@@ -1288,6 +1367,30 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
             [userId]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: offer cancelled ──
+        // Get donor name for better context
+        const [[donorInfo]] = await conn.query(`
+            SELECT u.name AS donor_name FROM Donor d
+            JOIN User u ON d.user_id = u.user_id
+            WHERE d.donor_id = (SELECT donor_id FROM Food_offer WHERE offer_id = ?)
+        `, [offerId]);
+
+        const donorName = donorInfo ? donorInfo.donor_name : 'Unknown donor';
+
+        // Notify the admin 
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Offer Cancelled',
+                `Receiver cancelled offer "${offer.food_name}" (originally from ${donorName}).`,
+                'offer_cancelled'
+            ]
+        );
+
+
         await conn.commit();
         res.status(200).json({ message: "Offer cancelled successfully and is now available again." });
     } catch (err) {
@@ -1352,6 +1455,19 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
              (rating, comment, feedback_date, given_by, donor_id, volunteer_id, receiver_id, delivery_id)
              VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
             [volunteerRating, comment || null, today, userId, delivery.volunteer_id, offer.receiver_id, delivery.delivery_id]
+        );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+         // ── ADMIN NOTIFICATION: feedback submitted ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Feedback Submitted',
+                `Receiver "${receiverUser.name}" rated donor ${donorRating}/5 and volunteer ${volunteerRating}/5 for offer #${offerId}. Comment: "${comment || 'No comment'}"`,
+                'feedback_submitted'
+            ]
         );
 
         await conn.commit();
@@ -2004,6 +2120,20 @@ app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
             );
         }
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+
+        // ── ADMIN NOTIFICATION: offer deleted/cancelled ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Offer Cancelled',
+                `Donor deleted offer "${food_name}" (ID ${offerId}).`,
+                'offer_cancelled'
+            ]
+        );
+
         await conn.commit();
         res.json({ message: 'Deleted successfully' });
     } catch (error) {
@@ -2158,7 +2288,7 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
             ['Create Offer', `Donor created new food offer: ${foodName}`, userId]
         );
 
-        // 5️⃣ ADDED: Insert into Notifications table
+        // 5️⃣ ADDED: Insert into Notifications table for the donor
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
@@ -2167,6 +2297,26 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
                 `Your food offer "${foodName}" is now live and available for receivers.`,
                 'success',
                 userId
+            ]
+        );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: new offer created ──
+        // Get donor name for admin message
+        const [[donorUser]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [userId]
+        );
+        const donorName = donorUser ? donorUser.name : 'A donor';
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Food Offer',
+                `${donorName} posted a new food offer: "${foodName}".`,
+                'new_offer'
             ]
         );
 
@@ -2230,11 +2380,30 @@ app.post("/api/donor/donate-money", async (req, res) => {
             ['Donation', `User made a monetary donation of $${amount} via ${payment_method}`, userId]
         );
 
-        // 5. Add a Notification for the user (Optional but recommended for consistency)
+        // 5. Add a Notification for the user
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
             ['Donation Received', `Thank you for your $${amount} donation via ${payment_method}!`, 'success', userId]
+        );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: money donation ──
+        const [[donorUser]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [userId]
+        );
+        const donorName = donorUser ? donorUser.name : 'A donor';
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Money Donation',
+                `${donorName} donated $${amount} via ${payment_method}.`,
+                'money_donation'
+            ]
         );
 
         await conn.commit();
@@ -2394,10 +2563,10 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
                 f.delivery_id,
                 u.first_name, 
                 u.last_name
-             FROM Feedback_and_rating f
-             LEFT JOIN User u ON f.given_by = u.user_id
-             WHERE f.donor_id = ?
-             ORDER BY f.feedback_date DESC`,
+                FROM Feedback_and_rating f
+                LEFT JOIN User u ON f.given_by = u.user_id
+                WHERE f.donor_id = ?
+                ORDER BY f.feedback_date DESC`,
             [userId]
         );
 
@@ -2407,8 +2576,6 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
         res.status(500).json({ error: "Failed to retrieve feedback." });
     }
 });
-
-
 
 
 
@@ -2516,11 +2683,26 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
             return res.status(404).json({ error: 'Offer not found.' });
         }
 
-        // Optional: insert a Delivery record
-        // await pool.query(`
-        //     INSERT INTO Delivery (offer_id, volunteer_id, delivery_status, assigned_at)
-        //     VALUES (?, ?, 'assigned', NOW())
-        // `, [offerId, volunteerId]);
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+
+        // ── ADMIN NOTIFICATION: volunteer assigned ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Volunteer Assigned',
+                `Volunteer ID ${volunteerId} assigned to deliver "${offerDetails.food_name}" (Offer #${offerId}).`,
+                'volunteer_assigned'
+            ]
+        );
+
+         // Notify donor 
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, ?, NOW())`,
+            ['Delivery Assigned', `A volunteer has been assigned to deliver your offer "${offerDetails.food_name}".`, 'delivery_update', offerDetails.donor_user_id]
+        );
 
         res.json({ message: 'Volunteer assigned successfully.' });
     } catch (err) {
@@ -2577,24 +2759,6 @@ app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
 });
 
 
-// ──────────────────────────────────────────────────────────────
-//  GET /api/admin/notifications/unread-count
-//  Returns count of unread admin notifications.
-// ──────────────────────────────────────────────────────────────
-app.get('/api/admin/notifications/unread-count', async (req, res) => {
-    try {
-        const [[row]] = await pool.query(`
-            SELECT COUNT(*) AS count
-            FROM notifications
-            WHERE recipient_role = 'Admin'
-            AND read_at IS NULL
-        `);
-        res.json({ count: row.count });
-    } catch (err) {
-        // If the table doesn't exist yet, just return 0 gracefully
-        res.json({ count: 0 });
-    }
-});
 
 
 // ==============================================================
@@ -3113,6 +3277,20 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
             adminUser?.user_id ?? resolvedAdminId,
         ]);
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+
+        // ── ADMIN NOTIFICATION: fund distribution ──
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Fund Distribution',
+                `$${Number(amount).toFixed(2)} was distributed to ${donorName.trim()} via ${paymentMethod.trim()}.`,
+                'fund_distribution'
+            ]
+        );
+
         res.status(201).json({ message: 'Distribution confirmed successfully.', distributionId: insertResult.insertId });
     } catch (err) {
         console.error('POST /api/admin/fund-distribution error:', err);
@@ -3278,13 +3456,144 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
     }
 });
 
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+// ==============================================================
+// ──────────────── Admin Notifications Page ────────────────
+// ==============================================================
+
+
+// ── GET /api/admin/notifications ───────────────────────────────
+app.get('/api/admin/notifications', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                n.notification_id,
+                n.message_title,
+                n.message,
+                n.type,
+                n.read_at,
+                n.date,
+                n.user_id
+            FROM Notifications n
+            WHERE n.type IN (
+                'new_registration', 'new_offer', 'offer_accepted',
+                'money_donation', 'fund_distribution',
+                'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
+                'contact_message', 'offer_expired', 'offer_cancelled'
+            )
+            AND n.user_id IS NULL
+            ORDER BY n.date DESC
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error('GET /api/admin/notifications error:', err);
+        res.status(500).json({ error: 'Failed to load notifications.' });
+    }
+});
 
 
 
 
+// ── PUT /api/admin/notifications/mark-all-read ─────────────────
+app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE Notifications
+            SET read_at = NOW()
+            WHERE user_id IS NULL
+                AND read_at  IS NULL
+                AND type IN (
+                    'new_registration',
+                    'new_offer',
+                    'offer_accepted',
+                    'money_donation',
+                    'fund_distribution'
+                )
+        `);
+        res.json({ message: 'All notifications marked as read.' });
+    } catch (err) {
+        console.error('PUT /api/admin/notifications/mark-all-read error:', err);
+        res.status(500).json({ error: 'Failed to mark notifications as read.' });
+    }
+});
+
+
+// ── PUT /api/admin/notifications/:id/read ──────────────────────
+// Marks a single notification as read (used when the admin clicks one item).
+app.put('/api/admin/notifications/:id/read', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query(`
+            UPDATE Notifications
+            SET read_at = NOW()
+            WHERE notification_id = ? AND read_at IS NULL
+        `, [id]);
+        res.json({ message: 'Notification marked as read.' });
+    } catch (err) {
+        console.error('PUT /api/admin/notifications/:id/read error:', err);
+        res.status(500).json({ error: 'Failed to update notification.' });
+    }
+});
+
+
+// ── DELETE /api/admin/notifications/delete-all ─────────────────
+// Permanently deletes ALL notification records from the table.
+// The admin is shown a confirmation dialog on the frontend before this fires.
+app.delete('/api/admin/notifications/delete-all', async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM Notifications`);
+        res.json({ message: 'All notifications deleted.' });
+    } catch (err) {
+        console.error('DELETE /api/admin/notifications/delete-all error:', err);
+        res.status(500).json({ error: 'Failed to delete notifications.' });
+    }
+});
+
+
+// ── DELETE /api/admin/notifications/:notificationId ─────────────
+// Permanently deletes a single notification by its ID.
+app.delete("/api/admin/notifications/:notificationId", async (req, res) => {
+    const { notificationId } = req.params;
+
+    try {
+        const [result] = await pool.query(
+            "DELETE FROM Notifications WHERE notification_id = ?",
+            [notificationId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Notification not found." });
+        }
+
+        res.json({ message: "Notification deleted successfully." });
+    } catch (err) {
+        console.error("DELETE /api/admin/notifications/:notificationId error:", err);
+        res.status(500).json({ error: "Failed to delete notification." });
+    }
+});
+
+
+// ── GET /api/admin/notifications/unread-count/:userId ───────────
+// Returns the count of unread admin-level notifications.
+app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
+    try {
+        const [[row]] = await pool.query(`
+            SELECT COUNT(*) AS count
+            FROM Notifications
+            WHERE user_id IS NULL
+            AND read_at IS NULL
+        `);
+        res.json({ count: row.count });
+    } catch (err) {
+        console.error('GET /api/admin/notifications/unread-count/:userId error:', err);
+        res.json({ count: 0 });
+    }
+});
 
 
 
+// ─── ❤️ Thank You LOVE ❤️ ───
 
 
 // ==============================================================

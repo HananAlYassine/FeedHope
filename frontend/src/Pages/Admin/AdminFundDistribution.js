@@ -118,6 +118,9 @@ const AdminFundDistribution = () => {
             showToast('Distribution confirmed successfully!');
             setForm({ donorName: '', amount: '', paymentMethod: '', reason: '' });
             fetchData();
+
+            // --- Notify sidebar that a new notification has been added ---
+            window.dispatchEvent(new Event('notification-read'));
         } catch {
             showToast('Server error. Please try again.', 'error');
         } finally {
