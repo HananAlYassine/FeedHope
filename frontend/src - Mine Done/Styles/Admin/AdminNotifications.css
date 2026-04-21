@@ -1,0 +1,787 @@
+/* ============================================================
+    FeedHope — Omar & Hanan — AdminNotifications.css
+============================================================ */
+
+
+/* ── CSS Variables ─────────────────────────────────────────── */
+:root {
+    --an-gray:          #37474f;   /* primary slate                   */
+    --an-gray-dark:     #263238;   /* darker slate — hover states      */
+    --an-gray-light:    #eceff1;   /* light slate — backgrounds        */
+    --an-gray-mid:      #546e7a;   /* mid slate — banner gradient stop */
+    --an-border:        #e0e0e0;   /* subtle card borders              */
+    --an-bg-page:       #f4f6f8;   /* overall page background          */
+    --an-bg-card:       #ffffff;   /* card background                  */
+    --an-text-main:     #1a1a1a;   /* primary text                     */
+    --an-text-sub:      #555555;   /* secondary text                   */
+    --an-text-muted:    #888888;   /* muted / placeholder text         */
+    --an-sidebar-w:     240px;     /* sidebar width offset             */
+    --an-radius-sm:     6px;
+    --an-radius-md:     10px;
+    --an-radius-lg:     14px;
+    --an-shadow:        0 1px 4px rgba(0,0,0,0.07);
+
+    /* Icon colour accents for each category of notification */
+    --an-blue:          #1565c0;
+    --an-blue-bg:       #e3f2fd;
+    --an-orange:        #e65100;
+    --an-orange-bg:     #fff3e0;
+    --an-green:         #2e7d32;
+    --an-green-bg:      #e8f5e9;
+    --an-red:           #c62828;
+    --an-red-bg:        #ffebee;
+    --an-teal:          #00695c;
+    --an-teal-bg:       #e0f2f1;
+    --an-purple:        #6a1b9a;
+    --an-purple-bg:     #f3e5f5;
+    --an-indigo:        #283593;
+    --an-indigo-bg:     #e8eaf6;
+}
+
+
+/* ── Global reset ─────────────────────────────────────────── */
+body {
+    background-color: var(--an-bg-page) !important;
+    margin: 0;
+    padding: 0;
+    text-align: left !important;
+}
+
+
+/* ── Page layout — sidebar + main content ─────────────────── */
+.an-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--an-bg-page);
+}
+
+
+/* ── Main content area (offset by sidebar width) ─────────── */
+.an-main {
+    margin-left: var(--an-sidebar-w);
+    flex: 1;
+    padding: 24px 28px;
+    width: calc(100% - var(--an-sidebar-w));
+    max-width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    display: block;
+}
+
+
+/* ── Inner wrapper ───────────────────────────────────────── */
+.an-content-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   BANNER
+   Same gradient as AdminFoodOffers and AdminMoneyDonations.
+   Decorative circles via ::before and ::after.
+════════════════════════════════════════════════════════════ */
+.an-banner {
+    background: linear-gradient(135deg, #37474f 0%, #546e7a 60%, #455a64 100%);
+    border-radius: var(--an-radius-lg);
+    margin: 0 0 22px 0 !important;
+    padding: 28px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 140px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Decorative circle — upper right */
+.an-banner::before {
+    content: '';
+    position: absolute;
+    right: 180px;
+    top: -50px;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Decorative circle — lower right corner */
+.an-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -50px;
+    width: 180px;
+    height: 180px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Banner left: icon + title row + subtitle */
+.an-banner-text      { z-index: 1; }
+.an-banner-heading   {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.an-banner-title     { font-size: 26px; font-weight: 700; margin: 0; }
+.an-banner-subtitle  { font-size: 13.5px; opacity: 0.85; margin: 0; }
+
+/* Banner right: calendar icon + date */
+.an-banner-date {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    z-index: 1;
+    font-size: 13px;
+    opacity: 0.85;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   TOOLBAR BAR
+   Sits between the banner and the card.
+   Contains tab buttons on the left, action buttons on the right.
+════════════════════════════════════════════════════════════ */
+.an-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--an-bg-card);
+    border: 1px solid var(--an-border);
+    border-radius: var(--an-radius-md);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    box-shadow: var(--an-shadow);
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Left group: tabs + source filters */
+.an-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Right group: action buttons */
+.an-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Thin vertical rule dividing tab group from source filter group */
+.an-toolbar-divider {
+    width: 1px;
+    height: 22px;
+    background: var(--an-border);
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+
+/* ── Tab / filter buttons ──
+   Used for: All Notifications, Unread, System, Users           */
+.an-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--an-radius-sm);
+    border: 1px solid var(--an-border);
+    background: #f8f9fa;
+    color: var(--an-text-sub);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.an-tab-btn:hover {
+    background: var(--an-gray-light);
+    border-color: var(--an-gray);
+    color: var(--an-gray);
+}
+
+/* Active state for All / Unread tabs */
+.an-tab-btn--active {
+    background: var(--an-gray);
+    border-color: var(--an-gray);
+    color: #fff;
+}
+.an-tab-btn--active:hover {
+    background: var(--an-gray-dark);
+    border-color: var(--an-gray-dark);
+    color: #fff;
+}
+
+/* Source filter buttons: slightly different inactive look */
+.an-tab-btn--source {
+    background: #fff;
+}
+
+/* Active state for System / Users source filter */
+.an-tab-btn--source-active {
+    background: var(--an-gray-light);
+    border-color: var(--an-gray);
+    color: var(--an-gray);
+    font-weight: 600;
+}
+
+/* Unread badge count inside the Unread tab button */
+.an-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 20px;
+    background: #c62828;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ── Action buttons (Mark All Read / Delete All) ── */
+.an-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--an-radius-sm);
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    white-space: nowrap;
+}
+.an-action-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+/* "Mark All as Read" button — slate background */
+.an-action-btn--read {
+    background: var(--an-gray);
+    color: #fff;
+}
+.an-action-btn--read:hover:not(:disabled) {
+    background: var(--an-gray-dark);
+}
+
+/* "Delete All" button — red/danger background */
+.an-action-btn--delete {
+    background: #c62828;
+    color: #fff;
+}
+.an-action-btn--delete:hover:not(:disabled) {
+    background: #b71c1c;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   NOTIFICATIONS CARD
+   White card containing the notification list.
+════════════════════════════════════════════════════════════ */
+.an-card {
+    background: var(--an-bg-card);
+    border: 1px solid var(--an-border);
+    border-radius: var(--an-radius-md);
+    box-shadow: var(--an-shadow);
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+/* ── Loading / empty / error state centred inside the card ── */
+.an-state-msg {
+    padding: 52px 20px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--an-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.an-state-msg--error { color: #c62828; }
+
+/* Retry button shown beneath an error message */
+.an-retry-btn {
+    padding: 8px 20px;
+    border-radius: var(--an-radius-sm);
+    border: none;
+    background: var(--an-gray);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+.an-retry-btn:hover { background: var(--an-gray-dark); }
+
+
+/* ── Notification list (unstyled <ul>) ───────────────────── */
+.an-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+
+/* ── Individual notification item ────────────────────────── */
+.an-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--an-border);
+    cursor: default;
+    transition: background 0.12s;
+    position: relative;
+}
+.an-item:last-child { border-bottom: none; }
+.an-item:hover { background: #f9fafb; }
+
+/* Unread items get a subtle left accent + lighter tint */
+.an-item--unread {
+    background: #f0f4f8;
+    cursor: pointer;   /* clicking marks it as read */
+}
+.an-item--unread:hover { background: #e8eef5; }
+
+
+/* ── Coloured icon pill ──────────────────────────────────── */
+/* Base style — circle with centred icon */
+.an-item-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* Colour variants matching notification category */
+.an-icon--blue   { background: var(--an-blue-bg);   color: var(--an-blue);   }
+.an-icon--orange { background: var(--an-orange-bg); color: var(--an-orange); }
+.an-icon--green  { background: var(--an-green-bg);  color: var(--an-green);  }
+.an-icon--red    { background: var(--an-red-bg);    color: var(--an-red);    }
+.an-icon--teal   { background: var(--an-teal-bg);   color: var(--an-teal);   }
+.an-icon--purple { background: var(--an-purple-bg); color: var(--an-purple); }
+.an-icon--indigo { background: var(--an-indigo-bg); color: var(--an-indigo); }
+.an-icon--gray   { background: var(--an-gray-light); color: var(--an-gray);  }
+
+
+/* ── Item text body ─────────────────────────────────────── */
+.an-item-body {
+    flex: 1;
+    min-width: 0;   /* prevents overflow inside flex child */
+}
+
+/* First row inside body: title + source tag */
+.an-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+/* Notification title — bold, dark */
+.an-item-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--an-text-main);
+}
+
+/* Source category badge: "System" or "Users" */
+.an-source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+/* System tag: slate palette */
+.an-source-tag--system {
+    background: var(--an-gray-light);
+    color: var(--an-gray);
+}
+/* Users tag: teal palette */
+.an-source-tag--users {
+    background: var(--an-teal-bg);
+    color: var(--an-teal);
+}
+
+/* Notification body text */
+.an-item-msg {
+    margin: 0 0 6px 0;
+    font-size: 13.5px;
+    color: var(--an-text-sub);
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+/* Relative timestamp below message */
+.an-item-time {
+    font-size: 12px;
+    color: var(--an-text-muted);
+}
+
+
+/* ── Unread indicator dot — top-right of the item row ─────── */
+.an-unread-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #1565c0;
+    flex-shrink: 0;
+    margin-top: 6px;
+    box-shadow: 0 0 0 2px rgba(21,101,192,0.20);
+}
+
+
+/* ── Card footer: shows count summary ───────────────────── */
+.an-footer {
+    padding: 12px 22px;
+    border-top: 1px solid var(--an-border);
+    font-size: 13px;
+    color: var(--an-text-muted);
+    background: #fafafa;
+    text-align: left;
+}
+
+
+/* ── Delete single notification button ── */
+.an-delete-single-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--an-text-muted);
+    padding: 4px;
+    margin-left: 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+.an-delete-single-btn:hover {
+    color: #c62828;
+    background: rgba(198, 40, 40, 0.1);
+}
+
+/* ── Source badge colours: System = Red, Users = Green ── */
+.an-source-tag--system {
+    background: #c62828;   /* red */
+    color: #fff;
+}
+.an-source-tag--users {
+    background: #2e7d32;   /* green */
+    color: #fff;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   TOAST NOTIFICATION FEEDBACK
+   Slides in from the bottom-right for brief feedback messages.
+════════════════════════════════════════════════════════════ */
+.an-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    padding: 13px 22px;
+    border-radius: var(--an-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    z-index: 9999;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    animation: an-slide-in 0.25s ease;
+}
+.an-toast--success { background: var(--an-gray); }
+.an-toast--error   { background: #c62828; }
+
+@keyframes an-slide-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   MODAL SYSTEM
+   Shared styles for both confirmation modals:
+     • Delete Single Notification  (an-modal--confirm)
+     • Delete All Notifications    (an-modal--confirm)
+
+   Design mirrors the Delete User modal in AdminUsers exactly:
+   red gradient header, white card body, Cancel + Delete buttons.
+════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ─────────────────────────────────────────────
+   Full-viewport fixed overlay that sits on top of everything.
+   Semi-transparent dark tint + a subtle background blur give the
+   classic "modal dimming" effect without a hard black cutout.    */
+.an-modal-backdrop {
+    position:        fixed;       /* covers the whole viewport         */
+    inset:           0;           /* shorthand for top/right/bottom/left: 0 */
+    background:      rgba(30, 40, 50, 0.45); /* dark tint, 45% opacity */
+    backdrop-filter: blur(3px);   /* frosted-glass blur on the page behind */
+    z-index:         1000;        /* above all page content            */
+    display:         flex;
+    align-items:     center;      /* vertically centres the modal card */
+    justify-content: center;      /* horizontally centres the modal card */
+    padding:         20px;        /* small gap on very small screens   */
+    box-sizing:      border-box;
+}
+
+/* ── Modal card ──────────────────────────────────────────
+   White rounded card that holds the header + body sections.
+   The spring-like cubic-bezier gives a friendly "pop" entrance. */
+.an-modal {
+    background:    #ffffff;
+    border-radius: var(--an-radius-lg);       /* 14px rounded corners  */
+    box-shadow:
+        0 4px 6px  rgba(0, 0, 0, 0.05),       /* close, soft shadow    */
+        0 20px 60px rgba(0, 0, 0, 0.22);       /* far, dramatic shadow  */
+    width:         560px;
+    max-width:     100%;                       /* full-width on mobile  */
+    max-height:    90vh;                       /* never overflows screen */
+    overflow-y:    auto;
+    text-align:    left;
+    /* Scale + fade entrance animation */
+    animation:     an-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Keyframe: card scales from 92% → 100% and rises 10px → 0 */
+@keyframes an-modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* Narrow variant used for all confirmation dialogs (400px wide).
+   This matches aum-modal--confirm from AdminUsers exactly.       */
+.an-modal--confirm { width: 400px; }
+
+
+/* ── Modal Header ────────────────────────────────────────
+   The "danger" header uses the same red gradient that AdminUsers
+   uses for its Delete User and Block User modal headers.
+   It rounds only the top two corners to blend into the card.     */
+.an-modal-header {
+    display:       flex;
+    align-items:   center;
+    gap:           12px;
+    padding:       20px 24px 16px;
+    border-bottom: 1px solid var(--an-border);
+    background:    #f8f9fa;         /* default neutral header           */
+    border-radius: var(--an-radius-lg) var(--an-radius-lg) 0 0;
+}
+
+/* Red gradient override — applied to both delete modals.
+   Gradient direction and stops copied from .aum-modal-header--danger. */
+.an-modal-header--danger {
+    background:    linear-gradient(135deg, #c62828 0%, #e53935 100%);
+    border-bottom: none;            /* gradient replaces the border     */
+}
+
+/* ── Icon container beside the title ─────────────────────
+   A rounded square (or circle-ish) holder for the MUI icon.
+   On danger headers we use a semi-transparent white background
+   so the white icon is still clearly visible against the red.    */
+.an-modal-header-icon {
+    width:          38px;
+    height:         38px;
+    border-radius:  10px;           /* slightly rounded square          */
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    flex-shrink:    0;
+    color:          #fff;
+}
+
+/* Semi-transparent white background for icon on danger (red) header */
+.an-modal-header-icon--danger {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Modal title text */
+.an-modal-title {
+    flex:        1;
+    font-size:   16px;
+    font-weight: 700;
+    color:       var(--an-text-main);   /* dark by default              */
+    margin:      0;
+    line-height: 1.3;
+}
+
+/* White title override — used inside the red danger header
+   so the text stays readable against the coloured background.    */
+.an-modal-title--light { color: #fff; }
+
+
+/* ── Modal Body ──────────────────────────────────────────
+   Default body padding for all modals.                           */
+.an-modal-body {
+    padding: 22px 24px 20px;
+}
+
+/* Centred layout used for confirmation dialogs.
+   Text and buttons are all horizontally centred.                 */
+.an-modal-body--confirm {
+    text-align: center;
+    padding:    28px 28px 24px;     /* a little more breathing room    */
+}
+
+
+/* ── Confirmation copy ───────────────────────────────────
+   Two paragraphs: a bold question and a muted sub-warning.       */
+
+/* Main question — "Are you sure you want to…?" */
+.an-confirm-headline {
+    font-size:   15.5px;
+    font-weight: 600;
+    color:       var(--an-text-main);
+    margin:      0 0 10px;
+    line-height: 1.5;
+}
+
+/* Sub-warning — "This action cannot be undone." */
+.an-confirm-sub {
+    font-size:   13.5px;
+    color:       var(--an-text-sub);
+    margin:      0 0 24px;          /* space above button row          */
+    line-height: 1.6;
+}
+
+
+/* ── Action button row ───────────────────────────────────
+   Cancel and Confirm buttons sit side-by-side, centred.          */
+.an-modal-actions {
+    display:         flex;
+    justify-content: center;        /* centre the pair horizontally    */
+    gap:             10px;
+    margin-top:      6px;
+}
+
+/* Cancel button — outlined white pill, low emphasis.
+   Clicking it closes the modal without making any API calls.     */
+.an-btn-cancel {
+    padding:       9px 22px;
+    border-radius: var(--an-radius-sm);
+    font-size:     14px;
+    font-weight:   500;
+    border:        1px solid var(--an-border);
+    background:    #fff;
+    color:         var(--an-text-sub);
+    cursor:        pointer;
+    transition:    background 0.15s;
+}
+.an-btn-cancel:hover { background: #f5f5f5; }
+
+/* Confirm button — filled, high emphasis (slate by default).     */
+.an-btn-confirm {
+    padding:       9px 24px;
+    border-radius: var(--an-radius-sm);
+    font-size:     14px;
+    font-weight:   600;
+    background:    var(--an-gray);  /* slate — safe default            */
+    color:         #fff;
+    border:        none;
+    cursor:        pointer;
+    transition:    background 0.15s;
+}
+.an-btn-confirm:hover    { background: var(--an-gray-dark); }
+/* Disabled state while the DELETE request is in-flight */
+.an-btn-confirm:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Red / danger override — applied to both delete confirm buttons.
+   !important ensures it wins over the slate default above.       */
+.an-btn-danger       { background: #c62828 !important; }
+.an-btn-danger:hover { background: #b71c1c !important; }
+
+
+/* ── Responsive — mobile breakpoint ──────────────────────── */
+@media (max-width: 768px) {
+
+    /* Stack content below collapsed sidebar */
+    .an-main {
+        margin-left: 0;
+        width: 100%;
+        padding: 16px;
+    }
+
+    /* Banner: full bleed, stack vertically */
+    .an-banner {
+        margin: 0 -16px 20px -16px;
+        width: calc(100% + 32px);
+        padding: 22px 20px;
+        flex-direction: column;
+        text-align: left;
+        gap: 12px;
+    }
+    .an-banner-date { align-self: flex-start; }
+
+    /* Toolbar stacks vertically */
+    .an-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .an-toolbar-left,
+    .an-toolbar-right { flex-wrap: wrap; width: 100%; }
+
+    /* Divider becomes a horizontal rule on mobile */
+    .an-toolbar-divider {
+        width: 100%;
+        height: 1px;
+        margin: 4px 0;
+    }
+
+    /* Item row: slightly tighter on mobile */
+    .an-item { padding: 14px 16px; gap: 12px; }
+    .an-item-icon { width: 34px; height: 34px; }
+
+    /* Modals go full-width and anchor to the bottom of the screen
+       (matching the same mobile behaviour as AdminUsers modals).   */
+    .an-modal,
+    .an-modal--confirm {
+        width:         100%;
+        max-width:     100%;
+        border-radius: var(--an-radius-md); /* slightly less rounding   */
+    }
+
+    /* On mobile the backdrop aligns modal to the bottom edge
+       so it feels like a native bottom sheet on phones.             */
+    .an-modal-backdrop {
+        padding:     12px;
+        align-items: flex-end;
+    }
+}

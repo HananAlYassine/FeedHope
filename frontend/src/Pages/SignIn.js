@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import "../Styles/SignIn.css";
 import { Link, useNavigate } from "react-router-dom";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 const SignIn = () => {
   const [show, setShow] = useState(false);
@@ -38,9 +40,9 @@ const SignIn = () => {
 
       const role = data.user.role;
 
-      if      (role === "Admin")     navigate("/admin-dashboard");  
-      else if (role === "Donor")     navigate("/donor-dashboard");
-      else if (role === "Receiver")  navigate("/receiver-dashboard");
+      if (role === "Admin") navigate("/admin-dashboard");
+      else if (role === "Donor") navigate("/donor-dashboard");
+      else if (role === "Receiver") navigate("/receiver-dashboard");
       else if (role === "Volunteer") navigate("/volunteer-dashboard");
       else navigate("/");
 
@@ -53,6 +55,16 @@ const SignIn = () => {
 
   return (
     <div className="signin-page">
+
+      {/* Suppress Edge/Chrome native password eye icon */}
+      <style>{`
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+          display: none !important;
+        }
+      `}</style>
+
       <div className="signin-wrapper">
 
         {/* LEFT SIDE */}
@@ -91,7 +103,6 @@ const SignIn = () => {
             <p>Enter your credentials to access your account</p>
           </div>
 
-          {/* Error message */}
           {error && <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>}
 
           <div className="form-group">
@@ -104,15 +115,36 @@ const SignIn = () => {
             />
           </div>
 
+          {/* Password field with MUI eye toggle */}
           <div className="form-group password">
             <label>Password</label>
-            <input
-              type={show ? "text" : "password"}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <span className="eye" onClick={() => setShow(!show)}>👁</span>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={show ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ width: '100%', paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShow(prev => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#718096',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 0,
+                }}
+                tabIndex={-1}
+              >
+                {show ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+              </button>
+            </div>
           </div>
 
           <div className="form-options">

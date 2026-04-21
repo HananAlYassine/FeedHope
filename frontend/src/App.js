@@ -21,7 +21,6 @@ import VolunteerRegister from './Pages/Volunteer/VolunteerRegistration';
 
 
 // ── Receiver section ──
-// ReceiverDashboard is protected — users should be signed in and have role = 'Receiver'
 import ReceiverDashboard from './Pages/Receiver/ReceiverDashboard';
 import ReceiverProfile from './Pages/Receiver/ReceiverProfile';
 import ReceiverBrowseOffers from './Pages/Receiver/ReceiverBrowseOffers';
@@ -32,7 +31,6 @@ import ReceiverNotifications from './Pages/Receiver/ReceiverNotifications';
 
 
 // ── Donor section ──
-// DonorDashboard is protected — users should be signed in and have role = 'Donor'
 import DonorDashboard from './Pages/Donor/DonorDashboard';
 import DonorProfile from './Pages/Donor/DonorProfile';
 import NewOffer from './Pages/Donor/DonorNewOffer';
@@ -40,20 +38,19 @@ import DonorMyOffers from './Pages/Donor/DonorMyOffers';
 import DonorHistory from './Pages/Donor/DonorHistory';
 import DonorMoneyDonation from './Pages/Donor/DonorMoneyDonation';
 import DonorMoneyHistory from './Pages/Donor/DonorMoneyHistory';
+import DonorFundDistributions from './Pages/Donor/DonorFundDistributions';
 import DonorDeliveries from './Pages/Donor/DonorDeliveries';
 import DonorFeedback from './Pages/Donor/DonorFeedback';
 import DonorNotifications from './Pages/Donor/DonorNotifications';
 
-
 // ── Volunteer section ──
-// VolunteerDashboard is protected — users should be signed in and have role = 'Volunteer'
 import VolunteerDashboard from './Pages/Volunteer/VolunteerDashboard';
 import VolunteerProfile from './Pages/Volunteer/VolunteerProfile';
-// import VolunteerHistory from './Pages/Volunteer/VolunteerHistory';
-// import VolunteerNotifications from './Pages/Volunteer/VolunteerNotifications';
+import VolunteerHistory from './Pages/Volunteer/VolunteerHistory';
+import VolunteerNotifications from './Pages/Volunteer/VolunteerNotifications';
 import VolunteerAvailableOffers from './Pages/Volunteer/VolunteerAvailableOffers';
-// import VolunteerMyDeliveries from './Pages/Volunteer/VolunteerMyDeliveries';
-
+import VolunteerMyDeliveries from './Pages/Volunteer/VolunteerMyDeliveries';
+import VolunteerFeedback from './Pages/Volunteer/VolunteerFeedback';
 
 // ── Admin section ──
 import AdminDashboard from './Pages/Admin/AdminDashboard';
@@ -100,169 +97,58 @@ function App() {
                 <Route path="/forgetpassword" element={<ForgetPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
-                {/* ── Registration Routes ── */}
+
+
+                {/* Registration Routes (Public) */}
+
                 <Route path="/donor-registration" element={<DonorRegister />} />
                 <Route path="/receiver-registration" element={<ReceiverRegister />} />
                 <Route path="/volunteer-registration" element={<VolunteerRegister />} />
 
 
 
-                {/* ── Receiver Section (Protected) ──
-                    Both routes require the user to be signed in with role = 'Receiver'.
-                    Any other user will be redirected to /signin or /. */}
+                {/* Receiver Section (Protected) */}
 
-                {/* Browse Offers — first item in the Receiver sidebar */}
-                <Route
-                    path="/receiver-dashboard"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverDashboard />
-                        </ProtectedRoute>
-                    }
-                />
-
-                {/* Browse Offers — second item in the Receiver sidebar */}
-                <Route
-                    path="/receiver-profile"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverProfile />
-                        </ProtectedRoute>
-                    }
-                />
-
-                {/* Browse Offers — third item in the Receiver sidebar */}
-                <Route
-                    path="/receiver-browse"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverBrowseOffers />
-                        </ProtectedRoute>
-                    }
-                />
-
-                {/* ── Offer Detail Page ── */}
-                <Route
-                    path="/receiver-offer/:offerId"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverOfferDetails />
-                        </ProtectedRoute>
-                    }
-                />
-
-
-                {/* ── My Accepted Offers Page ── */}
-                <Route
-                    path="/receiver-accepted"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverAcceptedOffers />
-                        </ProtectedRoute>
-                    }
-                />
-
-
-                {/* ── Receiver History Page ── */}
-                <Route
-                    path="/receiver-history"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverHistory />
-                        </ProtectedRoute>
-                    }
-                />
-
-
-                {/* ── Receiver Notifications Page ── */}
-                <Route
-                    path="/receiver-notifications"
-                    element={
-                        <ProtectedRoute requiredRole="Receiver">
-                            <ReceiverNotifications />
-                        </ProtectedRoute>
-                    }
-                />
+                <Route path="/receiver-dashboard" element={<ProtectedRoute requiredRole="Receiver"><ReceiverDashboard /></ProtectedRoute>} />
+                <Route path="/receiver-profile" element={<ProtectedRoute requiredRole="Receiver"><ReceiverProfile /></ProtectedRoute>} />
+                <Route path="/receiver-browse" element={<ProtectedRoute requiredRole="Receiver"><ReceiverBrowseOffers /></ProtectedRoute>} />
+                <Route path="/receiver-offer/:offerId" element={<ProtectedRoute requiredRole="Receiver"><ReceiverOfferDetails /></ProtectedRoute>} />
+                <Route path="/receiver-accepted" element={<ProtectedRoute requiredRole="Receiver"><ReceiverAcceptedOffers /></ProtectedRoute>} />
+                <Route path="/receiver-history" element={<ProtectedRoute requiredRole="Receiver"><ReceiverHistory /></ProtectedRoute>} />
+                <Route path="/receiver-notifications" element={<ProtectedRoute requiredRole="Receiver"><ReceiverNotifications /></ProtectedRoute>} />
 
 
 
 
-                {/* ── Donor Section (Protected) ──
-            Both routes require the user to be signed in with role = 'Donor'.
-            Any other user will be redirected to /signin or /. */}
-                <Route
-                    path="/donor-dashboard"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorDashboard /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-profile"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorProfile /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-new-offer"
-                    element={<ProtectedRoute requiredRole="Donor"><NewOffer /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-my-offers"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorMyOffers /></ProtectedRoute>}
-                />
+                {/* Donor Section (Protected) */}
 
-                <Route
-                    path="/donor-history"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorHistory /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-donate-money"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorMoneyDonation /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-donations-history"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorMoneyHistory /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-deliveries"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorDeliveries /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-feedback"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorFeedback /></ProtectedRoute>}
-                />
-                <Route
-                    path="/donor-notifications"
-                    element={<ProtectedRoute requiredRole="Donor"><DonorNotifications /></ProtectedRoute>}
-                />
+                <Route path="/donor-dashboard" element={<ProtectedRoute requiredRole="Donor"><DonorDashboard /></ProtectedRoute>} />
+                <Route path="/donor-profile" element={<ProtectedRoute requiredRole="Donor"><DonorProfile /></ProtectedRoute>} />
+                <Route path="/donor-new-offer" element={<ProtectedRoute requiredRole="Donor"><NewOffer /></ProtectedRoute>} />
+                <Route path="/donor-my-offers" element={<ProtectedRoute requiredRole="Donor"><DonorMyOffers /></ProtectedRoute>} />
+                <Route path="/donor-history" element={<ProtectedRoute requiredRole="Donor"><DonorHistory /></ProtectedRoute>} />
+                <Route path="/donor-donate-money" element={<ProtectedRoute requiredRole="Donor"><DonorMoneyDonation /></ProtectedRoute>} />
+                <Route path="/donor-donations-history" element={<ProtectedRoute requiredRole="Donor"><DonorMoneyHistory /></ProtectedRoute>} />
+                <Route path="/donor-fund-distributions" element={<ProtectedRoute requiredRole="Donor"><DonorFundDistributions /></ProtectedRoute>} />
+                <Route path="/donor-deliveries" element={<ProtectedRoute requiredRole="Donor"><DonorDeliveries /></ProtectedRoute>} />
+                <Route path="/donor-feedback" element={<ProtectedRoute requiredRole="Donor"><DonorFeedback /></ProtectedRoute>} />
+                <Route path="/donor-notifications" element={<ProtectedRoute requiredRole="Donor"><DonorNotifications /></ProtectedRoute>} />
 
 
                 {/* ── Volunteer Section (Protected) ── */}
-                <Route
-                    path="/volunteer-dashboard"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerDashboard /></ProtectedRoute>}
-                />
-                <Route
-                    path="/volunteer-profile"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerProfile /></ProtectedRoute>}
-                />
-                <Route
-                    path="/volunteer-available-offers"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerAvailableOffers /></ProtectedRoute>}
-                />
 
-                {/* <Route
-                    path="/volunteer-my-deliveries"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerMyDeliveries /></ProtectedRoute>}
-                />
-                <Route
-                    path="/volunteer-history"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerHistory /></ProtectedRoute>}
-                />
-                <Route
-                    path="/volunteer-notifications"
-                    element={<ProtectedRoute requiredRole="Volunteer"><VolunteerNotifications /></ProtectedRoute>}
-                /> */}
+                <Route path="/volunteer-dashboard" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerDashboard /></ProtectedRoute>} />
+                <Route path="/volunteer-profile" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerProfile /></ProtectedRoute>} />
+                <Route path="/volunteer-available-offers" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerAvailableOffers /></ProtectedRoute>} />
+                <Route path="/volunteer/my-deliveries" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerMyDeliveries /></ProtectedRoute>} />
+                <Route path="/volunteer-history" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerHistory /></ProtectedRoute>} />
+                <Route path="/volunteer-feedback" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerFeedback /></ProtectedRoute>} />
+                <Route path="/volunteer-notifications" element={<ProtectedRoute requiredRole="Volunteer"><VolunteerNotifications /></ProtectedRoute>} />
 
 
 
                 {/* Admin Section (Protected) */}
+
                 <Route path="/admin-dashboard" element={<ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin-food-offers" element={<ProtectedRoute requiredRole="Admin"><AdminFoodOffers /></ProtectedRoute>} />
                 <Route path="/admin-profile" element={<ProtectedRoute requiredRole="Admin"><AdminProfile /></ProtectedRoute>} />

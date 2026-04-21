@@ -3529,11 +3529,6 @@ app.put('/api/admin/users/:id/block', async (req, res) => {
 // ──────────────────────────────────────────────────────────────
 //  DELETE /api/admin/users/:id
 //  Permanently removes a user and all their related records.
-//  Deletion order respects FK constraints:
-//    Syslog → Email_verification → Password_reset_token
-//    → User_Role → Role → Address
-//    → (Donor / Receiver / Volunteer specific tables)
-//    → User
 // ──────────────────────────────────────────────────────────────
 app.delete('/api/admin/users/:id', async (req, res) => {
     const { id } = req.params;
@@ -3542,50 +3537,73 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // 1. Remove syslog entries referencing this user
-        await conn.query("DELETE FROM Syslog WHERE user_id = ?", [id]);
+        // 1. Get role-specific IDs before we delete anything
+        const [[donorRow]]     = await conn.query("SELECT donor_id     FROM Donor     WHERE user_id = ?", [id]);
+        const [[receiverRow]]  = await conn.query("SELECT receiver_id  FROM Receiver  WHERE user_id = ?", [id]);
+        const [[volunteerRow]] = await conn.query("SELECT volunteer_id FROM Volunteer WHERE user_id = ?", [id]);
 
-        // 2. Remove email verification record
-        await conn.query("DELETE FROM Email_verification WHERE user_id = ?", [id]);
+        const donorId     = donorRow?.donor_id       ?? null;
+        const receiverId  = receiverRow?.receiver_id  ?? null;
+        const volunteerId = volunteerRow?.volunteer_id ?? null;
 
-        // 3. Remove password reset token
-        await conn.query("DELETE FROM Password_reset_token WHERE user_id = ?", [id]);
+        // 2. FIX: Food_offer.receiver_id → Receiver is ON DELETE RESTRICT
+        //    Must NULL out the reference before Receiver can be deleted
+        if (receiverId) {
+            await conn.query(
+                "UPDATE Food_offer SET receiver_id = NULL WHERE receiver_id = ?",
+                [receiverId]
+            );
+        }
 
-        // 4. Remove the User_Role link (junction table)
-        await conn.query("DELETE FROM User_Role WHERE user_id = ?", [id]);
+        // 3. FIX: Delivery.volunteer_id → Volunteer is ON DELETE RESTRICT
+        //    Must delete Delivery rows before Volunteer can be deleted
+        if (volunteerId) {
+            await conn.query("DELETE FROM Delivery WHERE volunteer_id = ?", [volunteerId]);
+        }
 
-        // 5. Remove the Role record
-        await conn.query("DELETE FROM Role WHERE user_id = ?", [id]);
+        // 4. FIX: Fund_distribution.volunteer_id → Volunteer is ON DELETE RESTRICT
+        //    Must delete Fund_distribution rows before Volunteer can be deleted
+        if (volunteerId) {
+            await conn.query("DELETE FROM Fund_distribution WHERE volunteer_id = ?", [volunteerId]);
+        }
 
-        // 6. Remove Address record(s) for this user
-        await conn.query("DELETE FROM Address WHERE user_id = ?", [id]);
-
-        // 7. Remove role-specific records
-        //    Each role has its own child table — delete whichever exists.
-        //    These queries are safe even if the row doesn't exist (affectedRows = 0).
+        // 5. Delete role-specific tables BEFORE Address
+        //    (Donor.address_id → Address is ON DELETE RESTRICT — this was the main crash)
+        //    Deleting Donor also cascades: Money_donation, Donation_history, Food_offer, Fund_distribution (donor_id)
+        //    Deleting Receiver also cascades: Receiver_location, Donation_history
         await conn.query("DELETE FROM Donor     WHERE user_id = ?", [id]);
         await conn.query("DELETE FROM Receiver  WHERE user_id = ?", [id]);
         await conn.query("DELETE FROM Volunteer WHERE user_id = ?", [id]);
+
+        // 6. NOW safe to delete Address (Donor no longer references it)
+        await conn.query("DELETE FROM Address WHERE user_id = ?", [id]);
+
+        // 7. Delete remaining user-linked tables
+        //    (These all have ON DELETE CASCADE from User so they'd auto-delete,
+        //     but we delete explicitly to keep the transaction clean)
+        await conn.query("DELETE FROM Notifications          WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Syslog                 WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Email_verification     WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Password_reset_token   WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM User_Role              WHERE user_id = ?", [id]);
+        await conn.query("DELETE FROM Role                   WHERE user_id = ?", [id]);
 
         // 8. Finally delete the User row itself
         const [result] = await conn.query("DELETE FROM User WHERE user_id = ?", [id]);
 
         if (result.affectedRows === 0) {
-            // User didn't exist — roll back and tell the frontend
             await conn.rollback();
             return res.status(404).json({ error: 'User not found.' });
         }
 
-        // Commit only if every delete succeeded
         await conn.commit();
         res.json({ message: 'User deleted successfully.' });
+
     } catch (err) {
-        // Any failure rolls back the whole transaction so the DB stays consistent
         await conn.rollback();
         console.error('DELETE /api/admin/users/:id error:', err);
-        res.status(500).json({ error: 'Failed to delete user.' });
+        res.status(500).json({ error: 'Failed to delete user: ' + err.message });
     } finally {
-        // Always return the connection to the pool
         conn.release();
     }
 });
@@ -3636,7 +3654,6 @@ app.put('/api/admin/users/:id/unblock', async (req, res) => {
         res.status(500).json({ error: 'Failed to unblock user.' });
     }
 });
-
 
 
 // ==============================================================

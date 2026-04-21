@@ -25,8 +25,8 @@
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.45);
-    border: 1.5px solid rgba(255,255,255,0.7);
+    background: rgba(0, 0, 0, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
     color: #fff;
     display: flex;
     align-items: center;
@@ -34,7 +34,10 @@
     cursor: pointer;
     transition: background 0.2s;
 }
-.rcp-avatar-camera:hover { background: rgba(0,0,0,0.65); }
+
+.rcp-avatar-camera:hover {
+    background: rgba(0, 0, 0, 0.65);
+}
 
 /* Two-button row in the banner ────────────────────────────────── */
 .rcp-banner-actions {
@@ -48,9 +51,12 @@
 /* Second banner button — slightly more outlined feel */
 .rdb-banner-btn--outline {
     background: transparent;
-    border-color: rgba(255,255,255,0.45);
+    border-color: rgba(255, 255, 255, 0.45);
 }
-.rdb-banner-btn--outline:hover { background: rgba(255,255,255,0.15); }
+
+.rdb-banner-btn--outline:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
 
 /* ── Contact Information items ───────────────────────────────── */
 /* Each row: icon on left, label + value stack on right */
@@ -61,7 +67,10 @@
     padding: 15px 20px;
     border-bottom: 1px solid var(--rdb-border);
 }
-.rcp-contact-item--last { border-bottom: none; }
+
+.rcp-contact-item--last {
+    border-bottom: none;
+}
 
 /* Reuse the stat icon square but make it a touch smaller */
 .rcp-ci-icon {
@@ -75,6 +84,7 @@
     flex-direction: column;
     gap: 2px;
 }
+
 .rcp-ci-label {
     font-size: 11.5px;
     color: var(--rdb-text-muted);
@@ -82,6 +92,7 @@
     letter-spacing: 0.04em;
     font-weight: 600;
 }
+
 .rcp-ci-value {
     font-size: 14px;
     color: var(--rdb-text-main);
@@ -156,7 +167,7 @@
 .rcp-modal {
     background: var(--rdb-bg-card);
     border-radius: var(--rdb-radius-lg);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
     width: 100%;
     max-width: 460px;
     overflow: hidden;
@@ -169,12 +180,14 @@
     padding: 18px 22px;
     border-bottom: 1px solid var(--rdb-border);
 }
+
 .rcp-modal-title {
     font-size: 16px;
     font-weight: 600;
     color: var(--rdb-text-main);
     margin: 0;
 }
+
 .rcp-modal-close {
     background: none;
     border: none;
@@ -185,7 +198,10 @@
     padding: 0 4px;
     transition: color 0.15s;
 }
-.rcp-modal-close:hover { color: var(--rdb-text-main); }
+
+.rcp-modal-close:hover {
+    color: var(--rdb-text-main);
+}
 
 .rcp-modal-body {
     padding: 22px;
@@ -202,6 +218,7 @@
     font-weight: 600;
     color: var(--rdb-text-sub);
 }
+
 .rcp-form-input {
     padding: 9px 13px;
     border: 1px solid var(--rdb-border);
@@ -213,14 +230,24 @@
     transition: border-color 0.15s, box-shadow 0.15s;
     font-family: inherit;
 }
+
 .rcp-form-input:focus {
     border-color: var(--rdb-blue);
     box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
     background: #fff;
 }
 
-.rcp-form-error   { font-size: 13px; color: var(--rdb-red);   margin: 0; }
-.rcp-form-success { font-size: 13px; color: var(--rdb-green); margin: 0; }
+.rcp-form-error {
+    font-size: 13px;
+    color: var(--rdb-red);
+    margin: 0;
+}
+
+.rcp-form-success {
+    font-size: 13px;
+    color: var(--rdb-green);
+    margin: 0;
+}
 
 .rcp-modal-footer {
     display: flex;
@@ -242,8 +269,15 @@
     cursor: pointer;
     transition: background 0.15s;
 }
-.rcp-btn-cancel:hover:not(:disabled) { background: var(--rdb-bg-page); }
-.rcp-btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rcp-btn-cancel:hover:not(:disabled) {
+    background: var(--rdb-bg-page);
+}
+
+.rcp-btn-cancel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
 .rcp-btn-save {
     padding: 9px 26px;
@@ -256,13 +290,26 @@
     cursor: pointer;
     transition: background 0.15s;
 }
-.rcp-btn-save:hover:not(:disabled) { background: var(--rdb-green-dark); }
-.rcp-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rcp-btn-save:hover:not(:disabled) {
+    background: var(--rdb-green-dark);
+}
+
+.rcp-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
-    .rcp-banner-actions { flex-direction: row; flex-wrap: wrap; }
-    .rcp-modal { max-width: 100%; }
+    .rcp-banner-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .rcp-modal {
+        max-width: 100%;
+    }
 }
 
 
@@ -380,3 +427,36 @@
     cursor: not-allowed;
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+.rcp-password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.rcp-pw-input {
+    width: 100%;
+    padding-right: 42px !important;
+    margin-bottom: 0 !important;
+}
+
+.rcp-eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.rcp-eye-btn:hover {
+    color: #333;
+}

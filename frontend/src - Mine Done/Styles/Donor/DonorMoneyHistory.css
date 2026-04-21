@@ -1,0 +1,279 @@
+/* DonorMoneyHistory.css - Styled like DonorDashboard */
+
+/* Banner (matches dashboard orange gradient) */
+.dmh-banner {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 60%, #e65100 100%);
+    border-radius: 14px;
+    padding: 32px 36px;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 170px;
+}
+
+.dmh-banner::before {
+    content: '';
+    position: absolute;
+    right: 200px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.dmh-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -60px;
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.dmh-banner .ddb-banner-text {
+    flex: 1;
+    z-index: 1;
+}
+
+.dmh-banner .ddb-banner-greeting {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dmh-banner .ddb-banner-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    line-height: 1.2;
+    color: #fff;
+}
+
+.dmh-banner .ddb-banner-subtitle {
+    font-size: 13.5px;
+    opacity: 0.9;
+    max-width: 420px;
+    line-height: 1.5;
+}
+
+/* Stats Row (identical to dashboard) */
+.dmh-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-bottom: 22px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+}
+
+.dmh-stat-card {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid #e0e0e0;
+    background: #ffffff;
+}
+
+.dmh-stat-card:last-child {
+    border-right: none;
+}
+
+.dmh-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.dmh-stat-icon.total {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.dmh-stat-icon.completed {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.dmh-stat-icon.pending {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.dmh-stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.dmh-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1a1a1a;
+}
+
+.dmh-stat-label {
+    font-size: 12.5px;
+    color: #888888;
+    margin-top: 3px;
+}
+
+/* Table container (card style) */
+.dmh-table-container {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+}
+
+.dmh-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.dmh-table-header .ddb-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.dmh-table-responsive {
+    overflow-x: auto;
+}
+
+.dmh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.dmh-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dmh-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+.dmh-table tbody tr:hover {
+    background: #fafcff;
+}
+
+.dmh-amount {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+/* Status badges */
+.dmh-status {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.dmh-status.completed {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.dmh-status.pending {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+/* Empty & loading states */
+.dmh-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #888888;
+}
+
+.dmh-empty-sub {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.dmh-loading {
+    text-align: center;
+    padding: 3rem;
+    color: #555555;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+    .dmh-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dmh-stat-card:nth-child(2) {
+        border-right: none;
+    }
+
+    .dmh-stat-card:nth-child(1),
+    .dmh-stat-card:nth-child(2) {
+        border-bottom: 1px solid #e0e0e0;
+    }
+}
+
+@media (max-width: 768px) {
+    .dmh-banner {
+        padding: 24px 20px;
+        text-align: center;
+    }
+
+    .dmh-banner .ddb-banner-title {
+        font-size: 22px;
+    }
+
+    .dmh-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .dmh-stat-card {
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .dmh-stat-card:last-child {
+        border-bottom: none;
+    }
+
+    .dmh-table th,
+    .dmh-table td {
+        padding: 0.75rem 1rem;
+    }
+
+    .dmh-table-header {
+        padding: 1rem;
+    }
+}

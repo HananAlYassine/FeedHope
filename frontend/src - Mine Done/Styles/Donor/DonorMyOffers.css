@@ -1,0 +1,935 @@
+/* ===============================
+   FILE: DonorMyOffers.css
+   Independent styles for My Offers page
+   =============================== */
+
+/* Layout (ensures sidebar is fixed left, main scrolls) */
+.ddb-layout {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    background-color: #f4f7fc;
+}
+
+.ddb-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem 2rem 2rem 2rem;
+    background: #f9fafc;
+}
+
+/* Container inside main */
+.my-offers-container {
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+/* Header area */
+.offers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.offers-header h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #1e2a3e;
+    margin-bottom: 0.25rem;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    color: #5b6e8c;
+    margin-top: 0.25rem;
+}
+
+/* NEW OFFER BUTTON - ORANGE THEME */
+.new-offer-btn {
+    background: linear-gradient(105deg, #f97316, #ea580c);
+    border: none;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.new-offer-btn:hover {
+    background: #ea580c;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(234, 88, 12, 0.2);
+}
+
+/* Search + filter row */
+.search-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+    background: white;
+    padding: 0.8rem 1.2rem;
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    border-radius: 40px;
+    padding: 0.4rem 1rem;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-icon {
+    color: #7f8fa4;
+    font-size: 1.2rem;
+}
+
+.search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    width: 100%;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+}
+
+.search-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Status pills - active state now orange */
+.status-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.status-pill {
+    background: #f0f2f5;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 40px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+
+.status-pill.active {
+    background: #f97316;
+    color: white;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+}
+
+.status-pill:hover:not(.active) {
+    background: #e2e8f0;
+}
+
+/* Table styling */
+.offers-table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    border: 1px solid #eef2f6;
+}
+
+.offers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.offers-table th {
+    text-align: left;
+    padding: 1rem 1.2rem;
+    background-color: #fafcff;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 1px solid #e9edf2;
+    font-size: 0.85rem;
+    letter-spacing: 0.3px;
+}
+
+.offers-table td {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #f0f2f7;
+    vertical-align: middle;
+    color: #1f2a44;
+}
+
+.offers-table tr:last-child td {
+    border-bottom: none;
+}
+
+.title-cell {
+    font-weight: 600;
+    color: #1e2a3e;
+}
+
+/* Status badge colors */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    background: #eef2ff;
+    color: #1e3a8a;
+}
+
+.status-badge.available {
+    background: #e0f2e9;
+    color: #1f6e43;
+}
+
+.status-badge.accepted {
+    background: #e6f0ff;
+    color: #1a56db;
+}
+
+.status-badge.in-transit,
+.status-badge.in_delivery {
+    background: #fff3e0;
+    color: #b45309;
+}
+
+.status-badge.delivered {
+    background: #e6f7ec;
+    color: #2b6e3c;
+}
+
+.status-badge.expired {
+    background: #ffe6e5;
+    color: #b91c1c;
+}
+
+/* Actions column */
+.actions-cell {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.action-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-btn {
+    color: #2196f3;
+    background-color: #e3f2fd;
+}
+
+.view-btn:hover {
+    background-color: #bbdefb;
+    transform: translateY(-2px);
+}
+
+/* Action Menu Wrapper and Dropdown */
+.action-menu-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.menu-btn {
+    color: #64748b;
+    background-color: #f1f5f9;
+}
+
+.menu-btn:hover {
+    background-color: #e2e8f0;
+    color: #f97316;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 1000;
+    overflow: hidden;
+    animation: slideDown 0.2s ease;
+}
+
+.dropdown-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    text-align: left;
+    color: #334155;
+}
+
+.dropdown-menu button:hover {
+    background-color: #f8fafc;
+}
+
+.dropdown-menu button.danger {
+    color: #ef4444;
+    border-top: 1px solid #f0f2f7;
+}
+
+.dropdown-menu button.danger:hover {
+    background-color: #fef2f2;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Empty row */
+.empty-row td {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c9a;
+    font-weight: 500;
+}
+
+/* Footer summary */
+.offers-footer {
+    margin-top: 1.2rem;
+    text-align: right;
+    font-size: 0.8rem;
+    color: #5b6e8c;
+    padding: 0.5rem 0;
+}
+
+/* Overlay Background */
+.details-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.3s ease;
+}
+
+/* The Glass Form */
+.details-form-container {
+    background: rgba(255, 255, 255, 0.95);
+    width: 100%;
+    max-width: 500px;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.details-header h2 {
+    color: #2d3436;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #636e72;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #f97316;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.detail-group {
+    margin-bottom: 15px;
+}
+
+.detail-group label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #636e72;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.detail-group p {
+    font-size: 16px;
+    color: #2d3436;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 0;
+    word-break: break-word;
+}
+
+/* Edit Input Group Styles */
+.edit-input-group {
+    margin-bottom: 20px;
+}
+
+.edit-input-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    text-transform: none;
+}
+
+.edit-input-group input,
+.edit-input-group textarea,
+.edit-input-group select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    color: #1f2937;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.edit-input-group input:focus,
+.edit-input-group textarea:focus,
+.edit-input-group select:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.edit-input-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Details Footer Buttons */
+.details-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.done-btn {
+    flex: 1;
+    padding: 12px;
+    background: linear-gradient(105deg, #f97316, #ea580c);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.done-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.cancel-btn {
+    flex: 1;
+    padding: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+    background: #e2e8f0;
+}
+
+.submit-btn {
+    flex: 1;
+    padding: 12px;
+    background: linear-gradient(105deg, #f97316, #ea580c);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.submit-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.submit-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Loading Spinner */
+.loading-container {
+    text-align: center;
+    padding: 3rem;
+}
+
+.rdb-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .ddb-main {
+        padding: 1rem;
+    }
+
+    .offers-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .search-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .status-pills {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+
+    .offers-table th,
+    .offers-table td {
+        padding: 0.8rem;
+    }
+
+    .detail-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .details-form-container {
+        margin: 1rem;
+        padding: 20px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .dropdown-menu {
+        position: fixed;
+        right: 20px;
+        left: auto;
+        min-width: 160px;
+    }
+}
+
+/* Status Text in Details Modal */
+.status-text {
+    font-weight: 600;
+}
+
+.status-text.available {
+    color: #1f6e43;
+}
+
+.status-text.accepted {
+    color: #1a56db;
+}
+
+.status-text.in_delivery {
+    color: #b45309;
+}
+
+.status-text.delivered {
+    color: #2b6e3c;
+}
+
+.status-text.expired {
+    color: #b91c1c;
+}
+
+/* Dietary Information Styles */
+.dietary-group {
+    margin-top: 10px;
+}
+
+.dietary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.dietary-check:hover {
+    background: #e2e8f0;
+}
+
+.dietary-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #f97316;
+}
+
+.dietary-check span {
+    user-select: none;
+}
+
+/* Dietary Tags for View Modal */
+.dietary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.dietary-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-tag svg {
+    font-size: 16px;
+    color: #f97316;
+}
+
+/* Edit Modal adjustments */
+.edit-modal .details-body {
+    max-height: calc(90vh - 180px);
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.edit-modal .details-body::-webkit-scrollbar-thumb {
+    background: #f97316;
+    border-radius: 10px;
+}
+
+/* Responsive adjustments for dietary grid */
+@media (max-width: 768px) {
+    .dietary-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .dietary-check {
+        padding: 8px 12px;
+    }
+}
+
+/* Fixed Size Edit Modal - No Scroll */
+.edit-modal-fixed {
+    max-width: 750px !important;
+    width: 90% !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 25px 30px !important;
+}
+
+.edit-modal-fixed .details-header {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+}
+
+.edit-form-fixed {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.edit-form-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 20px;
+}
+
+/* Custom scrollbar for content */
+.edit-form-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.edit-form-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.edit-form-content::-webkit-scrollbar-thumb {
+    background: #f97316;
+    border-radius: 10px;
+}
+
+.edit-form-content::-webkit-scrollbar-thumb:hover {
+    background: #ea580c;
+}
+
+.details-footer-edit {
+    flex-shrink: 0;
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Dietary Grid for Edit Modal */
+.dietary-grid-edit {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.dietary-check-edit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #334155;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.dietary-check-edit:hover {
+    background: #e2e8f0;
+}
+
+.dietary-check-edit input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #f97316;
+}
+
+.dietary-check-edit span {
+    user-select: none;
+}
+
+/* Two columns layout for edit modal */
+.row-2cols-edit {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 5px;
+}
+
+/* Adjust input sizes for compact view */
+.edit-input-group input,
+.edit-input-group select,
+.edit-input-group textarea {
+    font-size: 14px;
+    padding: 8px 10px;
+}
+
+.edit-input-group textarea {
+    resize: vertical;
+    min-height: 50px;
+}
+
+.edit-input-group label {
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .edit-modal-fixed {
+        width: 95% !important;
+        padding: 20px !important;
+    }
+
+    .dietary-grid-edit {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .row-2cols-edit {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .details-footer-edit {
+        flex-direction: column;
+    }
+
+    .cancel-btn,
+    .submit-btn {
+        width: 100%;
+    }
+}
+
+
+/* Alternative Style - Darker labels with background contrast */
+.alternative-details .detail-group label {
+    color: #475569;
+    background: none;
+    -webkit-text-fill-color: #475569;
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alternative-details .detail-group p {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 15px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Or with icons next to labels */
+.detail-group-with-icon {
+    position: relative;
+}
+
+.detail-group-with-icon label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-group-with-icon label svg {
+    font-size: 16px;
+    color: #f97316;
+}

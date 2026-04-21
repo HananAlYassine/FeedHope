@@ -64,17 +64,12 @@ const VolunteerSidebar = () => {
 
                 <p className="vs-nav-label">Deliveries</p>
                 <SidebarLink to="/volunteer-available-offers" icon={<RestaurantMenuIcon />} label="Available Offers" />
-                <SidebarLink to="/volunteer-my-deliveries" icon={<LocalShippingIcon />} label="My Deliveries" />
+                <SidebarLink to="/volunteer/my-deliveries" icon={<LocalShippingIcon />} label="My Deliveries" />
                 <SidebarLink to="/volunteer-history" icon={<HistoryIcon />} label="History" />
 
                 <p className="vs-nav-label">Feedback</p>
-                <SidebarLink to="/volunteer/feedback-ratings" icon={<RateReviewIcon />} label="Feedback & Rating" />
-                <SidebarLink
-                    to="/volunteer/notifications"
-                    icon={<NotificationsIcon />}
-                    label="Notifications"
-                    badge={unreadCount > 0 ? unreadCount : null}
-                />
+                <SidebarLink to="/volunteer-feedback" icon={<RateReviewIcon />} label="Feedback & Rating" />
+                <SidebarLink to="/volunteer-notifications" icon={<NotificationsIcon />} label="Notifications" badge={unreadCount > 0 ? unreadCount : null} />
             </nav>
 
             <div className="vs-sidebar-footer">

@@ -1,0 +1,346 @@
+/* ==============================================================
+    FeedHope — Donor Profile Styles
+    Matches DonorDashboard.css and adapts ReceiverProfile patterns
+================================================================*/
+
+/* Small stat number adjustment for date strings */
+.ddb-stat-number--sm {
+    font-size: 20px;
+}
+
+/* Banner avatar – orange gradient (donor theme) */
+.ddb-banner-avatar {
+    font-size: 42px;
+    font-weight: 700;
+    color: #fff;
+    position: relative;
+    cursor: default;
+    user-select: none;
+    background: linear-gradient(135deg, #f57c00, #e65100);
+}
+
+/* Camera overlay on banner avatar */
+.dcp-avatar-camera {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.dcp-avatar-camera:hover {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+/* Two-button row in banner */
+.dcp-banner-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+/* Outline button variant for banner */
+.ddb-banner-btn--outline {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.45);
+}
+
+.ddb-banner-btn--outline:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* ---- Contact Information items (left column) ---- */
+.dcp-contact-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--ddb-border);
+}
+
+.dcp-contact-item--last {
+    border-bottom: none;
+}
+
+.dcp-ci-icon {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0;
+}
+
+.dcp-ci-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dcp-ci-label {
+    font-size: 11.5px;
+    color: var(--ddb-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.dcp-ci-value {
+    font-size: 14px;
+    color: var(--ddb-text-main);
+    font-weight: 500;
+}
+
+/* ---- Account card (right column) ---- */
+.dcp-account-avatar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px 24px;
+}
+
+.dcp-account-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f57c00, #e65100);
+    color: #fff;
+    font-size: 34px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(245, 124, 0, 0.35);
+}
+
+.dcp-account-org {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ddb-text-main);
+    text-align: center;
+    margin: 0;
+}
+
+.dcp-role-badge {
+    margin: 0;
+}
+
+.dcp-account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* Change Password button in account card */
+.dcp-btn-pw {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+}
+
+/* ---- Modals (same style as receiver) ---- */
+.dcp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.dcp-modal {
+    background: var(--ddb-bg-card);
+    border-radius: var(--ddb-radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    width: 100%;
+    max-width: 460px;
+    overflow: hidden;
+}
+
+.dcp-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--ddb-border);
+}
+
+.dcp-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ddb-text-main);
+    margin: 0;
+}
+
+.dcp-modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--ddb-text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.15s;
+}
+
+.dcp-modal-close:hover {
+    color: var(--ddb-text-main);
+}
+
+.dcp-modal-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.dcp-form-label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ddb-text-sub);
+}
+
+.dcp-form-input {
+    padding: 9px 13px;
+    border: 1px solid var(--ddb-border);
+    border-radius: var(--ddb-radius-sm);
+    font-size: 14px;
+    color: var(--ddb-text-main);
+    background: #fafafa;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+}
+
+.dcp-form-input:focus {
+    border-color: var(--ddb-orange);
+    box-shadow: 0 0 0 3px rgba(245, 124, 0, 0.1);
+    background: #fff;
+}
+
+.dcp-form-error {
+    font-size: 13px;
+    color: var(--ddb-red);
+    margin: 0;
+}
+
+.dcp-form-success {
+    font-size: 13px;
+    color: var(--ddb-green);
+    margin: 0;
+}
+
+.dcp-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 22px;
+    border-top: 1px solid var(--ddb-border);
+}
+
+.dcp-btn-cancel {
+    padding: 9px 22px;
+    border-radius: var(--ddb-radius-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ddb-text-sub);
+    border: 1px solid var(--ddb-border);
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.dcp-btn-cancel:hover:not(:disabled) {
+    background: var(--ddb-bg-page);
+}
+
+.dcp-btn-cancel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dcp-btn-save {
+    padding: 9px 26px;
+    border-radius: var(--ddb-radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--ddb-green);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.dcp-btn-save:hover:not(:disabled) {
+    background: var(--ddb-green-dark);
+}
+
+.dcp-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .dcp-banner-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .dcp-modal {
+        max-width: 100%;
+    }
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+}
+
+.dcp-password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.dcp-pw-input {
+    width: 100%;
+    padding-right: 42px !important;
+    margin-bottom: 0 !important;
+}
+
+.dcp-eye-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.dcp-eye-btn:hover {
+    color: #333;
+}

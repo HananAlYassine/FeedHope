@@ -146,14 +146,16 @@ const VolunteerRegister = () => {
         plateNumber: '', birthdate: '', gender: '', password: '', confirmPassword: ''
     });
 
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword,        setShowPassword]        = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
     const today = new Date().toISOString().split('T')[0];
 
-    const [popup, setPopup] = useState('none');
-    const [devCode, setDevCode] = useState('');
-    const [pendingEmail, setPendingEmail] = useState('');
-    const [otp, setOtp] = useState(['', '', '', '', '', '']);
-    const [verifyError, setVerifyError] = useState('');
+    const [popup,         setPopup]         = useState('none');
+    const [devCode,       setDevCode]       = useState('');
+    const [pendingEmail,  setPendingEmail]  = useState('');
+    const [otp,           setOtp]           = useState(['', '', '', '', '', '']);
+    const [verifyError,   setVerifyError]   = useState('');
     const [verifySuccess, setVerifySuccess] = useState(false);
     const otpRefs = useRef([]);
 
@@ -235,8 +237,24 @@ const VolunteerRegister = () => {
         } catch { setVerifyError('Server connection error.'); }
     };
 
+    const eyeBtnStyle = {
+        position: 'absolute', right: '10px',
+        background: 'none', border: 'none',
+        cursor: 'pointer', color: '#718096',
+        display: 'flex', alignItems: 'center', padding: 0,
+    };
+
     return (
         <>
+            {/* Suppress Edge/Chrome native password eye icon */}
+            <style>{`
+                input[type="password"]::-ms-reveal,
+                input[type="password"]::-ms-clear,
+                input[type="password"]::-webkit-credentials-auto-fill-button {
+                    display: none !important;
+                }
+            `}</style>
+
             {popup === 'code' && (
                 <CodeRevealPopup devCode={devCode} pendingEmail={pendingEmail} onClose={handleCodePopupClose} />
             )}
@@ -324,19 +342,47 @@ const VolunteerRegister = () => {
                                 <label>Birth Date</label>
                                 <input type="date" name="birthdate" value={formData.birthdate} onChange={handleChange} className="auth-input-field" max={today} required />
                             </div>
+
+                            {/* ── Password with eye icon ── */}
                             <div className="auth-input-group">
                                 <label>Password</label>
-                                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} className="auth-input-field" placeholder="Create password" required />
-                            </div>
-                            <div className="auth-input-group">
-                                <label>Confirm Password</label>
                                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input type={showPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="auth-input-field" placeholder="Confirm password" required />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#718096' }}>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className="auth-input-field"
+                                        placeholder="Create password"
+                                        style={{ paddingRight: '36px' }}
+                                        required
+                                    />
+                                    <button type="button" tabIndex={-1} onClick={() => setShowPassword(p => !p)} style={eyeBtnStyle}>
                                         {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                                     </button>
                                 </div>
                             </div>
+
+                            {/* ── Confirm Password with eye icon ── */}
+                            <div className="auth-input-group">
+                                <label>Confirm Password</label>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        className="auth-input-field"
+                                        placeholder="Confirm password"
+                                        style={{ paddingRight: '36px' }}
+                                        required
+                                    />
+                                    <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword(p => !p)} style={eyeBtnStyle}>
+                                        {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="full-width-field terms-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
                                 <input type="checkbox" id="terms" required />
                                 <label htmlFor="terms" style={{ fontSize: '12px', color: '#4a5568', margin: 0 }}>

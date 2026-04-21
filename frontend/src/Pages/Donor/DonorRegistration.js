@@ -9,8 +9,6 @@ import "../../Styles/Registration.css";
 
 /* ═══════════════════════════════════════════════════════════
     POPUP 1 — Code Reveal Popup
-    Shows ONLY the verification code. User copies it, then
-    clicks OK to dismiss and proceed to the OTP entry step.
 ═══════════════════════════════════════════════════════════ */
 const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
     const [copied, setCopied] = useState(false);
@@ -22,8 +20,6 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
     return (
         <div className="popup-backdrop popup-backdrop--dark">
             <div className="cr-card">
-
-                {/* Icon + title */}
                 <div className="cr-header">
                     <div className="cr-icon-ring">
                         <MarkEmailRead style={{ fontSize: '42px', color: '#34d399' }} />
@@ -34,7 +30,6 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
                     </p>
                 </div>
 
-                {/* Code box */}
                 <div className="cr-body">
                     <div className="cr-code-box">
                         <div className="cr-shimmer" />
@@ -42,7 +37,6 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
                         <p className="cr-code-text">{devCode}</p>
                     </div>
 
-                    {/* Copy button */}
                     <button
                         className={`cr-copy-btn${copied ? ' is-copied' : ''}`}
                         onClick={handleCopy}
@@ -53,7 +47,6 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
                         }
                     </button>
 
-                    {/* OK / proceed button — only enabled after copying */}
                     <button
                         className={`cr-ok-btn${copied ? ' is-copied' : ''}`}
                         onClick={onClose}
@@ -73,8 +66,6 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
 
 /* ═══════════════════════════════════════════════════════════
     POPUP 2 — OTP Entry Modal
-    Shown after the code popup is dismissed.
-    Contains only the 6-digit input + verify button.
 ═══════════════════════════════════════════════════════════ */
 const OtpEntryModal = ({
     pendingEmail,
@@ -86,7 +77,6 @@ const OtpEntryModal = ({
     <div className="popup-backdrop popup-backdrop--medium">
         <div className="otp-card">
 
-            {/* Header */}
             <div className="otp-header">
                 <div className="otp-header-bubble-top" />
                 <div className="otp-header-bubble-bottom" />
@@ -100,7 +90,6 @@ const OtpEntryModal = ({
                 </p>
             </div>
 
-            {/* Body */}
             <div className="otp-body">
                 {verifySuccess ? (
                     <div className="otp-success">
@@ -116,7 +105,6 @@ const OtpEntryModal = ({
                     <form onSubmit={handleVerify}>
                         <p className="otp-instruction">Enter the 6-digit code you just copied:</p>
 
-                        {/* OTP boxes */}
                         <div className="otp-inputs-row" onPaste={handleOtpPaste}>
                             {otp.map((digit, i) => (
                                 <input
@@ -167,26 +155,22 @@ const DonorRegister = () => {
         latitude: '', longitude: '', foundationDate: '', password: '', confirmPassword: ''
     });
 
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword,        setShowPassword]        = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
     const today = new Date().toISOString().split('T')[0];
 
-    /*
-        popup state machine:
-        'none' → no popup
-        'code' → CodeRevealPopup (step 1)
-        'otp'  → OtpEntryModal   (step 2)
-    */
-    const [popup, setPopup] = useState('none');
-    const [devCode, setDevCode] = useState('');
-    const [pendingEmail, setPendingEmail] = useState('');
-    const [otp, setOtp] = useState(['', '', '', '', '', '']);
-    const [verifyError, setVerifyError] = useState('');
+    const [popup,         setPopup]         = useState('none');
+    const [devCode,       setDevCode]       = useState('');
+    const [pendingEmail,  setPendingEmail]  = useState('');
+    const [otp,           setOtp]           = useState(['', '', '', '', '', '']);
+    const [verifyError,   setVerifyError]   = useState('');
     const [verifySuccess, setVerifySuccess] = useState(false);
     const otpRefs = useRef([]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'latitude' && (parseFloat(value) > 90 || parseFloat(value) < -90)) return;
+        if (name === 'latitude'  && (parseFloat(value) > 90  || parseFloat(value) < -90))  return;
         if (name === 'longitude' && (parseFloat(value) > 180 || parseFloat(value) < -180)) return;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -206,16 +190,15 @@ const DonorRegister = () => {
             if (response.ok) {
                 setDevCode(data.verificationCode);
                 setPendingEmail(formData.email);
-                setPopup('code');   // ← Step 1: show code reveal popup
+                setPopup('code');
             } else {
                 alert(data.error || 'Registration failed');
             }
         } catch { alert('Server connection error'); }
     };
 
-    /* User clicked OK on code popup → switch to OTP entry */
     const handleCodePopupClose = () => {
-        setPopup('otp');            // ← Step 2: open OTP entry modal
+        setPopup('otp');
         setTimeout(() => otpRefs.current[0]?.focus(), 120);
     };
 
@@ -261,8 +244,25 @@ const DonorRegister = () => {
         } catch { setVerifyError('Server connection error.'); }
     };
 
+    // Shared inline style for eye toggle button
+    const eyeBtnStyle = {
+        position: 'absolute', right: '10px',
+        background: 'none', border: 'none',
+        cursor: 'pointer', color: '#718096',
+        display: 'flex', alignItems: 'center', padding: 0,
+    };
+
     return (
         <>
+            {/* Suppress Edge/Chrome native password eye icon */}
+            <style>{`
+                input[type="password"]::-ms-reveal,
+                input[type="password"]::-ms-clear,
+                input[type="password"]::-webkit-credentials-auto-fill-button {
+                    display: none !important;
+                }
+            `}</style>
+
             {/* ── Step 1: Code Reveal Popup ── */}
             {popup === 'code' && (
                 <CodeRevealPopup
@@ -374,19 +374,47 @@ const DonorRegister = () => {
                                     <input type="text" name="otherBusinessType" value={formData.otherBusinessType} onChange={handleChange} className="auth-input-field" placeholder="e.g. Catering, Food Truck" required />
                                 </div>
                             )}
+
+                            {/* ── Password with eye icon ── */}
                             <div className="auth-input-group">
                                 <label>Password</label>
-                                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} className="auth-input-field" placeholder="Create password" required />
-                            </div>
-                            <div className="auth-input-group">
-                                <label>Confirm Password</label>
                                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input type={showPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="auth-input-field" placeholder="Repeat password" required />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#718096' }}>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className="auth-input-field"
+                                        placeholder="Create password"
+                                        style={{ paddingRight: '36px' }}
+                                        required
+                                    />
+                                    <button type="button" tabIndex={-1} onClick={() => setShowPassword(p => !p)} style={eyeBtnStyle}>
                                         {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                                     </button>
                                 </div>
                             </div>
+
+                            {/* ── Confirm Password with eye icon ── */}
+                            <div className="auth-input-group">
+                                <label>Confirm Password</label>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        className="auth-input-field"
+                                        placeholder="Repeat password"
+                                        style={{ paddingRight: '36px' }}
+                                        required
+                                    />
+                                    <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword(p => !p)} style={eyeBtnStyle}>
+                                        {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="full-width-field terms-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
                                 <input type="checkbox" id="terms" required />
                                 <label htmlFor="terms" style={{ fontSize: '12px', color: '#4a5568', margin: 0 }}>

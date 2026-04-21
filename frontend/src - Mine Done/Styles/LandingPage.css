@@ -1,0 +1,295 @@
+:root {
+    --primary-green: #00d289;
+    --text-white: #ffffff;
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --overlay: rgba(0, 0, 0, 0.4);
+}
+
+/* 1. Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+
+body, html, #root {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+/* Scope white text to the landing page only — never set color on body/html/root
+   because it bleeds into every other page (ReceiverProfile, Dashboard, etc.) */
+.hero-wrapper {
+    color: var(--text-white);
+}
+
+/* 2. Hero Wrapper */
+.hero-wrapper {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;     /*100 vw*/
+    /* Background is handled by inline style in JS */
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+    padding: 0 6%;
+} 
+
+/* 3. Navigation & Logo */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 0;
+    z-index: 10;
+}
+
+.logo {
+    font-size: 1.6rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 15px; 
+    cursor: pointer; /* Logic handled in JS */
+    transition: transform 0.2s ease;
+    user-select: none;
+}
+
+.logo:hover {
+    transform: scale(1.03);
+}
+
+
+.logo-circle {
+    width: 55px;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.header-logo-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    display: block !important;
+    box-shadow: none !important;
+}
+
+
+nav ul {
+    display: flex;
+    list-style: none;
+    gap: 35px;
+}
+
+nav a {
+    color: var(--text-white);
+    text-decoration: none;
+    font-size: 0.95rem;
+    opacity: 0.8;
+    transition: 0.3s;
+}
+
+nav a:hover {
+    color: var(--primary-green);
+    opacity: 1;
+}
+
+.btn-signin {
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px 26px;
+    border-radius: 30px;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: 0.3s;
+}
+
+.btn-signin:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--primary-green);
+}
+
+/* 4. Main Hero Section */
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+}
+
+.hero-content {
+    max-width: 850px;
+}
+
+.hero-content h1 {
+    font-size: 5.9rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 25px;
+    letter-spacing: -2px;
+}
+
+.hero-content h1 span {
+    display: block; /* Forces "Share Love." to the second line */
+    color: var(--primary-green);
+}
+
+.hero-content p {
+    font-size: 1.4rem;
+    line-height: 1.6;
+    margin-bottom: 35px;
+    font-weight: 300;
+    max-width: 600px;
+    opacity: 0.9;
+}
+
+.btn-main {
+    background: var(--primary-green);
+    color: #000;
+    padding: 18px 45px;
+    border: none;
+    border-radius: 40px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-main:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(0, 210, 137, 0.3);
+}
+
+/* 5. Glass Card */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 40px;
+    border-radius: 24px;
+    width: 440px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.card-tag {
+    color: var(--primary-green);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.glass-card p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin-bottom: 25px;
+    font-weight: 300;
+}
+
+.card-link {
+    color: var(--primary-green);
+    text-decoration: none;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: gap 0.3s;
+}
+
+.card-link:hover {
+    gap: 12px;
+}
+
+/* 6. Footer Stats & Socials */
+footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 40px;
+}
+
+.stats {
+    display: flex;
+    gap: 80px;
+}
+
+.stat-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-bar {
+    width: 110px;
+    height: 3px;
+    background: var(--primary-green);
+    margin-bottom: 12px;
+}
+
+.stat-val {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--primary-green);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+}
+
+.social {
+    display: flex;
+    gap: 20px;
+    font-size: 1.6rem;
+}
+
+.social a {
+    color: var(--text-white);
+    transition: 0.3s;
+}
+
+.social a:hover {
+    color: var(--primary-green);
+    transform: translateY(-3px);
+}
+
+/* 7. Responsive Design */
+@media (max-width: 1100px) {
+    .hero-content h1 { font-size: 4rem; }
+    .stats { gap: 40px; }
+}
+
+@media (max-width: 900px) {
+    .hero-wrapper { overflow-y: auto; height: auto; padding: 20px; }
+    main { flex-direction: column; text-align: center; padding: 60px 0; }
+    .hero-content h1 { font-size: 3.5rem; letter-spacing: 0; }
+    .hero-content p { margin: 0 auto 35px auto; }
+    .glass-card { width: 100%; text-align: left; }
+    nav ul { display: none; }
+    footer { flex-direction: column; align-items: center; gap: 40px; }
+    .stats { flex-direction: column; gap: 30px; align-items: center; }
+    .stat-box { align-items: center; }
+}

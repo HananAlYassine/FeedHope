@@ -17,6 +17,7 @@ import {
   ExitToApp as ExitToAppIcon,
   SwapHoriz as SwapHorizIcon,
   Wallet,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
 } from '@mui/icons-material';
 
 const DonorSidebar = () => {
@@ -97,6 +98,7 @@ const DonorSidebar = () => {
         <p className="fh-nav-label">Finance & Tracking</p>
         <SidebarLink to="/donor-donate-money" icon={<AttachMoneyIcon />} label="Money Donation" />
         <SidebarLink to="/donor-donations-history" icon={<Wallet />} label="Donations History" />
+        <SidebarLink to="/donor-fund-distributions" icon={<AccountBalanceWalletIcon />} label="Fund Distributions" />
         <SidebarLink to="/donor-deliveries" icon={<LocalShippingIcon />} label="Deliveries" />
         <SidebarLink to="/donor-feedback" icon={<FeedbackIcon />} label="Feedback" />
         <SidebarLink
