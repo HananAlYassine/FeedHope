@@ -16,20 +16,22 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'; // for confirmation modal
 
+// Turns raw date into readable format.
 const formatPickupTime = (datetime) => {
     if (!datetime) return '—';
     return new Date(datetime).toLocaleString();
 };
 
+// makes UI flexible depending on data type
 const formatQuantity = (offer) => {
     if (offer.quantity_by_kg) return `${offer.quantity_by_kg} kg`;
     if (offer.number_of_person) return `${offer.number_of_person} portions`;
     return '—';
 };
 
-// ========== NEW: Confirmation Modal for Cancel ==========
+// ========== Confirmation Modal for Cancel ==========
 const ConfirmCancelModal = ({ isOpen, onClose, onConfirm, offerTitle }) => {
-    if (!isOpen) return null;
+    if (!isOpen) return null; // If modal is closed → render nothing
 
     return (
         <div className="ram-modal-overlay">
@@ -63,10 +65,14 @@ const ConfirmCancelModal = ({ isOpen, onClose, onConfirm, offerTitle }) => {
 };
 // ========================================================
 
+// This is the rating popup after delivery
 const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName, volunteerName }) => {
+
+    // Default rating = 5 stars
     const [donorRating, setDonorRating] = useState(5);
     const [volunteerRating, setVolunteerRating] = useState(5);
     const [comment, setComment] = useState('');
+
     const [hoverDonor, setHoverDonor] = useState(0);
     const [hoverVolunteer, setHoverVolunteer] = useState(0);
 
@@ -97,11 +103,16 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                     <div className="rate-section">
                         <label>Rate Donor: <strong>{donorName}</strong></label>
                         <div className="ram-stars">
+                            {/* Creates 5 clickable stars */}
                             {[1,2,3,4,5].map(star => (
                                 <span key={star} className="ram-star"
                                     onClick={() => setDonorRating(star)}
                                     onMouseEnter={() => setHoverDonor(star)}
                                     onMouseLeave={() => setHoverDonor(0)}>
+
+                                        {/* if hovering → show hover value
+                                            else → show saved rating */}
+
                                     {star <= (hoverDonor || donorRating) ?
                                         <StarIcon sx={{ color: '#f5b042' }} /> :
                                         <StarBorderIcon sx={{ color: '#ccc' }} />}
@@ -151,14 +162,14 @@ const ReceiverAcceptedOffers = () => {
     const organizationName = user?.name || 'Receiver';
     const userId = user?.user_id;
 
-    const [offers, setOffers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [actionLoading, setActionLoading] = useState(null);
-    const [feedbackOffer, setFeedbackOffer] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [offers, setOffers] = useState([]); // list of accepted offers
+    const [loading, setLoading] = useState(true); // page loading
+    const [error, setError] = useState(null); // error message
+    const [actionLoading, setActionLoading] = useState(null); // disables buttons while API runs
+    const [feedbackOffer, setFeedbackOffer] = useState(null); // stores offer being rated
+    const [isModalOpen, setIsModalOpen] = useState(false); // feedback modal open/close
     // state for cancel confirmation modal
-    const [cancelConfirm, setCancelConfirm] = useState({ show: false, offerId: null, offerTitle: '' });
+    const [cancelConfirm, setCancelConfirm] = useState({ show: false, offerId: null, offerTitle: '' }); // cancel modal state
 
     const fetchAcceptedOffers = useCallback(async () => {
         if (!userId) return;

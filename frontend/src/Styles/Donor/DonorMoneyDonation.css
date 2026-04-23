@@ -1,6 +1,7 @@
-/* DonorMoneyDonation.css – styled like DonorDashboard */
+/* ============================================================
+    FeedHope — DonorMoneyDonation.css
+============================================================ */
 
-/* Import dashboard CSS variables (or define them here) */
 :root {
     --ddb-green: #2e7d32;
     --ddb-green-light: #e8f5e9;
@@ -20,7 +21,7 @@
     --ddb-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 }
 
-/* Banner – matches dashboard gradient + circles */
+/* ── Banner ─────────────────────────────────────────────────── */
 .dmd-banner {
     background: linear-gradient(135deg, #ff9800 0%, #f57c00 60%, #e65100 100%);
     border-radius: var(--ddb-radius-lg);
@@ -56,30 +57,7 @@
     pointer-events: none;
 }
 
-.dmd-banner .dmd-banner-greeting {
-    font-size: 13px;
-    opacity: 0.9;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.dmd-banner .dmd-banner-title {
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 10px;
-    line-height: 1.2;
-    color: #fff;
-}
-
-.dmd-banner .dmd-banner-subtitle {
-    font-size: 13.5px;
-    opacity: 0.9;
-    max-width: 420px;
-    line-height: 1.5;
-}
-
-/* Form container – centered, card style */
+/* ── Form Card ──────────────────────────────────────────────── */
 .dmd-form-container {
     max-width: 650px;
     margin: 0 auto 3rem auto;
@@ -93,14 +71,13 @@
     overflow: hidden;
 }
 
-/* Card header */
+/* ── Form Header ────────────────────────────────────────────── */
 .dmd-form-header {
     display: flex;
     align-items: center;
     gap: 1rem;
     padding: 1.5rem 2rem;
     border-bottom: 1px solid var(--ddb-border);
-    background: var(--ddb-bg-card);
 }
 
 .dmd-header-icon-wrapper {
@@ -128,9 +105,10 @@
     font-size: 0.875rem;
     color: var(--ddb-text-muted);
     margin: 0;
+    line-height: 1.5;
 }
 
-/* Form groups */
+/* ── Form Groups ────────────────────────────────────────────── */
 .dmd-form-group {
     padding: 1.5rem 2rem;
     border-bottom: 1px solid #f8fafc;
@@ -148,7 +126,7 @@
     font-size: 0.9rem;
 }
 
-/* Amount input – big & prominent */
+/* Amount Input */
 .dmd-amount-input-wrapper {
     position: relative;
     display: flex;
@@ -161,7 +139,7 @@
 
 .dmd-amount-input-wrapper:focus-within {
     border-color: var(--ddb-orange);
-    background: #ffffff;
+    background: #fff;
     box-shadow: 0 0 0 4px rgba(245, 124, 0, 0.1);
 }
 
@@ -198,7 +176,7 @@
     margin: 0;
 }
 
-/* Payment method tiles */
+/* Payment Method Tiles */
 .dmd-payment-options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -217,7 +195,7 @@
     border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: #ffffff;
+    background: #fff;
 }
 
 .dmd-payment-tile input {
@@ -273,19 +251,17 @@
 .dmd-textarea:focus {
     outline: none;
     border-color: var(--ddb-orange);
-    background: #ffffff;
+    background: #fff;
     box-shadow: 0 0 0 4px rgba(245, 124, 0, 0.1);
 }
 
-/* Alert messages */
+/* Alert */
 .dmd-alert {
     margin: 0 2rem 1.5rem 2rem;
     padding: 1rem;
     border-radius: 0.5rem;
     font-size: 0.9rem;
     font-weight: 500;
-    display: flex;
-    align-items: center;
 }
 
 .dmd-error {
@@ -300,7 +276,7 @@
     color: #15803d;
 }
 
-/* Action buttons */
+/* Action Buttons */
 .dmd-actions {
     display: flex;
     justify-content: flex-end;
@@ -321,7 +297,7 @@
 }
 
 .dmd-btn-cancel {
-    background: #ffffff;
+    background: #fff;
     border: 2px solid #e2e8f0;
     color: var(--ddb-text-muted);
 }
@@ -334,12 +310,11 @@
 
 .dmd-btn-confirm {
     background: var(--ddb-orange);
-    color: #ffffff;
+    color: #fff;
     box-shadow: 0 4px 6px -1px rgba(245, 124, 0, 0.2);
 }
 
 .dmd-btn-confirm:hover:not(:disabled) {
-    background: var(--ddb-orange);
     transform: translateY(-1px);
     box-shadow: 0 6px 8px -1px rgba(245, 124, 0, 0.3);
 }
@@ -350,21 +325,131 @@
     transform: none !important;
 }
 
-/* Responsive */
+/* ══════════════════════════════════════════════════════════════
+   SUCCESS STATE — shown after submission
+══════════════════════════════════════════════════════════════ */
+.dmd-success-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.dmd-success-icon {
+    margin-bottom: 1rem;
+    animation: dmd-pop-in 0.4s ease;
+}
+
+@keyframes dmd-pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.dmd-success-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #065f46;
+    margin: 0 0 0.5rem 0;
+}
+
+.dmd-success-subtitle {
+    font-size: 0.95rem;
+    color: var(--ddb-text-sub);
+    max-width: 420px;
+    line-height: 1.6;
+    margin: 0 0 2rem 0;
+}
+
+/* Reference Number Box */
+.dmd-ref-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: var(--ddb-radius-md);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.dmd-ref-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #065f46;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.5rem 0;
+}
+
+.dmd-ref-number-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.dmd-ref-number {
+    font-family: 'Courier New', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #065f46;
+    letter-spacing: 0.05em;
+}
+
+.dmd-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border: 1px solid #10b981;
+    border-radius: var(--ddb-radius-sm);
+    background: #fff;
+    color: #059669;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dmd-copy-btn:hover {
+    background: #10b981;
+    color: #fff;
+}
+
+.dmd-ref-hint {
+    font-size: 0.8rem;
+    color: #047857;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Success Action Buttons */
+.dmd-success-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 768px) {
     .dmd-banner {
         padding: 24px 20px;
         text-align: center;
     }
 
-    .dmd-banner .dmd-banner-title {
-        font-size: 22px;
-    }
-
-    .dmd-form-header {
-        padding: 1.25rem 1.5rem;
-    }
-
+    .dmd-form-header,
     .dmd-form-group {
         padding: 1.25rem 1.5rem;
     }
@@ -380,5 +465,23 @@
 
     .dmd-amount-input {
         font-size: 1.5rem;
+    }
+
+    .dmd-success-state {
+        padding: 2rem 1.5rem;
+    }
+
+    .dmd-ref-number-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dmd-success-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .dmd-success-actions .dmd-btn {
+        width: 100%;
     }
 }

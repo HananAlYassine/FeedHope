@@ -2246,52 +2246,8 @@ app.get('/api/categories', async (req, res) => {
         });
     }
 });
-// Delete an offer
-app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
-    const { offerId } = req.params;
-    const conn = await pool.getConnection();
 
-    try {
-        await conn.beginTransaction();
 
-        // Get details before deletion
-        const [details] = await conn.query(
-            "SELECT o.food_name, d.user_id FROM Food_offer o JOIN Donor d ON o.donor_id = d.donor_id WHERE o.offer_id = ?",
-            [offerId]
-        );
-
-        if (details.length > 0) {
-            const { food_name, user_id } = details[0];
-
-            await conn.query("DELETE FROM Food_offer WHERE offer_id = ?", [offerId]);
-
-            // Notify user of deletion
-            await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-                ['Offer Removed', `The offer "${food_name}" has been deleted.`, 'deletion', user_id]
-            );
-        }
-
-        // ── ADMIN NOTIFICATION: offer deleted/cancelled ──
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Offer Cancelled',
-                `Donor deleted offer "${food_name}" (ID ${offerId}).`,
-                'offer_cancelled'
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Deleted successfully' });
-    } catch (error) {
-        await conn.rollback();
-        res.status(500).json({ error: error.message });
-    } finally {
-        conn.release();
-    }
-});
 
 // GET Donor Delivered History
 app.get('/api/donor/history/:donorId', async (req, res) => {
@@ -2480,6 +2436,57 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
     }
 });
 
+// Delete an offer
+app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
+    const { offerId } = req.params;
+    const conn = await pool.getConnection();
+
+    try {
+        await conn.beginTransaction();
+
+        // Get details before deletion
+        const [details] = await conn.query(
+            "SELECT o.food_name, d.user_id FROM Food_offer o JOIN Donor d ON o.donor_id = d.donor_id WHERE o.offer_id = ?",
+            [offerId]
+        );
+
+        // FIX 2: return 404 if offer not found instead of silently doing nothing
+        if (details.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+
+        // FIX 1: declare food_name and user_id at the outer scope
+        const { food_name, user_id } = details[0];
+
+        await conn.query("DELETE FROM Food_offer WHERE offer_id = ?", [offerId]);
+
+        // Notify the donor
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            ['Offer Removed', `The offer "${food_name}" has been deleted.`, 'deletion', user_id]
+        );
+
+        // Notify the admin (user_id = NULL so admin panel picks it up)
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Offer Cancelled',
+                `Donor deleted offer "${food_name}" (ID ${offerId}).`,
+                'offer_cancelled'
+            ]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Deleted successfully' });
+    } catch (error) {
+        await conn.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        conn.release();
+    }
+});
 
 
 // ==============================================================
@@ -2488,152 +2495,113 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
 
 // ──── 11. Process Money Donation (FIXED) ────
 app.post("/api/donor/donate-money", async (req, res) => {
-    // 1. Accept userId instead of donor_id to match your frontend storage
     const { amount, payment_method, userId, description } = req.body;
 
-    // Validate input
     if (!amount || !payment_method || !userId) {
-        return res.status(400).json({
-            error: "Missing required donation details.",
-            received: { amount, payment_method, userId }
-        });
+        return res.status(400).json({ error: "Missing required donation details." });
     }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
-        // 2. Look up the donor_id using the userId (Just like you do in create-offer)
+        // Resolve donor_id from user_id
         const [donorRows] = await conn.query(
-            "SELECT donor_id FROM Donor WHERE user_id = ?",
-            [userId]
+            "SELECT donor_id FROM Donor WHERE user_id = ?", [userId]
         );
-
         if (donorRows.length === 0) {
             await conn.rollback();
             return res.status(404).json({ error: "Donor profile not found for this user." });
         }
-
         const donorId = donorRows[0].donor_id;
 
-        // 3. Insert the donation record
+        // Generate a unique reference number e.g. FH-20240421-00042
+        const today = new Date();
+        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+        const [[{ lastId }]] = await conn.query("SELECT COALESCE(MAX(donation_id), 0) AS lastId FROM Money_donation");
+        const refNumber = `FH-${datePart}-${String(Number(lastId) + 1).padStart(5, '0')}`;
+
+        // Insert donation with status = pending
         const [result] = await conn.query(
-            `INSERT INTO Money_donation (donation_date, payment_method, amount, donor_id, description) 
-             VALUES (NOW(), ?, ?, ?, ?)`,
-            [payment_method, amount, donorId, description || null]
+            `INSERT INTO Money_donation (donation_date, payment_method, amount, donor_id, status, reference_number, notes)
+             VALUES (CURDATE(), ?, ?, ?, 'pending', ?, ?)`,
+            [payment_method, amount, donorId, refNumber, description || null]
         );
 
-        // 4. Log the action in Syslog
+        // Syslog
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
-            ['Donation', `User made a monetary donation of $${amount} via ${payment_method}`, userId]
+            ['Donation', `Donor submitted a $${amount} donation via ${payment_method} — ref: ${refNumber}`, userId]
         );
 
-        // 5. Add a Notification for the user
+        // Notify the donor — pending confirmation
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            ['Donation Received', `Thank you for your $${amount} donation via ${payment_method}!`, 'success', userId]
-        );
-
-        // ── ADMIN NOTIFICATION: money donation ──
-        const [[donorUser]] = await conn.query(
-            "SELECT name FROM User WHERE user_id = ?",
-            [userId]
-        );
-        const donorName = donorUser ? donorUser.name : 'A donor';
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, NULL, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
             [
-                'Money Donation',
-                `${donorName} donated $${amount} via ${payment_method}.`,
+                'Donation Submitted',
+                `Your $${amount} donation via ${payment_method} has been submitted and is pending admin approval. Reference: ${refNumber}.`,
+                'money_donation',
+                userId
+            ]
+        );
+
+        // Notify the admin — new donation waiting for review
+        const [[donorUser]] = await conn.query("SELECT name FROM User WHERE user_id = ?", [userId]);
+        const donorName = donorUser?.name || 'A donor';
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Money Donation — Pending Review',
+                `${donorName} submitted a $${amount} donation via ${payment_method}. Ref: ${refNumber}. Please review and approve or reject it.`,
                 'money_donation'
             ]
         );
 
         await conn.commit();
         res.status(201).json({
-            message: "Thank you! Your donation was successful.",
+            message: "Your donation has been submitted and is pending admin approval.",
+            referenceNumber: refNumber,
             donationId: result.insertId
         });
     } catch (err) {
         await conn.rollback();
         console.error("[ERROR] Donation API failure:", err.message);
-        res.status(500).json({ error: "Failed to process donation. Database error." });
+        res.status(500).json({ error: "Failed to process donation." });
     } finally {
         conn.release();
     }
 });
 
+
 // ──── 12. Get Donor Money Donation History ────
 app.get("/api/donor/money-donations/:userId", async (req, res) => {
     const { userId } = req.params;
-
     try {
         const [rows] = await pool.query(
-            `SELECT 
-                md.amount, 
-                md.payment_method AS method, 
-                md.description AS note, 
-                md.donation_date AS date
+            `SELECT
+                md.donation_id,
+                md.amount,
+                md.payment_method   AS method,
+                md.notes            AS note,
+                md.donation_date    AS date,
+                md.status,
+                md.reference_number,
+                md.rejection_reason,
+                md.reviewed_at
              FROM Money_donation md
              JOIN Donor d ON md.donor_id = d.donor_id
              WHERE d.user_id = ?
              ORDER BY md.donation_date DESC`,
             [userId]
         );
-
         res.status(200).json(rows);
     } catch (err) {
         console.error("Fetch donation history error:", err);
-        res.status(500).json({ error: "Failed to load donation history." });
+        res.status(500).json({ error: "Failed to fetch donation history." });
     }
 });
 
-
-app.get('/api/donor/fund-distributions/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        // Step 1: Resolve donor_id from user_id
-        // Fund_distribution.donor_id → Donor.donor_id, NOT User.user_id
-        const [[donorRow]] = await pool.query(
-            'SELECT donor_id FROM Donor WHERE user_id = ?',
-            [userId]
-        );
-
-        if (!donorRow) {
-            return res.status(404).json({ error: 'Donor profile not found for this user.' });
-        }
-
-        const donorId = donorRow.donor_id;
-
-        // Step 2: Fetch distributions using the correct donor_id
-        const [distributions] = await pool.query(`
-    SELECT 
-        fd.distribution_id,
-        fd.amount,
-        fd.distribution_date,
-        fd.payment_method,
-        fd.status,
-        fd.purpose
-    FROM Fund_distribution fd
-    WHERE fd.donor_id = ?
-    ORDER BY fd.distribution_date DESC
-`, [donorId]);
-
-        res.status(200).json(distributions);
-
-    } catch (error) {
-        console.error('GET /api/donor/fund-distributions error:', error);
-        res.status(500).json({
-            error: 'Failed to fetch fund distributions',
-            details: error.message
-        });
-    }
-});
 
 
 app.get('/api/donor/deliveries/:userId', async (req, res) => {
@@ -2681,6 +2649,16 @@ app.get('/api/donor/deliveries/:userId', async (req, res) => {
         });
     }
 });
+
+
+
+// ==============================================================
+// ──────────────── DONOR Fund Distribution ────────────────────────
+// ==============================================================
+
+
+
+
 
 // ==============================================================
 // ──────────────── DONOR: NOTIFICATIONS ─────────────────
@@ -2812,6 +2790,8 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
         res.status(500).json({ error: "Failed to retrieve feedback." });
     }
 });
+
+
 
 
 
@@ -3059,8 +3039,6 @@ app.put('/api/volunteer/change-password/:userId', async (req, res) => {
 
 
 
-
-
 // ────────────────────── Admin ─────────────────────────
 
 
@@ -3161,8 +3139,6 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
             return res.status(404).json({ error: 'Offer not found.' });
         }
 
-        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
-
 
         // ── ADMIN NOTIFICATION: volunteer assigned ──
         await conn.query(
@@ -3248,20 +3224,32 @@ app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
 //  Returns all money donations with donor name, amount, payment method, date.
 // ──────────────────────────────────────────────────────────────
 app.get('/api/admin/money-donations', async (req, res) => {
+    const { status } = req.query;
     try {
-        const [rows] = await pool.query(`
-        SELECT
-            md.donation_id,
-            md.amount,
-            md.payment_method,
-            md.description,  
-            md.donation_date,
-            u.name AS donor_name
-        FROM Money_donation md
-        JOIN Donor d ON md.donor_id = d.donor_id
-        JOIN User u ON d.user_id = u.user_id
-        ORDER BY md.donation_date DESC
-        `);
+        let query = `
+            SELECT
+                md.donation_id,
+                md.amount,
+                md.payment_method,
+                md.notes AS description,
+                md.donation_date,
+                md.status,
+                md.reference_number,
+                md.rejection_reason,
+                md.reviewed_at,
+                u.name AS donor_name
+            FROM Money_donation md
+            JOIN Donor d ON md.donor_id = d.donor_id
+            JOIN User  u ON d.user_id   = u.user_id
+        `;
+        const params = [];
+        if (status) {
+            query += ' WHERE md.status = ?';
+            params.push(status);
+        }
+        query += ' ORDER BY md.donation_date DESC';
+
+        const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (err) {
         console.error('GET /api/admin/money-donations error:', err);
@@ -3271,7 +3259,114 @@ app.get('/api/admin/money-donations', async (req, res) => {
 
 
 
+app.put('/api/admin/money-donations/:id/approve', async (req, res) => {
+    const { id } = req.params;
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
 
+        const [[donation]] = await conn.query(`
+            SELECT md.amount, md.payment_method, md.reference_number,
+                d.user_id AS donor_user_id
+            FROM Money_donation md
+            JOIN Donor d ON d.donor_id = md.donor_id
+            WHERE md.donation_id = ?
+        `, [id]);
+
+        if (!donation) return res.status(404).json({ error: 'Donation not found.' });
+
+        await conn.query(
+            `UPDATE Money_donation SET status = 'approved', reviewed_at = NOW() WHERE donation_id = ?`,
+            [id]
+        );
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Donation Approved ✅',
+                `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) has been approved. Thank you!`,
+                'money_donation',
+                donation.donor_user_id
+            ]
+        );
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Donation Approved',
+                `Donation of $${Number(donation.amount).toFixed(2)} (Ref: ${donation.reference_number}) approved and added to balance.`,
+                'money_donation'
+            ]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Donation approved successfully.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error('PUT /api/admin/money-donations/:id/approve error:', err);
+        res.status(500).json({ error: 'Failed to approve donation.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ──  PUT /api/admin/money-donations/:id/reject ───────
+app.put('/api/admin/money-donations/:id/reject', async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason?.trim())
+        return res.status(400).json({ error: 'A rejection reason is required.' });
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[donation]] = await conn.query(`
+            SELECT md.amount, md.payment_method, md.reference_number,
+                d.user_id AS donor_user_id
+            FROM Money_donation md
+            JOIN Donor d ON d.donor_id = md.donor_id
+            WHERE md.donation_id = ?
+        `, [id]);
+
+        if (!donation) return res.status(404).json({ error: 'Donation not found.' });
+
+        await conn.query(
+            `UPDATE Money_donation SET status = 'rejected', rejection_reason = ?, reviewed_at = NOW() WHERE donation_id = ?`,
+            [reason.trim(), id]
+        );
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'Donation Rejected ❌',
+                `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) was rejected. Reason: ${reason.trim()}.`,
+                'money_donation',
+                donation.donor_user_id
+            ]
+        );
+
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Donation Rejected',
+                `Donation of $${Number(donation.amount).toFixed(2)} (Ref: ${donation.reference_number}) was rejected. Reason: ${reason.trim()}.`,
+                'money_donation'
+            ]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Donation rejected.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error('PUT /api/admin/money-donations/:id/reject error:', err);
+        res.status(500).json({ error: 'Failed to reject donation.' });
+    } finally {
+        conn.release();
+    }
+});
 
 // ==============================================================
 // ──────────────── Admin User Management Page  ─────────────────
@@ -3538,12 +3633,12 @@ app.delete('/api/admin/users/:id', async (req, res) => {
         await conn.beginTransaction();
 
         // 1. Get role-specific IDs before we delete anything
-        const [[donorRow]]     = await conn.query("SELECT donor_id     FROM Donor     WHERE user_id = ?", [id]);
-        const [[receiverRow]]  = await conn.query("SELECT receiver_id  FROM Receiver  WHERE user_id = ?", [id]);
+        const [[donorRow]] = await conn.query("SELECT donor_id     FROM Donor     WHERE user_id = ?", [id]);
+        const [[receiverRow]] = await conn.query("SELECT receiver_id  FROM Receiver  WHERE user_id = ?", [id]);
         const [[volunteerRow]] = await conn.query("SELECT volunteer_id FROM Volunteer WHERE user_id = ?", [id]);
 
-        const donorId     = donorRow?.donor_id       ?? null;
-        const receiverId  = receiverRow?.receiver_id  ?? null;
+        const donorId = donorRow?.donor_id ?? null;
+        const receiverId = receiverRow?.receiver_id ?? null;
         const volunteerId = volunteerRow?.volunteer_id ?? null;
 
         // 2. FIX: Food_offer.receiver_id → Receiver is ON DELETE RESTRICT
@@ -3670,12 +3765,14 @@ app.put('/api/admin/users/:id/unblock', async (req, res) => {
 // ──────────────────────────────────────────────────────────────
 app.get('/api/admin/fund-distribution', async (req, res) => {
     try {
+        // Only APPROVED donations count toward collectible balance
         const [[{ totalCollected }]] = await pool.query(`
-            SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation
+            SELECT COALESCE(SUM(amount), 0) AS totalCollected
+            FROM Money_donation WHERE status = 'approved'
         `);
         const [[{ totalDistributed }]] = await pool.query(`
             SELECT COALESCE(SUM(amount), 0) AS totalDistributed
-            FROM Fund_Distribution WHERE status = 'completed'
+            FROM Fund_Distribution WHERE status IN ('pending', 'completed')
         `);
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
@@ -3721,9 +3818,8 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
         return res.status(400).json({ error: 'Recipient donor name is required.' });
 
     try {
-        // Look up donor_id by the name the admin typed
         const [[donorRow]] = await pool.query(`
-            SELECT d.donor_id
+            SELECT d.donor_id, d.user_id
             FROM Donor d
             JOIN User u ON u.user_id = d.user_id
             WHERE u.name = ?
@@ -3731,9 +3827,10 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
         `, [donorName.trim()]);
 
         if (!donorRow)
-            return res.status(400).json({ error: `No donor found with the name "${donorName.trim()}". Please check the name and try again.` });
+            return res.status(400).json({ error: `No donor found with the name "${donorName.trim()}".` });
 
         const donorId = donorRow.donor_id;
+        const donorUserId = donorRow.user_id;
 
         // Resolve admin
         let resolvedAdminId = null;
@@ -3746,59 +3843,79 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
             resolvedAdminId = fallbackAdmin?.admin_id ?? null;
         }
 
-        // Check balance
+        // Check balance — only against completed distributions
         const [[{ totalCollected }]] = await pool.query(
-            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation`
+            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation WHERE status = 'approved'`
         );
         const [[{ totalDistributed }]] = await pool.query(
-            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status = 'completed'`
+            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status IN ('pending', 'completed')`
         );
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
         if (Number(amount) > balance)
             return res.status(400).json({ error: `Insufficient balance. Available: $${balance.toFixed(2)}` });
 
-        // Insert
+        // Generate reference number
+        const today = new Date();
+        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+        const [[{ lastId }]] = await pool.query("SELECT COALESCE(MAX(distribution_id), 0) AS lastId FROM Fund_Distribution");
+        const refNumber = `FD-${datePart}-${String(Number(lastId) + 1).padStart(5, '0')}`;
+
+        // Insert as PENDING — donor must confirm
         const [insertResult] = await pool.query(`
-            INSERT INTO Fund_Distribution (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id)
-            VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?)
-        `, [Number(amount), paymentMethod.trim(), purpose.trim(), resolvedAdminId, donorId]);
+            INSERT INTO Fund_Distribution (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id, reference_number)
+            VALUES (?, CURDATE(), ?, 'pending', ?, ?, ?, ?)
+        `, [Number(amount), paymentMethod.trim(), purpose.trim(), resolvedAdminId, donorId, refNumber]);
 
         // Syslog
         const [[adminUser]] = await pool.query("SELECT user_id FROM Admin WHERE admin_id = ?", [resolvedAdminId]);
         await pool.query(`INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`, [
             'FundDistribution',
-            `Admin distributed $${Number(amount).toFixed(2)} to donor "${donorName.trim()}" via ${paymentMethod.trim()}`,
+            `Admin initiated a $${Number(amount).toFixed(2)} distribution to "${donorName.trim()}" via ${paymentMethod.trim()} — ref: ${refNumber}. Awaiting donor confirmation.`,
             adminUser?.user_id ?? resolvedAdminId,
         ]);
 
-        // ── ADMIN NOTIFICATION: fund distribution ──
+        // Notify the donor — they need to confirm
         await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, NULL, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
             [
-                'Fund Distribution',
-                `$${Number(amount).toFixed(2)} was distributed to ${donorName.trim()} via ${paymentMethod.trim()}.`,
+                'Fund Distribution Pending Your Approval 💰',
+                `The admin has initiated a fund distribution of $${Number(amount).toFixed(2)} to you via ${paymentMethod.trim()}. Reference: ${refNumber}. Please review and confirm or reject it in your Fund Distributions page.`,
+                'fund_distribution',
+                donorUserId
+            ]
+        );
+
+        // Notify the admin — waiting for donor
+        await pool.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Distribution Sent — Awaiting Donor Confirmation',
+                `You initiated a $${Number(amount).toFixed(2)} distribution to "${donorName.trim()}" (Ref: ${refNumber}). Waiting for donor to confirm receipt.`,
                 'fund_distribution'
             ]
         );
 
-        res.status(201).json({ message: 'Distribution confirmed successfully.', distributionId: insertResult.insertId });
+        res.status(201).json({
+            message: 'Distribution initiated. Waiting for donor confirmation.',
+            distributionId: insertResult.insertId,
+            referenceNumber: refNumber
+        });
     } catch (err) {
         console.error('POST /api/admin/fund-distribution error:', err);
         res.status(500).json({ error: 'Failed to create distribution record: ' + err.message });
     }
 });
 
-
-
 // ==============================================================
 // ──────────────── Admin Profile Page ──────────────────────────
 // ==============================================================
 
+// ──────────────────────────────────────────────────────────────
 // GET /api/admin/profile/:userId
 // Loads the admin's own profile data (name, email, phone, picture, joined date).
 // Joins User + Admin to confirm the user is actually an admin.
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/profile/:userId', async (req, res) => {
     const { userId } = req.params;
     try {
@@ -3829,10 +3946,11 @@ app.get('/api/admin/profile/:userId', async (req, res) => {
     }
 });
 
-
+// ──────────────────────────────────────────────────────────────
 // PUT /api/admin/change-password/:userId
 // Verifies the admin's current password with bcrypt, then hashes and stores the new one.
 // Password rule: 3-10 characters.
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/change-password/:userId', async (req, res) => {
     const { userId } = req.params;
     const { currentPassword, newPassword } = req.body;
@@ -3871,10 +3989,10 @@ app.put('/api/admin/change-password/:userId', async (req, res) => {
 
         // Notification
         await pool.query(
-            'INSERT INTO notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)',
+            'INSERT INTO notifications (message_title, message, type, user_id) VALUES (?, ?, ?, NULL)',
             [
                 'Password Changed',
-                'Your account password has been changed successfully.',
+                'Your account password has been changed successfully. If you did not make this change, please contact support immediately.',
                 'profile_update',
                 userId
             ]
@@ -3904,7 +4022,7 @@ app.post('/api/admin/upload-profile-picture/:userId', upload.single('profilePict
 
         // Notification so the admin sees it in the notifications page
         await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, NULL)`,
             ['Profile Picture Updated', 'Your profile picture has been successfully changed.', 'profile_update', userId]
         );
 
@@ -3937,7 +4055,7 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
 
         // Notification
         await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)`,
+            `INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, NULL)`,
             ['Profile Picture Removed', 'Your profile picture has been removed.', 'profile_update', userId]
         );
 
@@ -3953,7 +4071,7 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
 // ==============================================================
 
 
- // ── GET /api/admin/notifications ───────────────────────────────
+// ── GET /api/admin/notifications ───────────────────────────────
 app.get('/api/admin/notifications', async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -3970,7 +4088,7 @@ app.get('/api/admin/notifications', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled'
+                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected'
             )
             AND n.user_id IS NULL
             ORDER BY n.date DESC
@@ -3981,6 +4099,7 @@ app.get('/api/admin/notifications', async (req, res) => {
         res.status(500).json({ error: 'Failed to load notifications.' });
     }
 });
+
 
 
 
@@ -4080,6 +4199,312 @@ app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
     }
 });
 
+
+
+
+// ────────────────────────────── NEWWWW ──────────────────────────────
+
+// ==============================================================
+// ──────────────── DONOR REQUEST MONEY (Fund Distribution) ─────
+// ==============================================================
+
+// ─── Donor: create a money request ──────────────────────────────
+app.post("/api/donor/request-money", async (req, res) => {
+    const { amount, reason, userId } = req.body;
+    if (!amount || amount <= 0 || !reason?.trim() || !userId) {
+        return res.status(400).json({ error: "Amount, reason and user ID are required." });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [donorRows] = await conn.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
+        if (donorRows.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Donor profile not found." });
+        }
+        const donorId = donorRows[0].donor_id;
+
+        // Generate reference number: MR-20260423-00001
+        const today = new Date();
+        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const [[{ lastId }]] = await conn.query("SELECT COALESCE(MAX(request_id),0) AS lastId FROM money_request");
+        const refNumber = `MR-${datePart}-${String(Number(lastId)+1).padStart(5,'0')}`;
+
+        await conn.query(
+            `INSERT INTO money_request (amount, reason, status, request_date, reference_number, donor_id)
+             VALUES (?, ?, 'pending', NOW(), ?, ?)`,
+            [amount, reason.trim(), refNumber, donorId]
+        );
+
+        // Fetch donor's name from User table
+        const [[donorUser]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [userId]
+        );
+        const donorName = donorUser ? donorUser.name : 'Unknown Donor';
+        // Notify admin
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'New Money Request',
+                `Donor "${donorName}" requested $${amount} for: ${reason.substring(0,100)}`,
+                'money_request'
+            ]
+        );
+
+
+
+        await conn.commit();
+        res.status(201).json({ message: "Request submitted.", referenceNumber: refNumber });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: "Failed to submit request." });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ─── Donor: get completed distributions (no pending) ────────────
+app.get("/api/donor/fund-distributions/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[donorRow]] = await pool.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
+        if (!donorRow) return res.status(404).json({ error: "Donor not found." });
+        const donorId = donorRow.donor_id;
+
+        const [distributions] = await pool.query(`
+            SELECT 
+                fd.distribution_id,
+                fd.amount,
+                fd.distribution_date,
+                fd.payment_method,
+                fd.status,
+                fd.purpose,
+                fd.reference_number,
+                fd.reviewed_at,
+                'System Admin' AS donor_name
+            FROM Fund_Distribution fd
+            WHERE fd.donor_id = ? AND fd.status = 'completed'
+            ORDER BY fd.distribution_date DESC
+        `, [donorId]);
+
+        res.json(distributions);
+    } catch (error) {
+        console.error('GET /api/donor/fund-distributions error:', error);
+        res.status(500).json({ error: 'Failed to fetch distributions.' });
+    }
+});
+
+
+// ─── Donor: get pending requests (optional, for their own history) ──
+app.get("/api/donor/money-requests/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[donor]] = await pool.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
+        if (!donor) return res.status(404).json({ error: "Donor not found." });
+
+        const [rows] = await pool.query(`
+            SELECT request_id, amount, reason, status, request_date, reference_number, rejection_reason, reviewed_at
+            FROM money_request
+            WHERE donor_id = ?
+            ORDER BY request_date DESC
+        `, [donor.donor_id]);
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch requests." });
+    }
+});
+
+
+// ==============================================================
+// ──────────────── ADMIN: MANAGE MONEY REQUESTS ────────────────
+// ==============================================================
+
+// ─── Admin: get all pending money requests ───────────────────
+app.get("/api/admin/money-requests", async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT mr.request_id, mr.amount, mr.reason, mr.status, mr.request_date,
+                mr.reference_number, mr.rejection_reason, mr.reviewed_at,
+                u.name AS donor_name, d.donor_id, u.user_id AS donor_user_id
+            FROM money_request mr
+            JOIN Donor d ON mr.donor_id = d.donor_id
+            JOIN User u ON d.user_id = u.user_id
+            WHERE mr.status = 'pending'
+            ORDER BY mr.request_date ASC
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error('GET /api/admin/money-requests error:', err);
+        res.status(500).json({ error: 'Failed to load requests.' });
+    }
+});
+
+// ─── Admin: approve a request → auto-create completed distribution ──
+app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
+    const { id } = req.params;
+    const { adminId, paymentMethod } = req.body; // adminId from frontend, paymentMethod optional
+
+    if (!paymentMethod) return res.status(400).json({ error: "Payment method is required." });
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(`
+            SELECT mr.amount, mr.reason, mr.donor_id, d.user_id AS donor_user_id,
+                mr.reference_number AS request_ref
+            FROM money_request mr
+            JOIN Donor d ON mr.donor_id = d.donor_id
+            WHERE mr.request_id = ? AND mr.status = 'pending'
+        `, [id]);
+
+        // Fetch donor name for better notification message
+        const [[donorInfo]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [request.donor_user_id]  // request.donor_user_id is the user_id of the donor
+        );
+        const donorName = donorInfo ? donorInfo.name : `Donor ID ${request.donor_id}`;
+
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Request not found or already processed." });
+        }
+
+        // 1. Update request status to 'approved'
+        await conn.query(
+            `UPDATE money_request SET status = 'approved', reviewed_at = NOW() WHERE request_id = ?`,
+            [id]
+        );
+
+        // 2. Create completed distribution (no donor approval)
+        const today = new Date();
+        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const [[{ lastDistId }]] = await conn.query("SELECT COALESCE(MAX(distribution_id),0) AS lastDistId FROM Fund_Distribution");
+        const distRef = `FD-${datePart}-${String(Number(lastDistId)+1).padStart(5,'0')}`;
+
+        let resolvedAdminId = null;
+        if (adminId) {
+            const [[adminRow]] = await conn.query("SELECT admin_id FROM Admin WHERE admin_id = ?", [adminId]);
+            if (adminRow) resolvedAdminId = adminRow.admin_id;
+        }
+        if (!resolvedAdminId) {
+            const [[fallback]] = await conn.query("SELECT admin_id FROM Admin LIMIT 1");
+            resolvedAdminId = fallback?.admin_id;
+        }
+
+        await conn.query(`
+            INSERT INTO Fund_Distribution
+            (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id, reference_number)
+            VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?, ?)
+        `, [request.amount, paymentMethod, `Approved request: ${request.reason}`, resolvedAdminId, request.donor_id, distRef]);
+
+        // 3. Notify donor
+        await conn.query(`
+            INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())
+        `, [
+            'Money Request Approved ✅',
+            `Your request for $${request.amount} (${request.reason}) has been approved. Funds have been sent. Reference: ${distRef}`,
+            'fund_distribution',
+            request.donor_user_id
+        ]);
+
+       // Notify the admin that they approved the request
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL , NOW())`,
+            [
+                'Money Request Approved',
+                `You approved $${request.amount} request from ${donorName}. Ref: ${distRef}`,
+                'money_request_approved'
+            ]
+        );
+
+
+        await conn.commit();
+        res.json({ message: "Request approved, funds distributed.", distributionRef: distRef });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: "Failed to approve request." });
+    } finally {
+        conn.release();
+    }
+});
+
+// ─── Admin: reject a request ────────────────────────────────────
+app.put("/api/admin/money-requests/:id/reject", async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    if (!reason?.trim()) return res.status(400).json({ error: "Rejection reason required." });
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(`
+            SELECT mr.donor_id, d.user_id AS donor_user_id
+            FROM money_request mr
+            JOIN Donor d ON mr.donor_id = d.donor_id
+            WHERE mr.request_id = ? AND mr.status = 'pending'
+        `, [id]);
+
+        const [[donorInfo]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [request.donor_user_id]
+        );
+        const donorName = donorInfo ? donorInfo.name : `Donor ID ${request.donor_id}`;
+
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: "Request not found or already processed." });
+        }
+
+        await conn.query(`
+            UPDATE money_request
+            SET status = 'rejected', rejection_reason = ?, reviewed_at = NOW()
+            WHERE request_id = ?
+        `, [reason.trim(), id]);
+
+        await conn.query(`
+            INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, ?, NOW())
+        `, [
+            'Money Request Rejected ❌',
+            `Your request was rejected. Reason: ${reason}`,
+            'money_request',
+            request.donor_user_id
+        ]);
+
+
+       // Notify the admin that they rejected the request
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Money Request Rejected',
+                `You rejected $${request.amount} request from ${donorName}.`,
+                'money_request_rejected'
+            ]
+        );
+
+        await conn.commit();
+        res.json({ message: "Request rejected." });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: "Failed to reject request." });
+    } finally {
+        conn.release();
+    }
+});
 
 
 

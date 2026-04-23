@@ -110,6 +110,7 @@ const AdminProfile = () => {
                 ...storedUser,
                 profile_picture: data.profile_picture,
             }));
+            window.dispatchEvent(new Event('notification-read'));
             showToast('Profile picture updated successfully!');
         } catch {
             showToast('Server error. Please try again.', 'error');
@@ -133,6 +134,7 @@ const AdminProfile = () => {
                 ...storedUser,
                 profile_picture: null,
             }));
+            window.dispatchEvent(new Event('notification-read'));
             showToast('Profile picture removed.');
         } catch {
             showToast('Server error. Please try again.', 'error');
@@ -159,6 +161,7 @@ const AdminProfile = () => {
             });
             const data = await res.json();
             if (!res.ok) { showToast(data.error || 'Password change failed.', 'error'); return; }
+            window.dispatchEvent(new Event('notification-read'));
             showToast('Password changed successfully!');
             setShowPwdModal(false);
             setPwdForm({ current: '', newPwd: '', confirm: '' });

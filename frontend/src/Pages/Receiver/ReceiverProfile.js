@@ -72,7 +72,9 @@ const ReceiverProfile = () => {
 
     // Load user from localStorage once
     useEffect(() => {
+        // -- get user from local storage ---
         const storedUser = localStorage.getItem('feedhope_user');
+        // -- if not logged-in redirect to login page ---
         if (!storedUser) { navigate('/signin'); return; }
         const parsed = JSON.parse(storedUser);
         setUser(parsed);
@@ -81,10 +83,10 @@ const ReceiverProfile = () => {
 
     // Fetch profile when user becomes available
     useEffect(() => {
-        if (!user) return;
+        if (!user) return;  // --- wait untill user exist ---
         const fetchProfile = async () => {
             try {
-                setLoading(true);
+                setLoading(true); // loading message
                 const res  = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`);
                 const data = await res.json();
                 if (!res.ok) { setError(data.error || 'Failed to load profile.'); return; }
@@ -115,7 +117,7 @@ const ReceiverProfile = () => {
     // Upload picture
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) return; // If user opens file picker and cancels, stop.
         const formData = new FormData();
         formData.append('profilePicture', file);
         setUploading(true);
@@ -133,8 +135,8 @@ const ReceiverProfile = () => {
             console.error(err);
             alert('Failed to upload picture.');
         } finally {
-            setUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            setUploading(false); // Stop loading state.
+            if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input value
         }
     };
 
@@ -163,6 +165,7 @@ const ReceiverProfile = () => {
     const handleCloseEdit = () => { setShowEditModal(false); setEditError(''); setEditSuccess(''); };
     const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+    // --- Save Edited Profile ---
     const handleEditSubmit = async () => {
         setEditError(''); setEditSuccess(''); setEditSaving(true);
         const updatedUser = { ...user, name: editForm.name };
@@ -173,10 +176,11 @@ const ReceiverProfile = () => {
             const res  = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`, {
                 method:  'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(editForm)
+                body:    JSON.stringify(editForm) // --- Convert object to JSON ---
             });
             const data = await res.json();
             if (!res.ok) { setEditError(data.error || 'Failed to save changes.'); return; }
+            // Update frontend profile
             setProfile(prev => ({
                 ...prev,
                 name:         editForm.name,
@@ -189,7 +193,7 @@ const ReceiverProfile = () => {
             const updatedUser2 = { ...user, name: editForm.name };
             localStorage.setItem('feedhope_user', JSON.stringify(updatedUser2));
             setUser(updatedUser2);
-            setTimeout(() => handleCloseEdit(), 1200);
+            setTimeout(() => handleCloseEdit(), 1200); // Closes after 1.2 sec
         } catch {
             setEditError('Network error. Please try again.');
         } finally {
@@ -199,9 +203,9 @@ const ReceiverProfile = () => {
 
     // Password handlers
     const handleOpenPw = () => {
-        setPwError(''); setPwSuccess('');
-        setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setShowPwModal(true);
+        setPwError(''); setPwSuccess(''); // clear old errors
+        setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); // reset form 
+        setShowPwModal(true); // show modal
     };
 
     const handleClosePw = () => {
@@ -245,7 +249,7 @@ const ReceiverProfile = () => {
 
     if (loading) return <div className="rdb-loading-screen"><div className="rdb-spinner" /><p>Loading your profile…</p></div>;
     if (error)   return <div className="rdb-error-screen"><p className="rdb-error-msg">{error}</p></div>;
-    if (!profile) return null;
+    if (!profile) return null; // If profile data doesn’t exist → render NOTHING
 
     const orgName = profile.organization_name || profile.name || '—';
     const orgType = profile.org_type || profile.business_type || '—';

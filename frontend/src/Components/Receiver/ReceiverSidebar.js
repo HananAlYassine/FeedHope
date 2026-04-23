@@ -17,6 +17,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import LogoutIcon from '@mui/icons-material/Logout';
 
+// --- sidebar menu configuration ---
 const NAV_ITEMS = [
     { section: 'OVERVIEW', key: 'dashboard', label: 'Dashboard', Icon: DashboardIcon, path: '/receiver-dashboard' },
     { section: 'OVERVIEW', key: 'profile', label: 'My Profile', Icon: PersonIcon, path: '/receiver-profile' },
@@ -26,20 +27,23 @@ const NAV_ITEMS = [
     { section: 'ACTIVITY', key: 'notifications', label: 'Notifications', Icon: NotificationsIcon, path: '/receiver-notifications', hasBadge: true },
 ];
 
-const ReceiverSidebar = ({ activePage }) => {  // removed unreadCount from props
-    const navigate = useNavigate();
-    const storedUser = localStorage.getItem('feedhope_user');
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    const userId = user?.user_id;
+const ReceiverSidebar = ({ activePage }) => { 
 
-    const [unreadCount, setUnreadCount] = useState(0);
+    const navigate = useNavigate();
+
+    // --- Get Logged-in User ---
+    const storedUser = localStorage.getItem('feedhope_user'); // Get user data from browser storage
+    const user = storedUser ? JSON.parse(storedUser) : null; // Convert it from string → JSON
+    const userId = user?.user_id;  // Extract user_id
+
+    const [unreadCount, setUnreadCount] = useState(0); // Starts at 0
 
     // Fetch unread count from backend
     const fetchUnreadCount = async () => {
-        if (!userId) return;
+        if (!userId) return; // Checks if user exists
         try {
             const response = await axios.get(`http://localhost:5000/api/receiver/notifications/unread-count/${userId}`);
-            setUnreadCount(response.data.count);
+            setUnreadCount(response.data.count); // Updates state
         } catch (err) {
             console.error("Failed to fetch unread count:", err);
         }
@@ -66,8 +70,8 @@ const ReceiverSidebar = ({ activePage }) => {  // removed unreadCount from props
         } catch (err) {
             console.error("Logout syslog failed:", err);
         } finally {
-            localStorage.removeItem('feedhope_user');
-            navigate('/signin');
+            localStorage.removeItem('feedhope_user');  // Clear user locally
+            navigate('/signin'); //Redirect to login page
         }
     };
 
