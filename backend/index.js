@@ -3874,7 +3874,7 @@ app.put('/api/admin/change-password/:userId', async (req, res) => {
             'INSERT INTO notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)',
             [
                 'Password Changed',
-                'Your account password has been changed successfully. If you did not make this change, please contact support immediately.',
+                'Your account password has been changed successfully.',
                 'profile_update',
                 userId
             ]
@@ -3953,7 +3953,7 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
 // ==============================================================
 
 
-// ── GET /api/admin/notifications ───────────────────────────────
+ // ── GET /api/admin/notifications ───────────────────────────────
 app.get('/api/admin/notifications', async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -3981,7 +3981,6 @@ app.get('/api/admin/notifications', async (req, res) => {
         res.status(500).json({ error: 'Failed to load notifications.' });
     }
 });
-
 
 
 

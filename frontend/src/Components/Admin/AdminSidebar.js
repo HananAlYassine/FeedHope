@@ -78,6 +78,7 @@ const AdminSidebar = ({ onLogout, activePage }) => {
     };
 
     useEffect(() => {
+        // 1. Function to fetch the count from your existing backend route
         fetchUnreadCount();
         const handleRead = () => fetchUnreadCount();
         window.addEventListener('notification-read', handleRead);
