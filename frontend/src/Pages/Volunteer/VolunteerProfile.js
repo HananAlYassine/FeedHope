@@ -258,10 +258,27 @@ const VolunteerProfile = () => {
                     </div>
                     <div className="vdb-banner-icon vdb-banner-avatar">
                         {profilePicture ? <img src={profilePicture} alt="profile" /> : getInitial(displayName)}
+                        <button
+                            className="vcp-avatar-camera"
+                            onClick={() => fileInputRef.current.click()}
+                            disabled={uploading}
+                            aria-label="Change profile picture"
+                            title="Change profile picture"
+                        >
+                            <CameraAltIcon style={{ fontSize: 14 }} />
+                        </button>
+                        <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                     </div>
                     <div className="vcp-banner-actions">
                         <button className="vdb-banner-btn" onClick={handleOpenEdit}>
                             <EditIcon style={{ fontSize: 15, marginRight: 6 }} /> Edit Profile
+                        </button>
+                        <button
+                            className={`vdb-banner-btn vdb-banner-btn--danger ${!profilePicture ? 'is-inactive' : ''}`}
+                            onClick={handleDeletePicture}
+                            disabled={uploading || !profilePicture}
+                        >
+                            <DeleteIcon style={{ fontSize: 15, marginRight: 6 }} /> Delete Photo
                         </button>
                         <button className="vdb-banner-btn vdb-banner-btn--outline" onClick={handleOpenPw}>
                             <LockIcon style={{ fontSize: 15, marginRight: 6 }} /> Change Password
@@ -355,16 +372,6 @@ const VolunteerProfile = () => {
                                 </div>
                                 <p className="vcp-account-org">{displayName}</p>
                                 <span className="vdb-status-badge vdb-status-badge--accepted vcp-role-badge">Volunteer</span>
-                                <div className="vcp-picture-actions">
-                                    <button className="vcp-picture-btn vcp-change-btn" onClick={() => fileInputRef.current.click()} disabled={uploading}>
-                                        <CameraAltIcon style={{ fontSize: 16, marginRight: 6 }} />
-                                        {uploading ? 'Uploading...' : 'Change Profile Picture'}
-                                    </button>
-                                    <button className="vcp-picture-btn vcp-delete-btn" onClick={handleDeletePicture} disabled={uploading || !profilePicture}>
-                                        <DeleteIcon style={{ fontSize: 16, marginRight: 6 }} /> Delete Profile Picture
-                                    </button>
-                                </div>
-                                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
                             </div>
                         </section>
                     </div>

@@ -1,5 +1,5 @@
 // =============================================
-//  FeedHope — Omar & Hanan 
+//  FeedHope — Omar & Hanan
 //  Receiving History (completed deliveries)
 // =============================================
 
@@ -20,6 +20,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 
+// ---- Helper Function -----
+// Converts a date string into a readable format
 const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString();
@@ -32,14 +34,14 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
     const [hoverDonor, setHoverDonor] = useState(0);
     const [hoverVolunteer, setHoverVolunteer] = useState(0);
 
-    if (!isOpen) return null;
+    if (!isOpen) return null; // If modal is closed -> render nothing
 
     const handleSubmit = () => {
         onSubmit(donorRating, volunteerRating, comment);
-        setDonorRating(5);
-        setVolunteerRating(5);
-        setComment('');
-        onClose();
+        setDonorRating(5); // Resets form
+        setVolunteerRating(5); // Resets form
+        setComment(''); // Resets form
+        onClose(); // Closes modal
     };
 
     return (
@@ -53,7 +55,7 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                 </div>
                 <div className="ram-modal-body">
                     <p className="rate-intro">
-                        Your delivery of <strong>“{offerTitle}”</strong> has been completed.<br />
+                        Your delivery of <strong>"{offerTitle}"</strong> has been completed.<br />
                         Please rate the donor and the volunteer.
                     </p>
                     <div className="rate-section">
@@ -61,9 +63,9 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                         <div className="ram-stars">
                             {[1,2,3,4,5].map(star => (
                                 <span key={star} className="ram-star"
-                                      onClick={() => setDonorRating(star)}
-                                      onMouseEnter={() => setHoverDonor(star)}
-                                      onMouseLeave={() => setHoverDonor(0)}>
+                                    onClick={() => setDonorRating(star)}
+                                    onMouseEnter={() => setHoverDonor(star)}
+                                    onMouseLeave={() => setHoverDonor(0)}>
                                     {star <= (hoverDonor || donorRating) ?
                                         <StarIcon sx={{ color: '#f5b042' }} /> :
                                         <StarBorderIcon sx={{ color: '#ccc' }} />}
@@ -72,7 +74,7 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                         </div>
                     </div>
                     <div className="rate-section">
-                        <label>Rate Volunteer: <strong>{volunteerName || 'the volunteer'}</strong></label>
+                        <label>Rate Volunteer: <strong>{volunteerName || 'The volunteer'}</strong></label>
                         <div className="ram-stars">
                             {[1,2,3,4,5].map(star => (
                                 <span key={star} className="ram-star"
@@ -165,9 +167,10 @@ const ReceiverHistory = () => {
         setIsModalOpen(true);
     };
 
+    // Sending Data to Backend
     const submitFeedback = async (donorRating, volunteerRating, comment) => {
-        if (!feedbackOffer) return;
-        setActionLoading(feedbackOffer.offer_id);
+        if (!feedbackOffer) return; // If nothing selected -> stop
+        setActionLoading(feedbackOffer.offer_id); // Marks THIS specific item as loading
         try {
             const res = await fetch('http://localhost:5000/api/receiver/feedback-offer', {
                 method: 'POST',
@@ -197,6 +200,7 @@ const ReceiverHistory = () => {
         navigate('/signin');
     };
 
+    // Get current date
     const today = new Date();
     const formattedDate = today.toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric'

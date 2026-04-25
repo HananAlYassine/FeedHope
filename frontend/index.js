@@ -57,8 +57,10 @@ const pool = mysql.createPool({
 }).promise(); // Use promise-based API so we can use async/await
 
 
-// Helper: validate password length rules (3-10 characters)
+// ───── Helper: validate password length rules (3–10 characters) ─────
 const isValidPassword = (pwd) => pwd && pwd.length >= 3 && pwd.length <= 10;
+
+
 
 // ==============================================================
 // ──────────────── REGISTRATIONS ───────────────────────────────
@@ -125,6 +127,8 @@ app.post("/api/register/donor", async (req, res) => {
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Registration', 'Donor account created — email verification pending', uid]
         );
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
 
         // ── ADMIN NOTIFICATION: new registration ──
         await conn.query(
@@ -213,6 +217,8 @@ app.post("/api/register/receiver", async (req, res) => {
             ['Registration', 'Receiver account created — email verification pending', uid]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: new registration ──
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
@@ -280,6 +286,8 @@ app.post("/api/register/volunteer", async (req, res) => {
             ['Registration', 'Volunteer account created — email verification pending', uid]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: new registration ──
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
@@ -303,7 +311,6 @@ app.post("/api/register/volunteer", async (req, res) => {
         conn.release();
     }
 });
-
 
 
 // ==============================================================
@@ -417,15 +424,15 @@ app.post("/api/signin", async (req, res) => {
             ['Login', `User logged in successfully as ${role || 'User'}`, user.user_id]
         );
 
-        // 7. Return the user object — same shape as before, plus admin_id if applicable
+        //8. Return the user object — same shape as before, plus admin_id if applicable
         res.status(200).json({
             message: "Sign in successful!",
             user: {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
+                user_id:  user.user_id,
+                name:     user.name,
+                email:    user.email,
                 phone_number: user.phone_number,
-                role: role,
+                role:     role,
                 ...(isAdmin && { admin_id: adminRow.admin_id }) // only included for admins
             }
         });
@@ -438,8 +445,9 @@ app.post("/api/signin", async (req, res) => {
 });
 
 
+
 // ==============================================================
-// ──────────────── LOGOUT ──────────────────────────────────────
+// ──────────────── LOGOUT ─────────────────────────────────────
 // ==============================================================
 app.post("/api/logout", async (req, res) => {
     const { userId, role } = req.body;
@@ -566,9 +574,11 @@ app.post('/api/contact-us', async (req, res) => {
             [full_name.trim(), email.trim(), message.trim(), user_id]
         );
 
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: new contact message ──
         const msgPreview = message.length > 100 ? message.substring(0, 100) + '...' : message;
-
+        
         await pool.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
@@ -587,7 +597,8 @@ app.post('/api/contact-us', async (req, res) => {
 });
 
 
-// ────────────────────────────── RECEIVER ──────────────────────────────────
+
+// ────────────────────────────── RECEIVER ────────────────────────────────────
 
 
 // ==============================================================
@@ -723,10 +734,10 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
         res.status(200).json({
             receiver,            // Full profile info
             stats: {
-                availableOffers: Number(availableCount),   // Platform-wide available count
-                myAccepted: Number(acceptedCount),    // This receiver's accepted count
+                availableOffers:    Number(availableCount),   // Platform-wide available count
+                myAccepted:         Number(acceptedCount),    // This receiver's accepted count
                 incomingDeliveries: Number(incomingCount),    // Active deliveries incoming
-                mealsReceived: Number(mealsReceived)     // Total meals received historically
+                mealsReceived:      Number(mealsReceived)     // Total meals received historically
             },
             offers,              // Latest available food offers
             notifications,       // Latest notifications for this user
@@ -738,30 +749,14 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
         res.status(500).json({ error: "Failed to load dashboard data." });
     }
 });
+
 // ──── 10. Accept a Food Offer ────
 // Called when the receiver clicks "Accept Offer" on the dashboard.
 // Assigns the offer to this receiver and changes its status to 'accepted'.
-
-
-// Helper: calculate max offers a receiver may accept based on total available offers
-const getMaxAcceptablePerReceiver = (totalAvailableCount) => {
-    // If only one offer exists, we can't prevent someone from taking it.
-    if (totalAvailableCount <= 1) return 1;
-
-    // Allow up to 3, but never more than 40% of the available offers (rounded down)
-    let limit = Math.min(3, Math.floor(totalAvailableCount * 0.4));
-
-    // Ensure the limit is at least 1 and that a receiver can NEVER take ALL available offers
-    if (limit >= totalAvailableCount) limit = totalAvailableCount - 1;
-    if (limit < 1) limit = 1;
-
-    return limit;
-};
-
-// ──── Accept a Food Offer (updated with fairness limit) ────
 app.post("/api/receiver/accept-offer", async (req, res) => {
-    const { offerId, userId } = req.body;
+    const { offerId, userId } = req.body;  // ← rename receiverId → userId
 
+    // Validate input
     if (!offerId || !userId) {
         return res.status(400).json({ error: "Offer ID and User ID are required." });
     }
@@ -771,6 +766,7 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
         await conn.beginTransaction();
 
         // 1 - Get the actual receiver_id from the Receiver table using the user_id
+
         const [[receiver]] = await conn.query(
             "SELECT receiver_id, organization_name FROM Receiver WHERE user_id = ?",
             [userId]
@@ -792,29 +788,7 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
             return res.status(400).json({ error: "Offer is no longer available." });
         }
 
-        // --- FAIRNESS CHECK: prevent a receiver from taking too many offers ---
-        // Count total available offers (system-wide)
-        const [[{ totalAvailable }]] = await conn.query(
-            "SELECT COUNT(*) AS totalAvailable FROM Food_offer WHERE status = 'available'"
-        );
-
-        // Count how many offers this receiver has already accepted
-        const [[{ currentAccepted }]] = await conn.query(
-            "SELECT COUNT(*) AS currentAccepted FROM Food_offer WHERE receiver_id = ? AND status = 'accepted'",
-            [receiverId]
-        );
-
-        // Compute the dynamic acceptance limit
-        const limit = getMaxAcceptablePerReceiver(totalAvailable);
-        if (currentAccepted >= limit) {
-            await conn.rollback();
-            return res.status(400).json({
-                error: `Fairness limit reached. You may accept up to ${limit} offer${limit !== 1 ? 's' : ''} while only ${totalAvailable} offer${totalAvailable !== 1 ? 's are' : ' is'} available. Please wait for others to be delivered or cancelled.`
-            });
-        }
-        // --- end of fairness check ---
-
-        // 3 - Update the offer with the receiver_id
+        // 3 - Update the offer with the correct receiver_id
         await conn.query(
             "UPDATE Food_offer SET receiver_id = ?, status = 'accepted' WHERE offer_id = ?",
             [receiverId, offerId]
@@ -827,7 +801,10 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
             [`You have successfully accepted the offer: "${offer.food_name}"`, userId]
         );
 
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: offer accepted ──
+        // Get donor name for better context
         const [[donorInfo]] = await conn.query(`
             SELECT u.name AS donor_name
             FROM Donor d
@@ -836,6 +813,7 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
         `, [offer.donor_id]);
 
         const donorName = donorInfo ? donorInfo.donor_name : 'Unknown donor';
+
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
@@ -858,9 +836,8 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
     }
 });
 
-
 // ==============================================================
-// ──────────────── RECEIVER Profile API ────────────────────────
+// ──────────────── RECEIVER Profile API ──────────────────────
 // ==============================================================
 
 app.get("/api/receiver/profile/:userId", async (req, res) => {
@@ -874,7 +851,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
                 u.name,
                 u.email,
                 u.phone_number,
-                u.created_at AS joined_date,
+                u.created_at AS joined_date,   
                 u.status,
                 u.profile_picture,
                 r.receiver_id,
@@ -909,7 +886,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             WHERE receiver_id = ? AND status IN ('accepted', 'completed')
         `, [profile.receiver_id]);
 
-        // ── Step 3: Deliveries Received ──
+         // ── Step 3: Deliveries Received ──
         // Count completed deliveries that correspond to this receiver's accepted offers.
         const [[{ deliveriesReceived }]] = await pool.query(`
             SELECT COUNT(*) AS deliveriesReceived
@@ -919,8 +896,8 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             AND d.delivery_status = 'completed'
         `, [profile.receiver_id]);
 
-
-        // ── Step 4: People Served ──
+        
+       // ── Step 4: People Served ──
         // Sum number_of_person across all completed offers for this receiver.
         // This represents the total meals/people that benefited from donations.
         const [[{ peopleServed }]] = await pool.query(`
@@ -934,8 +911,8 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
         res.status(200).json({
             profile,
             stats: {
-                totalReceived: Number(totalReceived),
-                peopleServed: Number(peopleServed),
+                totalReceived:      Number(totalReceived),
+                peopleServed:       Number(peopleServed),
                 deliveriesReceived: Number(deliveriesReceived)
             }
         });
@@ -947,7 +924,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
 });
 
 // ==============================================================
-// ──── PUT /api/receiver/profile/:userId (Edit Profile) ────────
+// ──── PUT /api/receiver/profile/:userIdb (Edit Profile) ───────
 //
 //  Updates: User.name, User.email, User.phone_number
 //           Address.street  (first address linked to this user)
@@ -1390,6 +1367,8 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
             [userId]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: offer cancelled ──
         // Get donor name for better context
         const [[donorInfo]] = await conn.query(`
@@ -1400,7 +1379,7 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
 
         const donorName = donorInfo ? donorInfo.donor_name : 'Unknown donor';
 
-        // Notify the admin
+        // Notify the admin 
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
@@ -1422,6 +1401,7 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
         conn.release();
     }
 });
+
 
 
 // ──── 14. Give feedback on an accepted offer ────
@@ -1450,7 +1430,7 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
         }
 
         const [[delivery]] = await conn.query(
-            `SELECT delivery_id, volunteer_id FROM Delivery
+            `SELECT delivery_id, volunteer_id FROM Delivery 
              WHERE offer_id = ? AND delivery_status = 'completed' LIMIT 1`,
             [offerId]
         );
@@ -1463,7 +1443,7 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
 
         // 2. Insert donor rating (volunteer_id = NULL)
         await conn.query(
-            `INSERT INTO Feedback_and_rating
+            `INSERT INTO Feedback_and_rating 
              (rating, comment, feedback_date, given_by, donor_id, volunteer_id, receiver_id, delivery_id)
              VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
             [donorRating, comment || null, today, userId, offer.donor_id, offer.receiver_id, delivery.delivery_id]
@@ -1471,26 +1451,21 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
 
         // 3. Insert volunteer rating (donor_id = NULL)
         await conn.query(
-            `INSERT INTO Feedback_and_rating
+            `INSERT INTO Feedback_and_rating 
              (rating, comment, feedback_date, given_by, donor_id, volunteer_id, receiver_id, delivery_id)
              VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
             [volunteerRating, comment || null, today, userId, delivery.volunteer_id, offer.receiver_id, delivery.delivery_id]
         );
 
-        // ── ADMIN NOTIFICATION: feedback submitted ──
-        // Fetch receiver name for the notification
-        const [[receiverUser]] = await conn.query(
-            `SELECT u.name FROM User u WHERE u.user_id = ?`,
-            [userId]
-        );
-        const receiverName = receiverUser ? receiverUser.name : 'A receiver';
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
 
+         // ── ADMIN NOTIFICATION: feedback submitted ──
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
             [
                 'Feedback Submitted',
-                `Receiver "${receiverName}" rated donor ${donorRating}/5 and volunteer ${volunteerRating}/5 for offer #${offerId}. Comment: "${comment || 'No comment'}"`,
+                `Receiver "${receiverUser.name}" rated donor ${donorRating}/5 and volunteer ${volunteerRating}/5 for offer #${offerId}. Comment: "${comment || 'No comment'}"`,
                 'feedback_submitted'
             ]
         );
@@ -1608,7 +1583,7 @@ app.get("/api/receiver/notifications/:userId", async (req, res) => {
     }
 });
 
-// ──── 17. Mark all notifications as read for a receiver ──────────────
+// ──── 17. Mark all notifications as read for a receiver ───────────────
 // Sets read_at = NOW() for all unread notifications of this user.
 // This is a new convenience endpoint to avoid multiple PATCH requests.
 app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) => {
@@ -1634,7 +1609,6 @@ app.post("/api/receiver/notifications/mark-all-read/:userId", async (req, res) =
 
 // ──── 18. Mark a single notification as read ──────────────────
 // Sets read_at = NOW() for the given notification, only if it belongs to the user.
-// Also verifies the user owns this notification via user_id (passed in body).
 app.patch("/api/receiver/notifications/:notificationId/read", async (req, res) => {
     const { notificationId } = req.params;
     const { userId } = req.body;   // We need userId to ensure ownership
@@ -1732,6 +1706,7 @@ app.delete("/api/receiver/notifications/:notificationId", async (req, res) => {
     }
 });
 
+
 // ──── 21. Get unread notification count for a receiver ────
 app.get("/api/receiver/notifications/unread-count/:userId", async (req, res) => {
     const { userId } = req.params;
@@ -1749,9 +1724,7 @@ app.get("/api/receiver/notifications/unread-count/:userId", async (req, res) => 
 
 
 
-
-
-// ────────────────────────────── Donor ──────────────────────────────────
+// ────────────────────────────── Donor ────────────────────────────────────
 
 // ==============================================================
 // ──────────────── DONOR DASHBOARD API ─────────────────────────
@@ -1815,7 +1788,7 @@ app.get("/api/donor/dashboard/:userId", async (req, res) => {
 });
 
 // ==============================================================
-// ──── GET /api/donor/profile/:userId ──────────────────────────
+// ──── GET /api/donor/profile/:userId ─────────────────────────
 //
 //  Returns donor profile + stats: totalDonations, peopleFed, co2Prevented
 // ==============================================================
@@ -1824,7 +1797,7 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
 
     try {
         const [rows] = await pool.query(`
-            SELECT
+            SELECT 
                 u.user_id,
                 u.name,
                 u.email,
@@ -1857,8 +1830,8 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
         );
 
         const [[{ peopleFed }]] = await pool.query(
-            `SELECT COALESCE(SUM(number_of_person), 0) AS peopleFed
-             FROM Food_offer
+            `SELECT COALESCE(SUM(number_of_person), 0) AS peopleFed 
+             FROM Food_offer 
              WHERE donor_id = ? AND status IN ('accepted', 'completed', 'picked_up', 'in_transit')`,
             [profile.donor_id]
         );
@@ -1877,13 +1850,16 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
     }
 });
 // ==============================================================
-// ──── PUT /api/donor/profile/:userId ──────────────────────────
+// ──── PUT /api/donor/profile/:userId ─────────────────────────
 //
 //  Updates: User.name, User.email, User.phone_number
 //           Address.street (first address linked to this donor)
 //           Donor.business_type
 //
 //  Request body: { name, email, phone, street, business_type }
+// ==============================================================
+// ==============================================================
+// ──── PUT /api/donor/profile/:userId ─────────────────────────
 // ==============================================================
 app.put("/api/donor/profile/:userId", async (req, res) => {
     const { userId } = req.params;
@@ -1969,7 +1945,7 @@ app.post("/api/donor/upload-profile-picture/:userId", upload.single("profilePict
             [imageUrl, userId]
         );
 
-        // Add Notification
+        // 🔔 Add Notification
         await pool.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
@@ -2010,7 +1986,7 @@ app.delete("/api/donor/delete-profile-picture/:userId", async (req, res) => {
             [userId]
         );
 
-        // Add Notification
+        // 🔔 Add Notification
         await pool.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
@@ -2030,7 +2006,7 @@ app.delete("/api/donor/delete-profile-picture/:userId", async (req, res) => {
 });
 
 // ==============================================================
-// ──── PUT /api/donor/change-password/:userId ──────────────────
+// ──── PUT /api/donor/change-password/:userId ─────────────────
 //
 //  Verifies current password, hashes and stores new password.
 //  Request body: { currentPassword, newPassword }
@@ -2053,13 +2029,13 @@ app.put("/api/donor/change-password/:userId", async (req, res) => {
         const newHash = await bcrypt.hash(newPassword, 10);
         await pool.query("UPDATE User SET password = ? WHERE user_id = ?", [newHash, userId]);
 
-        // Log to Syslog
+        // 📜 Log to Syslog
         await pool.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
             ['Password Change', 'Donor changed their password', userId]
         );
 
-        // Add Notification
+        // 🔔 Add Notification
         await pool.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
@@ -2078,29 +2054,26 @@ app.put("/api/donor/change-password/:userId", async (req, res) => {
     }
 });
 
-// 1. GET - Fetch donor's offers (with optional status filter)
+
+
+// GET offers for a specific donor with optional status filtering
+// Get all offers for a specific donor with optional status filtering
 app.get('/api/donor/my-offers/:donorId', async (req, res) => {
     const { donorId } = req.params;
     const { status } = req.query;
 
     try {
         let query = `
-            SELECT
-                o.offer_id,
-                o.food_name,
-                c.category_name,
-                o.category_id,
-                o.quantity_by_kg,
-                o.status,
-                o.description,
-                o.dietary_information,
-                o.number_of_person,
-                o.expiration_date_and_time,
-                o.pickup_time,
-                o.created_at
-            FROM food_offer o
-            LEFT JOIN food_category c ON o.category_id = c.category_id
-            WHERE o.donor_id = ?
+            SELECT 
+        o.offer_id, 
+        o.food_name, 
+        c.category_name, 
+        o.quantity_by_kg, 
+        o.status,
+        o.created_at -- This contains Date + Hour/Min/Sec
+    FROM food_offer o
+    LEFT JOIN food_category c ON o.category_id = c.category_id
+    WHERE o.donor_id = ?
         `;
 
         const queryParams = [donorId];
@@ -2110,6 +2083,7 @@ app.get('/api/donor/my-offers/:donorId', async (req, res) => {
             queryParams.push(status);
         }
 
+        // Sorting by created_at DESC ensures the most recent offers show first
         query += " ORDER BY o.created_at DESC";
 
         const [rows] = await pool.query(query, queryParams);
@@ -2120,170 +2094,67 @@ app.get('/api/donor/my-offers/:donorId', async (req, res) => {
     }
 });
 
-// 2. GET - Fetch single offer details for editing
-app.get('/api/donor/offer/:offerId', async (req, res) => {
+// Delete an offer
+app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
     const { offerId } = req.params;
+    const conn = await pool.getConnection();
 
     try {
-        const [rows] = await pool.query(
-            `SELECT
-                o.offer_id,
-                o.food_name,
-                o.description,
-                o.dietary_information,
-                o.quantity_by_kg,
-                o.number_of_person,
-                o.expiration_date_and_time,
-                o.pickup_time,
-                o.status,
-                o.category_id,
-                c.category_name,
-                o.donor_id,
-                o.created_at
-             FROM food_offer o
-             LEFT JOIN food_category c ON o.category_id = c.category_id
-             WHERE o.offer_id = ?`,
+        await conn.beginTransaction();
+
+        // Get details before deletion
+        const [details] = await conn.query(
+            "SELECT o.food_name, d.user_id FROM Food_offer o JOIN Donor d ON o.donor_id = d.donor_id WHERE o.offer_id = ?",
             [offerId]
         );
 
-        if (rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Offer not found'
-            });
+        if (details.length > 0) {
+            const { food_name, user_id } = details[0];
+
+            await conn.query("DELETE FROM Food_offer WHERE offer_id = ?", [offerId]);
+
+            // Notify user of deletion
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+                ['Offer Removed', `The offer "${food_name}" has been deleted.`, 'deletion', user_id]
+            );
         }
 
-        res.json({
-            success: true,
-            offer: rows[0]
-        });
-    } catch (error) {
-        console.error('SQL ERROR:', error.message);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-});
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
 
-// 3. PUT - Update offer information
-app.put('/api/donor/edit-offer/:offerId', async (req, res) => {
-    const { offerId } = req.params;
-    const {
-        food_name,
-        description,
-        dietary_information,
-        quantity_by_kg,
-        number_of_person,
-        expiration_date_and_time,
-        pickup_time,
-        category_id
-    } = req.body;
 
-    // Validate required fields
-    if (!food_name || !category_id) {
-        return res.status(400).json({
-            success: false,
-            message: 'Food name and category are required'
-        });
-    }
-
-    try {
-        // Check if offer exists and belongs to the donor
-        const [checkResult] = await pool.query(
-            'SELECT * FROM food_offer WHERE offer_id = ?',
-            [offerId]
-        );
-
-        if (checkResult.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Offer not found'
-            });
-        }
-
-        // Update the offer
-        const [result] = await pool.query(
-            `UPDATE food_offer
-             SET food_name = ?,
-                 description = ?,
-                 dietary_information = ?,
-                 quantity_by_kg = ?,
-                 number_of_person = ?,
-                 expiration_date_and_time = ?,
-                 pickup_time = ?,
-                 category_id = ?
-             WHERE offer_id = ?`,
+        // ── ADMIN NOTIFICATION: offer deleted/cancelled ──
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
             [
-                food_name,
-                description,
-                dietary_information,
-                quantity_by_kg,
-                number_of_person,
-                expiration_date_and_time,
-                pickup_time,
-                category_id,
-                offerId
+                'Offer Cancelled',
+                `Donor deleted offer "${food_name}" (ID ${offerId}).`,
+                'offer_cancelled'
             ]
         );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Offer not found or no changes made'
-            });
-        }
-
-        // Fetch the updated offer with category name
-        const [updatedRows] = await pool.query(
-            `SELECT
-                o.offer_id,
-                o.food_name,
-                o.description,
-                o.dietary_information,
-                o.quantity_by_kg,
-                o.number_of_person,
-                o.expiration_date_and_time,
-                o.pickup_time,
-                o.status,
-                o.category_id,
-                c.category_name,
-                o.donor_id,
-                o.created_at
-             FROM food_offer o
-             LEFT JOIN food_category c ON o.category_id = c.category_id
-             WHERE o.offer_id = ?`,
-            [offerId]
-        );
-
-        res.json({
-            success: true,
-            message: 'Offer updated successfully',
-            offer: updatedRows[0]
-        });
-
+        await conn.commit();
+        res.json({ message: 'Deleted successfully' });
     } catch (error) {
-        console.error('SQL ERROR:', error.message);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        await conn.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        conn.release();
     }
 });
-
-
 // GET Donor Delivered History
 app.get('/api/donor/history/:donorId', async (req, res) => {
     const { donorId } = req.params;
 
     try {
         const query = `
-            SELECT
+            SELECT 
                 fo.offer_id AS id,
                 fo.food_name AS title,
-                COALESCE(u.name, 'Organization') AS receiver,
+                COALESCE(u.name, 'Organization') AS receiver, 
                 COALESCE(fo.quantity_by_kg, 0) AS quantity,
-                COALESCE(fo.number_of_person, 0) AS people_helped,
+                COALESCE(fo.number_of_person, 0) AS people_helped, 
                 COALESCE(MAX(fb.rating), 0) AS rating,
                 fo.status
             FROM Food_offer fo
@@ -2326,6 +2197,21 @@ const offerStorage = multer.diskStorage({
 const uploadOfferImage = multer({ storage: offerStorage, limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
 
 
+
+// ──── Get all food categories (for dynamic filter dropdown) ────
+app.get("/api/categories", async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            "SELECT category_id, category_name, description FROM Food_category ORDER BY category_name"
+        );
+        res.status(200).json(rows);
+    } catch (err) {
+        console.error("Fetch categories error:", err);
+        res.status(500).json({ error: "Failed to load categories." });
+    }
+});
+
+
 app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async (req, res) => {
     const {
         foodName,
@@ -2350,7 +2236,7 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
     try {
         await conn.beginTransaction();
 
-        // 1. Get donor_id from Donor table using user_id
+        // 1️⃣ Get donor_id from Donor table using user_id
         const [donorRows] = await conn.query(
             "SELECT donor_id FROM Donor WHERE user_id = ?",
             [userId]
@@ -2364,7 +2250,7 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
 
         const donorId = donorRows[0].donor_id;
 
-        // 2. Insert into Food_offer
+        // 2️⃣ Insert into Food_offer
         const [offerResult] = await conn.query(
             `INSERT INTO Food_offer
             (food_name, description, category_id, quantity_by_kg, number_of_person,
@@ -2385,7 +2271,7 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
 
         const newOfferId = offerResult.insertId;
 
-        // 3. Handle optional image upload
+        // 3️⃣ Handle optional image upload
         if (req.file) {
             const imageUrl = `/uploads/offers/${req.file.filename}`;
             await conn.query(
@@ -2395,14 +2281,14 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
             );
         }
 
-        // 4. Log the action in Syslog
+        // 4️⃣ Log the action in Syslog
         await conn.query(
             `INSERT INTO Syslog (action, description, user_id)
             VALUES (?, ?, ?)`,
             ['Create Offer', `Donor created new food offer: ${foodName}`, userId]
         );
 
-        // 5. Insert into Notifications table for the donor
+        // 5️⃣ ADDED: Insert into Notifications table for the donor
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
              VALUES (?, ?, ?, ?, NOW())`,
@@ -2414,7 +2300,10 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
             ]
         );
 
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
         // ── ADMIN NOTIFICATION: new offer created ──
+        // Get donor name for admin message
         const [[donorUser]] = await conn.query(
             "SELECT name FROM User WHERE user_id = ?",
             [userId]
@@ -2443,58 +2332,6 @@ app.post("/api/donor/create-offer", uploadOfferImage.single("imageFile"), async 
     }
 });
 
-// Delete an offer
-app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
-    const { offerId } = req.params;
-    const conn = await pool.getConnection();
-
-    try {
-        await conn.beginTransaction();
-
-        // Get details before deletion
-        const [details] = await conn.query(
-            "SELECT o.food_name, d.user_id FROM Food_offer o JOIN Donor d ON o.donor_id = d.donor_id WHERE o.offer_id = ?",
-            [offerId]
-        );
-
-        // FIX 2: return 404 if offer not found instead of silently doing nothing
-        if (details.length === 0) {
-            await conn.rollback();
-            return res.status(404).json({ error: 'Offer not found.' });
-        }
-
-        // FIX 1: declare food_name and user_id at the outer scope
-        const { food_name, user_id } = details[0];
-
-        await conn.query("DELETE FROM Food_offer WHERE offer_id = ?", [offerId]);
-
-        // Notify the donor
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-            ['Offer Removed', `The offer "${food_name}" has been deleted.`, 'deletion', user_id]
-        );
-
-        // Notify the admin (user_id = NULL so admin panel picks it up)
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Offer Cancelled',
-                `Donor deleted offer "${food_name}" (ID ${offerId}).`,
-                'offer_cancelled'
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Deleted successfully' });
-    } catch (error) {
-        await conn.rollback();
-        res.status(500).json({ error: error.message });
-    } finally {
-        conn.release();
-    }
-});
-
 
 // ==============================================================
 // ──────────────── DONOR MONEY DONATION ────────────────────────
@@ -2502,79 +2339,82 @@ app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
 
 // ──── 11. Process Money Donation (FIXED) ────
 app.post("/api/donor/donate-money", async (req, res) => {
+    // 1. Accept userId instead of donor_id to match your frontend storage
     const { amount, payment_method, userId, description } = req.body;
 
+    // Validate input
     if (!amount || !payment_method || !userId) {
-        return res.status(400).json({ error: "Missing required donation details." });
+        return res.status(400).json({
+            error: "Missing required donation details.",
+            received: { amount, payment_method, userId }
+        });
     }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
-        // Resolve donor_id from user_id
+        // 2. Look up the donor_id using the userId (Just like you do in create-offer)
         const [donorRows] = await conn.query(
-            "SELECT donor_id FROM Donor WHERE user_id = ?", [userId]
+            "SELECT donor_id FROM Donor WHERE user_id = ?",
+            [userId]
         );
+
         if (donorRows.length === 0) {
             await conn.rollback();
             return res.status(404).json({ error: "Donor profile not found for this user." });
         }
+
         const donorId = donorRows[0].donor_id;
 
-        // Generate a unique reference number e.g. FH-20240421-00042
-        const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-        const [[{ lastId }]] = await conn.query("SELECT COALESCE(MAX(donation_id), 0) AS lastId FROM Money_donation");
-        const refNumber = `FH-${datePart}-${String(Number(lastId) + 1).padStart(5, '0')}`;
-
-        // Insert donation with status = pending
+        // 3. Insert the donation record
         const [result] = await conn.query(
-            `INSERT INTO Money_donation (donation_date, payment_method, amount, donor_id, status, reference_number, notes)
-             VALUES (CURDATE(), ?, ?, ?, 'pending', ?, ?)`,
-            [payment_method, amount, donorId, refNumber, description || null]
+            `INSERT INTO Money_donation (donation_date, payment_method, amount, donor_id, description) 
+             VALUES (NOW(), ?, ?, ?, ?)`,
+            [payment_method, amount, donorId, description || null]
         );
 
-        // Syslog
+        // 4. Log the action in Syslog
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
-            ['Donation', `Donor submitted a $${amount} donation via ${payment_method} - ref: ${refNumber}`, userId]
+            ['Donation', `User made a monetary donation of $${amount} via ${payment_method}`, userId]
         );
 
-        // Notify the donor - pending confirmation
+        // 5. Add a Notification for the user
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Donation Submitted',
-                `Your $${amount} donation via ${payment_method} has been submitted and is pending admin approval. Reference: ${refNumber}.`,
-                'money_donation',
-                userId
-            ]
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            ['Donation Received', `Thank you for your $${amount} donation via ${payment_method}!`, 'success', userId]
         );
 
-        // Notify the admin - new donation waiting for review
-        const [[donorUser]] = await conn.query("SELECT name FROM User WHERE user_id = ?", [userId]);
-        const donorName = donorUser?.name || 'A donor';
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
+        // ── ADMIN NOTIFICATION: money donation ──
+        const [[donorUser]] = await conn.query(
+            "SELECT name FROM User WHERE user_id = ?",
+            [userId]
+        );
+        const donorName = donorUser ? donorUser.name : 'A donor';
 
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
             [
-                'New Money Donation - Pending Review',
-                `${donorName} submitted a $${amount} donation via ${payment_method}. Ref: ${refNumber}. Please review and approve or reject it.`,
+                'Money Donation',
+                `${donorName} donated $${amount} via ${payment_method}.`,
                 'money_donation'
             ]
         );
 
         await conn.commit();
         res.status(201).json({
-            message: "Your donation has been submitted and is pending admin approval.",
-            referenceNumber: refNumber,
+            message: "Thank you! Your donation was successful.",
             donationId: result.insertId
         });
     } catch (err) {
         await conn.rollback();
         console.error("[ERROR] Donation API failure:", err.message);
-        res.status(500).json({ error: "Failed to process donation." });
+        res.status(500).json({ error: "Failed to process donation. Database error." });
     } finally {
         conn.release();
     }
@@ -2584,91 +2424,30 @@ app.post("/api/donor/donate-money", async (req, res) => {
 // ──── 12. Get Donor Money Donation History ────
 app.get("/api/donor/money-donations/:userId", async (req, res) => {
     const { userId } = req.params;
+
     try {
         const [rows] = await pool.query(
-            `SELECT
-                md.donation_id,
-                md.amount,
-                md.payment_method   AS method,
-                md.notes            AS note,
-                md.donation_date    AS date,
-                md.status,
-                md.reference_number,
-                md.rejection_reason,
-                md.reviewed_at
-             FROM Money_donation md
-             JOIN Donor d ON md.donor_id = d.donor_id
-             WHERE d.user_id = ?
-             ORDER BY md.donation_date DESC`,
+            `SELECT 
+                md.amount, 
+                md.payment_method AS method, 
+                md.description AS note, 
+                md.donation_date AS date
+                FROM Money_donation md
+                JOIN Donor d ON md.donor_id = d.donor_id
+                WHERE d.user_id = ?
+                ORDER BY md.donation_date DESC`,
             [userId]
         );
+
         res.status(200).json(rows);
     } catch (err) {
         console.error("Fetch donation history error:", err);
-        res.status(500).json({ error: "Failed to fetch donation history." });
+        res.status(500).json({ error: "Failed to load donation history." });
     }
 });
 
-
-
-app.get('/api/donor/deliveries/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        // Query to get deliveries for the donor
-        // Joins Delivery, Food_offer, and Volunteer tables to get all necessary information
-        const query = `
-      SELECT
-        d.delivery_id,
-        d.delivery_status,
-        d.delivery_time,
-        d.pickup_time,
-        d.notes,
-        fo.food_name,
-        fo.description,
-        fo.quantity_by_kg,
-        CONCAT(u.name) AS volunteer_name
-      FROM delivery d
-      INNER JOIN food_offer fo ON d.offer_id = fo.offer_id
-      LEFT JOIN volunteer v ON d.volunteer_id = v.volunteer_id
-      LEFT JOIN user u ON v.user_id = u.user_id
-      WHERE fo.donor_id = (SELECT donor_id FROM donor WHERE user_id = ?)
-      ORDER BY
-        CASE
-          WHEN d.delivery_status = 'in deliver' THEN 1
-          WHEN d.delivery_status = 'accepted by delivery' THEN 2
-          WHEN d.delivery_status = 'delivered' THEN 3
-          ELSE 4
-        END,
-        d.delivery_time DESC
-    `;
-
-        const [deliveries] = await pool.query(query, [userId]);
-
-        // Return the deliveries
-        res.status(200).json(deliveries);
-
-    } catch (error) {
-        console.error('Error fetching deliveries:', error);
-        res.status(500).json({
-            error: 'Failed to fetch deliveries',
-            details: error.message
-        });
-    }
-});
-
-
-
 // ==============================================================
-// ──────────────── DONOR Fund Distribution ─────────────────────
-// ==============================================================
-
-
-
-
-
-// ==============================================================
-// ──────────────── DONOR: NOTIFICATIONS ─────────────────────────
+// ──────────────── DONOR: NOTIFICATIONS ─────────────────
 // ==============================================================
 // 1. Fetch all notifications for the Donor page
 app.get("/api/donor/notifications/all/:userId", async (req, res) => {
@@ -2714,8 +2493,8 @@ app.post("/api/donor/notifications/mark-all-read/:userId", async (req, res) => {
     const { userId } = req.params;
     try {
         const [result] = await pool.query(
-            `UPDATE Notifications
-             SET read_at = NOW()
+            `UPDATE Notifications 
+             SET read_at = NOW() 
              WHERE user_id = ? AND read_at IS NULL`,
             [userId]
         );
@@ -2777,17 +2556,17 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
         // We join the User table to get the name of the receiver who submitted it.
         // Adjust "u.first_name" and "u.last_name" to match your actual User table columns (e.g., u.name or u.organization_name)
         const [feedbackList] = await pool.query(
-            `SELECT
-                f.rating,
-                f.comment,
+            `SELECT 
+                f.rating, 
+                f.comment, 
                 f.feedback_date,
                 f.delivery_id,
-                u.first_name,
+                u.first_name, 
                 u.last_name
-             FROM Feedback_and_rating f
-             LEFT JOIN User u ON f.given_by = u.user_id
-             WHERE f.donor_id = ?
-             ORDER BY f.feedback_date DESC`,
+                FROM Feedback_and_rating f
+                LEFT JOIN User u ON f.given_by = u.user_id
+                WHERE f.donor_id = ?
+                ORDER BY f.feedback_date DESC`,
             [userId]
         );
 
@@ -2804,253 +2583,18 @@ app.get("/api/donor/feedback/:userId", async (req, res) => {
 
 
 
-// ==============================================================
-// ──────────────── VOLUNTEER PROFILE ───────────────────────────
-// ==============================================================
-
-// GET /api/volunteer/profile/:userId
-// Returns volunteer profile data + stats (deliveries completed, rating, member since)
-app.get('/api/volunteer/profile/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        const [[profile]] = await pool.query(`
-            SELECT
-                u.user_id,
-                u.name,
-                u.email,
-                u.phone_number,
-                u.profile_picture,
-                u.created_at AS join_date,
-                v.volunteer_id,
-                v.vehicle_type,
-                v.plate_number
-            FROM User u
-            JOIN Volunteer v ON v.user_id = u.user_id
-            WHERE u.user_id = ?
-            LIMIT 1
-        `, [userId]);
-
-        if (!profile) {
-            return res.status(404).json({ error: 'Volunteer profile not found.' });
-        }
-
-        // Count completed deliveries
-        const [[{ deliveriesCompleted }]] = await pool.query(`
-            SELECT COUNT(*) AS deliveriesCompleted
-            FROM Delivery
-            WHERE volunteer_id = ? AND delivery_status = 'completed'
-        `, [profile.volunteer_id]);
-
-        // Average rating from feedback
-        const [[{ rating }]] = await pool.query(`
-            SELECT COALESCE(ROUND(AVG(rating), 1), 0) AS rating
-            FROM Feedback_and_rating
-            WHERE volunteer_id = ?
-        `, [profile.volunteer_id]);
-
-        res.json({
-            profile,
-            stats: {
-                deliveriesCompleted: Number(deliveriesCompleted),
-                rating: Number(rating)
-            }
-        });
-
-    } catch (err) {
-        console.error('GET /api/volunteer/profile error:', err);
-        res.status(500).json({ error: 'Failed to load volunteer profile.' });
-    }
-});
-
-
-// PUT /api/volunteer/profile/:userId
-// Updates name, email, phone in User table + vehicle_type, plate_number in Volunteer table
-app.put('/api/volunteer/profile/:userId', async (req, res) => {
-    const { userId } = req.params;
-    const { name, email, phone, vehicle_type, plate_number } = req.body;
-
-    if (!name?.trim() || !email?.trim() || !phone?.trim() || !vehicle_type?.trim() || !plate_number?.trim()) {
-        return res.status(400).json({ error: 'All fields are required.' });
-    }
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        await conn.query(
-            'UPDATE User SET name = ?, email = ?, phone_number = ? WHERE user_id = ?',
-            [name.trim(), email.trim(), phone.trim(), userId]
-        );
-
-        await conn.query(
-            'UPDATE Volunteer SET vehicle_type = ?, plate_number = ? WHERE user_id = ?',
-            [vehicle_type.trim(), plate_number.trim(), userId]
-        );
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Profile Updated',
-                'Your volunteer profile information has been successfully updated.',
-                'profile_update',
-                userId
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Profile updated successfully.' });
-
-    } catch (err) {
-        await conn.rollback();
-        console.error('PUT /api/volunteer/profile error:', err);
-        res.status(500).json({ error: 'Failed to update volunteer profile.' });
-    } finally {
-        conn.release();
-    }
-});
-
-
-// POST /api/volunteer/upload-profile-picture/:userId
-// Saves uploaded image to disk and stores URL in User.profile_picture
-app.post('/api/volunteer/upload-profile-picture/:userId', upload.single('profilePicture'), async (req, res) => {
-    const { userId } = req.params;
-
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-
-    const imageUrl = `/uploads/${req.file.filename}`;
-
-    try {
-        await pool.query(
-            'UPDATE User SET profile_picture = ? WHERE user_id = ?',
-            [imageUrl, userId]
-        );
-
-        await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Profile Picture Updated',
-                'Your volunteer profile picture has been successfully changed.',
-                'profile_update',
-                userId
-            ]
-        );
-
-        res.json({ profile_picture: imageUrl });
-
-    } catch (err) {
-        console.error('POST /api/volunteer/upload-profile-picture error:', err);
-        res.status(500).json({ error: 'Failed to save profile picture.' });
-    }
-});
-
-
-// DELETE /api/volunteer/delete-profile-picture/:userId
-// Deletes image file from disk and sets profile_picture = NULL in DB
-app.delete('/api/volunteer/delete-profile-picture/:userId', async (req, res) => {
-    const { userId } = req.params;
-
-    try {
-        const [[user]] = await pool.query(
-            'SELECT profile_picture FROM User WHERE user_id = ?',
-            [userId]
-        );
-
-        if (user && user.profile_picture) {
-            const filePath = path.join(__dirname, user.profile_picture);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        }
-
-        await pool.query(
-            'UPDATE User SET profile_picture = NULL WHERE user_id = ?',
-            [userId]
-        );
-
-        await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Profile Picture Removed',
-                'Your profile picture has been removed from your account.',
-                'profile_update',
-                userId
-            ]
-        );
-
-        res.json({ message: 'Profile picture deleted.' });
-
-    } catch (err) {
-        console.error('DELETE /api/volunteer/delete-profile-picture error:', err);
-        res.status(500).json({ error: 'Failed to delete profile picture.' });
-    }
-});
-
-
-// PUT /api/volunteer/change-password/:userId
-// Verifies current password with bcrypt, then hashes and saves the new one
-app.put('/api/volunteer/change-password/:userId', async (req, res) => {
-    const { userId } = req.params;
-    const { currentPassword, newPassword } = req.body;
-
-    if (!newPassword || newPassword.length < 3 || newPassword.length > 10) {
-        return res.status(400).json({ error: 'New password must be between 3 and 10 characters.' });
-    }
-
-    try {
-        const [[user]] = await pool.query(
-            'SELECT password FROM User WHERE user_id = ?',
-            [userId]
-        );
-
-        if (!user) return res.status(404).json({ error: 'User not found.' });
-
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect.' });
-
-        const newHash = await bcrypt.hash(newPassword, 10);
-        await pool.query('UPDATE User SET password = ? WHERE user_id = ?', [newHash, userId]);
-
-        await pool.query(
-            'INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)',
-            ['Password Change', 'Volunteer changed their password', userId]
-        );
-
-        await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Security Alert: Password Changed',
-                "The password for your FeedHope account was recently updated. If this wasn't you, contact support.",
-                'security',
-                userId
-            ]
-        );
-
-        res.json({ message: 'Password changed successfully.' });
-
-    } catch (err) {
-        console.error('PUT /api/volunteer/change-password error:', err);
-        res.status(500).json({ error: 'Failed to change password.' });
-    }
-});
-
-
-
-
 // ────────────────────── Admin ─────────────────────────
 
 
 // ==============================================================
-// ──────────────── Admin Food Offers Page  ─────────────────────
+// ──────────────── Admin Food Offers Page  ─────────────────
 // ==============================================================
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  GET /api/admin/food-offers
 //  Returns all food offers with donor name + category, plus distinct
 //  statuses and categories for filter dropdowns.
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/food-offers', async (req, res) => {
     try {
         // All offers with donor name, category name, and donor city
@@ -3079,7 +2623,7 @@ app.get('/api/admin/food-offers', async (req, res) => {
             SELECT DISTINCT status FROM Food_offer WHERE status IS NOT NULL ORDER BY status
         `);
 
-        // Distinct categories (for dropdown) - from Food_category table
+        // Distinct categories (for dropdown) – from Food_category table
         const [catRows] = await pool.query(`
             SELECT category_name FROM Food_category ORDER BY category_name
         `);
@@ -3096,10 +2640,10 @@ app.get('/api/admin/food-offers', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  GET /api/admin/volunteers
 //  Returns all active volunteers (for the Assign dropdown).
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/volunteers', async (req, res) => {
     try {
         const [volunteers] = await pool.query(`
@@ -3117,44 +2661,30 @@ app.get('/api/admin/volunteers', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/food-offers/assign-volunteer
 //  Assigns a volunteer to an offer and sets status to 'in_delivery'.
 //  Body: { offerId, volunteerId }
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
     const { offerId, volunteerId } = req.body;
     if (!offerId || !volunteerId) {
         return res.status(400).json({ error: 'offerId and volunteerId are required.' });
     }
-    const conn = await pool.getConnection();
     try {
-        await conn.beginTransaction();
-
-        // Fetch offer details (food name + donor's user_id) for notifications
-        const [[offerDetails]] = await conn.query(`
-            SELECT fo.food_name, d.user_id AS donor_user_id
-            FROM Food_offer fo
-            JOIN Donor d ON d.donor_id = fo.donor_id
-            WHERE fo.offer_id = ?
-        `, [offerId]);
-
-        if (!offerDetails) {
-            await conn.rollback();
-            return res.status(404).json({ error: 'Offer not found.' });
-        }
-
-        // Update the offer status - you may also insert into a Delivery table here
-        const [result] = await conn.query(`
+        // Update the offer status – you may also insert into a Delivery table here
+        const [result] = await pool.query(`
             UPDATE Food_offer
             SET status = 'in_delivery'
             WHERE offer_id = ?
         `, [offerId]);
 
         if (result.affectedRows === 0) {
-            await conn.rollback();
             return res.status(404).json({ error: 'Offer not found.' });
         }
+
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
 
         // ── ADMIN NOTIFICATION: volunteer assigned ──
         await conn.query(
@@ -3167,28 +2697,24 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
             ]
         );
 
-        // Notify donor
+         // Notify donor 
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, ?, NOW())`,
             ['Delivery Assigned', `A volunteer has been assigned to deliver your offer "${offerDetails.food_name}".`, 'delivery_update', offerDetails.donor_user_id]
         );
 
-        await conn.commit();
         res.json({ message: 'Volunteer assigned successfully.' });
     } catch (err) {
-        await conn.rollback();
         console.error('PUT /api/admin/food-offers/assign-volunteer error:', err);
         res.status(500).json({ error: 'Failed to assign volunteer.' });
-    } finally {
-        conn.release();
     }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/food-offers/:offerId/expire
 //  Marks an offer as expired.
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/food-offers/:offerId/expire', async (req, res) => {
     const { offerId } = req.params;
     try {
@@ -3209,10 +2735,10 @@ app.put('/api/admin/food-offers/:offerId/expire', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/food-offers/:offerId/cancel
 //  Cancels an offer.
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
     const { offerId } = req.params;
     try {
@@ -3239,39 +2765,27 @@ app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
 // ──────────────── Admin Money Donations Page  ─────────────────
 // ==============================================================
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  GET /api/admin/money-donations
 //  Returns all money donations with donor name, amount, payment method, date.
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/money-donations', async (req, res) => {
-    const { status } = req.query;
     try {
-        let query = `
-            SELECT
-                md.donation_id,
-                md.amount,
-                md.payment_method,
-                md.notes AS description,
-                md.donation_date,
-                md.status,
-                md.reference_number,
-                md.rejection_reason,
-                md.reviewed_at,
-                u.name AS donor_name
-            FROM Money_donation md
-            JOIN Donor d ON md.donor_id = d.donor_id
-            JOIN User  u ON d.user_id   = u.user_id
-        `;
-        const params = [];
-        if (status) {
-            query += ' WHERE md.status = ?';
-            params.push(status);
-        }
-        query += ' ORDER BY md.donation_date DESC';
-
-        const [rows] = await pool.query(query, params);
+        const [rows] = await pool.query(`
+        SELECT
+            md.donation_id,
+            md.amount,
+            md.payment_method,
+            md.description,  
+            md.donation_date,
+            u.name AS donor_name
+        FROM Money_donation md
+        JOIN Donor d ON md.donor_id = d.donor_id
+        JOIN User u ON d.user_id = u.user_id
+        ORDER BY md.donation_date DESC
+        `);
         res.json(rows);
-    } catch (err) {
+    } catch   (err) {
         console.error('GET /api/admin/money-donations error:', err);
         res.status(500).json({ error: 'Failed to fetch money donations.' });
     }
@@ -3279,125 +2793,18 @@ app.get('/api/admin/money-donations', async (req, res) => {
 
 
 
-app.put('/api/admin/money-donations/:id/approve', async (req, res) => {
-    const { id } = req.params;
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
 
-        const [[donation]] = await conn.query(`
-            SELECT md.amount, md.payment_method, md.reference_number,
-                d.user_id AS donor_user_id
-            FROM Money_donation md
-            JOIN Donor d ON d.donor_id = md.donor_id
-            WHERE md.donation_id = ?
-        `, [id]);
-
-        if (!donation) return res.status(404).json({ error: 'Donation not found.' });
-
-        await conn.query(
-            `UPDATE Money_donation SET status = 'approved', reviewed_at = NOW() WHERE donation_id = ?`,
-            [id]
-        );
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Donation Approved',
-                `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) has been approved. Thank you!`,
-                'money_donation',
-                donation.donor_user_id
-            ]
-        );
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Donation Approved',
-                `Donation of $${Number(donation.amount).toFixed(2)} (Ref: ${donation.reference_number}) approved and added to balance.`,
-                'money_donation'
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Donation approved successfully.' });
-    } catch (err) {
-        await conn.rollback();
-        console.error('PUT /api/admin/money-donations/:id/approve error:', err);
-        res.status(500).json({ error: 'Failed to approve donation.' });
-    } finally {
-        conn.release();
-    }
-});
-
-
-// ──  PUT /api/admin/money-donations/:id/reject ───────
-app.put('/api/admin/money-donations/:id/reject', async (req, res) => {
-    const { id } = req.params;
-    const { reason } = req.body;
-
-    if (!reason?.trim())
-        return res.status(400).json({ error: 'A rejection reason is required.' });
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [[donation]] = await conn.query(`
-            SELECT md.amount, md.payment_method, md.reference_number,
-                d.user_id AS donor_user_id
-            FROM Money_donation md
-            JOIN Donor d ON d.donor_id = md.donor_id
-            WHERE md.donation_id = ?
-        `, [id]);
-
-        if (!donation) return res.status(404).json({ error: 'Donation not found.' });
-
-        await conn.query(
-            `UPDATE Money_donation SET status = 'rejected', rejection_reason = ?, reviewed_at = NOW() WHERE donation_id = ?`,
-            [reason.trim(), id]
-        );
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Donation Rejected',
-                `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) was rejected. Reason: ${reason.trim()}.`,
-                'money_donation',
-                donation.donor_user_id
-            ]
-        );
-
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Donation Rejected',
-                `Donation of $${Number(donation.amount).toFixed(2)} (Ref: ${donation.reference_number}) was rejected. Reason: ${reason.trim()}.`,
-                'money_donation'
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Donation rejected.' });
-    } catch (err) {
-        await conn.rollback();
-        console.error('PUT /api/admin/money-donations/:id/reject error:', err);
-        res.status(500).json({ error: 'Failed to reject donation.' });
-    } finally {
-        conn.release();
-    }
-});
 
 // ==============================================================
 // ──────────────── Admin User Management Page  ─────────────────
 // ==============================================================
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  GET /api/admin/users
 //  Returns every registered user with their role, status,
 //  address, and (for Donors) total food donations count.
 //  Used to populate the User Management table.
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/users', async (req, res) => {
     try {
         const [users] = await pool.query(`
@@ -3488,12 +2895,12 @@ app.get('/api/admin/users', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/users/:id  (EDIT USER)
 //  Updates name, email, phone, status. Also:
 //    - Syncs organization_name in Donor/Receiver if name changed
 //    - Inserts a notification for the affected user
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/users/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, phone, status } = req.body;
@@ -3555,7 +2962,7 @@ app.put('/api/admin/users/:id', async (req, res) => {
                         [name, id]
                     );
                 }
-                // Volunteer has no organization_name - nothing to sync
+                // Volunteer has no organization_name – nothing to sync
             }
         }
 
@@ -3580,7 +2987,7 @@ app.put('/api/admin/users/:id', async (req, res) => {
             ['Account Updated by Admin', notificationMessage, 'admin_action', id]
         );
 
-        // 6. Audit log
+        // 6. Audit log 
         await conn.query(
             `INSERT INTO Syslog (action, description, user_id)
             VALUES (?, ?, ?)`,
@@ -3589,7 +2996,7 @@ app.put('/api/admin/users/:id', async (req, res) => {
 
         await conn.commit();
 
-        // Return success with the list of changes
+        // Return success with the list of changes 
         res.json({
             message: 'User updated successfully.',
             changes: changes.length ? changes : ['No changes applied']
@@ -3608,11 +3015,11 @@ app.put('/api/admin/users/:id', async (req, res) => {
 
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/users/:id/block
 //  Sets a user's status to 'blocked' so they cannot sign in.
-//  No request body needed - the action is always "block".
-// ─────────────────────────────────────────────────────────────
+//  No request body needed — the action is always "block".
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/users/:id/block', async (req, res) => {
     const { id } = req.params;
 
@@ -3641,10 +3048,15 @@ app.put('/api/admin/users/:id/block', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  DELETE /api/admin/users/:id
 //  Permanently removes a user and all their related records.
-// ─────────────────────────────────────────────────────────────
+//  Deletion order respects FK constraints:
+//    Syslog → Email_verification → Password_reset_token
+//    → User_Role → Role → Address
+//    → (Donor / Receiver / Volunteer specific tables)
+//    → User
+// ──────────────────────────────────────────────────────────────
 app.delete('/api/admin/users/:id', async (req, res) => {
     const { id } = req.params;
     const conn = await pool.getConnection();
@@ -3652,83 +3064,60 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // 1. Get role-specific IDs before we delete anything
-        const [[donorRow]] = await conn.query("SELECT donor_id     FROM Donor     WHERE user_id = ?", [id]);
-        const [[receiverRow]] = await conn.query("SELECT receiver_id  FROM Receiver  WHERE user_id = ?", [id]);
-        const [[volunteerRow]] = await conn.query("SELECT volunteer_id FROM Volunteer WHERE user_id = ?", [id]);
+        // 1. Remove syslog entries referencing this user
+        await conn.query("DELETE FROM Syslog WHERE user_id = ?", [id]);
 
-        const donorId = donorRow?.donor_id ?? null;
-        const receiverId = receiverRow?.receiver_id ?? null;
-        const volunteerId = volunteerRow?.volunteer_id ?? null;
+        // 2. Remove email verification record
+        await conn.query("DELETE FROM Email_verification WHERE user_id = ?", [id]);
 
-        // 2. FIX: Food_offer.receiver_id - Receiver is ON DELETE RESTRICT
-        //    Must NULL out the reference before Receiver can be deleted
-        if (receiverId) {
-            await conn.query(
-                "UPDATE Food_offer SET receiver_id = NULL WHERE receiver_id = ?",
-                [receiverId]
-            );
-        }
+        // 3. Remove password reset token
+        await conn.query("DELETE FROM Password_reset_token WHERE user_id = ?", [id]);
 
-        // 3. FIX: Delivery.volunteer_id - Volunteer is ON DELETE RESTRICT
-        //    Must delete Delivery rows before Volunteer can be deleted
-        if (volunteerId) {
-            await conn.query("DELETE FROM Delivery WHERE volunteer_id = ?", [volunteerId]);
-        }
+        // 4. Remove the User_Role link (junction table)
+        await conn.query("DELETE FROM User_Role WHERE user_id = ?", [id]);
 
-        // 4. FIX: Fund_distribution.volunteer_id - Volunteer is ON DELETE RESTRICT
-        //    Must delete Fund_distribution rows before Volunteer can be deleted
-        if (volunteerId) {
-            await conn.query("DELETE FROM Fund_distribution WHERE volunteer_id = ?", [volunteerId]);
-        }
+        // 5. Remove the Role record
+        await conn.query("DELETE FROM Role WHERE user_id = ?", [id]);
 
-        // 5. Delete role-specific tables BEFORE Address
-        //    (Donor.address_id - Address is ON DELETE RESTRICT - this was the main crash)
-        //    Deleting Donor also cascades: Money_donation, Donation_history, Food_offer, Fund_distribution (donor_id)
-        //    Deleting Receiver also cascades: Receiver_location, Donation_history
+        // 6. Remove Address record(s) for this user
+        await conn.query("DELETE FROM Address WHERE user_id = ?", [id]);
+
+        // 7. Remove role-specific records
+        //    Each role has its own child table — delete whichever exists.
+        //    These queries are safe even if the row doesn't exist (affectedRows = 0).
         await conn.query("DELETE FROM Donor     WHERE user_id = ?", [id]);
         await conn.query("DELETE FROM Receiver  WHERE user_id = ?", [id]);
         await conn.query("DELETE FROM Volunteer WHERE user_id = ?", [id]);
-
-        // 6. NOW safe to delete Address (Donor no longer references it)
-        await conn.query("DELETE FROM Address WHERE user_id = ?", [id]);
-
-        // 7. Delete remaining user-linked tables
-        //    (These all have ON DELETE CASCADE from User so they'd auto-delete,
-        //     but we delete explicitly to keep the transaction clean)
-        await conn.query("DELETE FROM Notifications          WHERE user_id = ?", [id]);
-        await conn.query("DELETE FROM Syslog                 WHERE user_id = ?", [id]);
-        await conn.query("DELETE FROM Email_verification     WHERE user_id = ?", [id]);
-        await conn.query("DELETE FROM Password_reset_token   WHERE user_id = ?", [id]);
-        await conn.query("DELETE FROM User_Role              WHERE user_id = ?", [id]);
-        await conn.query("DELETE FROM Role                   WHERE user_id = ?", [id]);
 
         // 8. Finally delete the User row itself
         const [result] = await conn.query("DELETE FROM User WHERE user_id = ?", [id]);
 
         if (result.affectedRows === 0) {
+            // User didn't exist — roll back and tell the frontend
             await conn.rollback();
             return res.status(404).json({ error: 'User not found.' });
         }
 
+        // Commit only if every delete succeeded
         await conn.commit();
         res.json({ message: 'User deleted successfully.' });
-
     } catch (err) {
+        // Any failure rolls back the whole transaction so the DB stays consistent
         await conn.rollback();
         console.error('DELETE /api/admin/users/:id error:', err);
-        res.status(500).json({ error: 'Failed to delete user: ' + err.message });
+        res.status(500).json({ error: 'Failed to delete user.' });
     } finally {
+        // Always return the connection to the pool
         conn.release();
     }
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  PUT /api/admin/users/:id/unblock
 //  Sets a user's status back to 'active' so they can sign in again.
-//  No request body needed - the action is always "unblock".
-// ─────────────────────────────────────────────────────────────
+//  No request body needed — the action is always "unblock".
+// ──────────────────────────────────────────────────────────────
 app.put('/api/admin/users/:id/unblock', async (req, res) => {
     const { id } = req.params;
 
@@ -3771,23 +3160,27 @@ app.put('/api/admin/users/:id/unblock', async (req, res) => {
 });
 
 
+
 // ==============================================================
-// ──────────────── Admin Fund Distribution Page  ───────────────
+// ──────────────── Admin Fund Distribution Page  ─────────────────
 // ==============================================================
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  GET /api/admin/fund-distribution
-// ─────────────────────────────────────────────────────────────
+//  Returns:
+//    - totalCollected   : sum of ALL money donations (no status column)
+//    - totalDistributed : sum of ALL completed fund distributions
+//    - balance          : totalCollected - totalDistributed
+//    - distributions    : all rows from Fund_Distribution, newest first
+// ──────────────────────────────────────────────────────────────
 app.get('/api/admin/fund-distribution', async (req, res) => {
     try {
-        // Only APPROVED donations count toward collectible balance
         const [[{ totalCollected }]] = await pool.query(`
-            SELECT COALESCE(SUM(amount), 0) AS totalCollected
-            FROM Money_donation WHERE status = 'approved'
+            SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation
         `);
         const [[{ totalDistributed }]] = await pool.query(`
             SELECT COALESCE(SUM(amount), 0) AS totalDistributed
-            FROM Fund_Distribution WHERE status IN ('pending', 'completed')
+            FROM Fund_Distribution WHERE status = 'completed'
         `);
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
@@ -3816,9 +3209,10 @@ app.get('/api/admin/fund-distribution', async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
 //  POST /api/admin/fund-distribution
-// ─────────────────────────────────────────────────────────────
+//  Creates a new Fund_Distribution record.
+// ──────────────────────────────────────────────────────────────
 app.post('/api/admin/fund-distribution', async (req, res) => {
     const { amount, paymentMethod, purpose, donorName, adminId } = req.body;
 
@@ -3832,8 +3226,9 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
         return res.status(400).json({ error: 'Recipient donor name is required.' });
 
     try {
+        // Look up donor_id by the name the admin typed
         const [[donorRow]] = await pool.query(`
-            SELECT d.donor_id, d.user_id
+            SELECT d.donor_id
             FROM Donor d
             JOIN User u ON u.user_id = d.user_id
             WHERE u.name = ?
@@ -3841,10 +3236,9 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
         `, [donorName.trim()]);
 
         if (!donorRow)
-            return res.status(400).json({ error: `No donor found with the name "${donorName.trim()}".` });
+            return res.status(400).json({ error: `No donor found with the name "${donorName.trim()}". Please check the name and try again.` });
 
         const donorId = donorRow.donor_id;
-        const donorUserId = donorRow.user_id;
 
         // Resolve admin
         let resolvedAdminId = null;
@@ -3857,79 +3251,62 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
             resolvedAdminId = fallbackAdmin?.admin_id ?? null;
         }
 
-        // Check balance - only against completed distributions
+        // Check balance
         const [[{ totalCollected }]] = await pool.query(
-            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation WHERE status = 'approved'`
+            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation`
         );
         const [[{ totalDistributed }]] = await pool.query(
-            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status IN ('pending', 'completed')`
+            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status = 'completed'`
         );
         const balance = Math.max(0, Number(totalCollected) - Number(totalDistributed));
 
         if (Number(amount) > balance)
             return res.status(400).json({ error: `Insufficient balance. Available: $${balance.toFixed(2)}` });
 
-        // Generate reference number
-        const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-        const [[{ lastId }]] = await pool.query("SELECT COALESCE(MAX(distribution_id), 0) AS lastId FROM Fund_Distribution");
-        const refNumber = `FD-${datePart}-${String(Number(lastId) + 1).padStart(5, '0')}`;
-
-        // Insert as PENDING - donor must confirm
+        // Insert
         const [insertResult] = await pool.query(`
-            INSERT INTO Fund_Distribution (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id, reference_number)
-            VALUES (?, CURDATE(), ?, 'pending', ?, ?, ?, ?)
-        `, [Number(amount), paymentMethod.trim(), purpose.trim(), resolvedAdminId, donorId, refNumber]);
+            INSERT INTO Fund_Distribution (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id)
+            VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?)
+        `, [Number(amount), paymentMethod.trim(), purpose.trim(), resolvedAdminId, donorId]);
 
         // Syslog
         const [[adminUser]] = await pool.query("SELECT user_id FROM Admin WHERE admin_id = ?", [resolvedAdminId]);
         await pool.query(`INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`, [
             'FundDistribution',
-            `Admin initiated a $${Number(amount).toFixed(2)} distribution to "${donorName.trim()}" via ${paymentMethod.trim()} - ref: ${refNumber}. Awaiting donor confirmation.`,
+            `Admin distributed $${Number(amount).toFixed(2)} to donor "${donorName.trim()}" via ${paymentMethod.trim()}`,
             adminUser?.user_id ?? resolvedAdminId,
         ]);
 
-        // Notify the donor - they need to confirm
-        await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'Fund Distribution Pending Your Approval',
-                `The admin has initiated a fund distribution of $${Number(amount).toFixed(2)} to you via ${paymentMethod.trim()}. Reference: ${refNumber}. Please review and confirm or reject it in your Fund Distributions page.`,
-                'fund_distribution',
-                donorUserId
-            ]
-        );
+        // ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
 
-        // Notify the admin - waiting for donor
+
+        // ── ADMIN NOTIFICATION: fund distribution ──
         await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, NULL, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+            VALUES (?, ?, ?, NULL, NOW())`,
             [
-                'Distribution Sent - Awaiting Donor Confirmation',
-                `You initiated a $${Number(amount).toFixed(2)} distribution to "${donorName.trim()}" (Ref: ${refNumber}). Waiting for donor to confirm receipt.`,
+                'Fund Distribution',
+                `$${Number(amount).toFixed(2)} was distributed to ${donorName.trim()} via ${paymentMethod.trim()}.`,
                 'fund_distribution'
             ]
         );
 
-        res.status(201).json({
-            message: 'Distribution initiated. Waiting for donor confirmation.',
-            distributionId: insertResult.insertId,
-            referenceNumber: refNumber
-        });
+        res.status(201).json({ message: 'Distribution confirmed successfully.', distributionId: insertResult.insertId });
     } catch (err) {
         console.error('POST /api/admin/fund-distribution error:', err);
         res.status(500).json({ error: 'Failed to create distribution record: ' + err.message });
     }
 });
 
+
+
 // ==============================================================
 // ──────────────── Admin Profile Page ──────────────────────────
 // ==============================================================
 
-// ─────────────────────────────────────────────────────────────
 // GET /api/admin/profile/:userId
 // Loads the admin's own profile data (name, email, phone, picture, joined date).
 // Joins User + Admin to confirm the user is actually an admin.
-// ─────────────────────────────────────────────────────────────
 app.get('/api/admin/profile/:userId', async (req, res) => {
     const { userId } = req.params;
     try {
@@ -3960,11 +3337,10 @@ app.get('/api/admin/profile/:userId', async (req, res) => {
     }
 });
 
-// ─────────────────────────────────────────────────────────────
+
 // PUT /api/admin/change-password/:userId
 // Verifies the admin's current password with bcrypt, then hashes and stores the new one.
 // Password rule: 3-10 characters.
-// ─────────────────────────────────────────────────────────────
 app.put('/api/admin/change-password/:userId', async (req, res) => {
     const { userId } = req.params;
     const { currentPassword, newPassword } = req.body;
@@ -4001,9 +3377,9 @@ app.put('/api/admin/change-password/:userId', async (req, res) => {
             ['Password Change', 'Admin changed their password', userId]
         );
 
-        // Notification
+         // Notification
         await pool.query(
-            'INSERT INTO Notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)',
+            'INSERT INTO notifications (message_title, message, type, user_id) VALUES (?, ?, ?, ?)',
             [
                 'Password Changed',
                 'Your account password has been changed successfully. If you did not make this change, please contact support immediately.',
@@ -4080,12 +3456,14 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
     }
 });
 
+// ─── 🩵😘 Ommmushhh Please add this updated code in your file🩵😘───
+
 // ==============================================================
-// ──────────────── Admin Notifications Page ────────────────────
+// ──────────────── Admin Notifications Page ────────────────
 // ==============================================================
 
 
-// ── GET /api/admin/notifications ──────────────────────────────
+// ── GET /api/admin/notifications ───────────────────────────────
 app.get('/api/admin/notifications', async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -4102,7 +3480,7 @@ app.get('/api/admin/notifications', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected'
+                'contact_message', 'offer_expired', 'offer_cancelled'
             )
             AND n.user_id IS NULL
             ORDER BY n.date DESC
@@ -4117,7 +3495,7 @@ app.get('/api/admin/notifications', async (req, res) => {
 
 
 
-// ── PUT /api/admin/notifications/mark-all-read ────────────────
+// ── PUT /api/admin/notifications/mark-all-read ─────────────────
 app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
     try {
         await pool.query(`
@@ -4141,7 +3519,7 @@ app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
 });
 
 
-// ── PUT /api/admin/notifications/:id/read ─────────────────────
+// ── PUT /api/admin/notifications/:id/read ──────────────────────
 // Marks a single notification as read (used when the admin clicks one item).
 app.put('/api/admin/notifications/:id/read', async (req, res) => {
     const { id } = req.params;
@@ -4159,7 +3537,7 @@ app.put('/api/admin/notifications/:id/read', async (req, res) => {
 });
 
 
-// ── DELETE /api/admin/notifications/delete-all ────────────────
+// ── DELETE /api/admin/notifications/delete-all ─────────────────
 // Permanently deletes ALL notification records from the table.
 // The admin is shown a confirmation dialog on the frontend before this fires.
 app.delete('/api/admin/notifications/delete-all', async (req, res) => {
@@ -4173,7 +3551,7 @@ app.delete('/api/admin/notifications/delete-all', async (req, res) => {
 });
 
 
-// ── DELETE /api/admin/notifications/:notificationId ───────────
+// ── DELETE /api/admin/notifications/:notificationId ─────────────
 // Permanently deletes a single notification by its ID.
 app.delete("/api/admin/notifications/:notificationId", async (req, res) => {
     const { notificationId } = req.params;
@@ -4196,7 +3574,7 @@ app.delete("/api/admin/notifications/:notificationId", async (req, res) => {
 });
 
 
-// ── GET /api/admin/notifications/unread-count/:userId ─────────
+// ── GET /api/admin/notifications/unread-count/:userId ───────────
 // Returns the count of unread admin-level notifications.
 app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
     try {
@@ -4215,312 +3593,7 @@ app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
 
 
 
-
-// ────────────────────────────── NEWWWW ──────────────────────────────────
-
-// ==============================================================
-// ──────────────── DONOR REQUEST MONEY (Fund Distribution) ─────
-// ==============================================================
-
-// ─── Donor: create a money request ─────────────────────────────
-app.post("/api/donor/request-money", async (req, res) => {
-    const { amount, reason, userId } = req.body;
-    if (!amount || amount <= 0 || !reason?.trim() || !userId) {
-        return res.status(400).json({ error: "Amount, reason and user ID are required." });
-    }
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [donorRows] = await conn.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
-        if (donorRows.length === 0) {
-            await conn.rollback();
-            return res.status(404).json({ error: "Donor profile not found." });
-        }
-        const donorId = donorRows[0].donor_id;
-
-        // Generate reference number: MR-20260423-00001
-        const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
-        const [[{ lastId }]] = await conn.query("SELECT COALESCE(MAX(request_id),0) AS lastId FROM money_request");
-        const refNumber = `MR-${datePart}-${String(Number(lastId)+1).padStart(5,'0')}`;
-
-        await conn.query(
-            `INSERT INTO money_request (amount, reason, status, request_date, reference_number, donor_id)
-             VALUES (?, ?, 'pending', NOW(), ?, ?)`,
-            [amount, reason.trim(), refNumber, donorId]
-        );
-
-        // Fetch donor's name from User table
-        const [[donorUser]] = await conn.query(
-            "SELECT name FROM User WHERE user_id = ?",
-            [userId]
-        );
-        const donorName = donorUser ? donorUser.name : 'Unknown Donor';
-        // Notify admin
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'New Money Request',
-                `Donor "${donorName}" requested $${amount} for: ${reason.substring(0,100)}`,
-                'money_request'
-            ]
-        );
-
-
-
-        await conn.commit();
-        res.status(201).json({ message: "Request submitted.", referenceNumber: refNumber });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: "Failed to submit request." });
-    } finally {
-        conn.release();
-    }
-});
-
-
-// ─── Donor: get completed distributions (no pending) ───────────
-app.get("/api/donor/fund-distributions/:userId", async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const [[donorRow]] = await pool.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
-        if (!donorRow) return res.status(404).json({ error: "Donor not found." });
-        const donorId = donorRow.donor_id;
-
-        const [distributions] = await pool.query(`
-            SELECT
-                fd.distribution_id,
-                fd.amount,
-                fd.distribution_date,
-                fd.payment_method,
-                fd.status,
-                fd.purpose,
-                fd.reference_number,
-                fd.reviewed_at,
-                'System Admin' AS donor_name
-            FROM Fund_Distribution fd
-            WHERE fd.donor_id = ? AND fd.status = 'completed'
-            ORDER BY fd.distribution_date DESC
-        `, [donorId]);
-
-        res.json(distributions);
-    } catch (error) {
-        console.error('GET /api/donor/fund-distributions error:', error);
-        res.status(500).json({ error: 'Failed to fetch distributions.' });
-    }
-});
-
-
-// ─── Donor: get pending requests (optional, for their own history) ──
-app.get("/api/donor/money-requests/:userId", async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const [[donor]] = await pool.query("SELECT donor_id FROM Donor WHERE user_id = ?", [userId]);
-        if (!donor) return res.status(404).json({ error: "Donor not found." });
-
-        const [rows] = await pool.query(`
-            SELECT request_id, amount, reason, status, request_date, reference_number, rejection_reason, reviewed_at
-            FROM money_request
-            WHERE donor_id = ?
-            ORDER BY request_date DESC
-        `, [donor.donor_id]);
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to fetch requests." });
-    }
-});
-
-
-// ==============================================================
-// ──────────────── ADMIN: MANAGE MONEY REQUESTS ────────────────
-// ==============================================================
-
-// ─── Admin: get all pending money requests ───────────────────
-app.get("/api/admin/money-requests", async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT mr.request_id, mr.amount, mr.reason, mr.status, mr.request_date,
-                mr.reference_number, mr.rejection_reason, mr.reviewed_at,
-                u.name AS donor_name, d.donor_id, u.user_id AS donor_user_id
-            FROM money_request mr
-            JOIN Donor d ON mr.donor_id = d.donor_id
-            JOIN User u ON d.user_id = u.user_id
-            WHERE mr.status = 'pending'
-            ORDER BY mr.request_date ASC
-        `);
-        res.json(rows);
-    } catch (err) {
-        console.error('GET /api/admin/money-requests error:', err);
-        res.status(500).json({ error: 'Failed to load requests.' });
-    }
-});
-
-// ─── Admin: approve a request - auto-create completed distribution ──
-app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
-    const { id } = req.params;
-    const { adminId, paymentMethod } = req.body; // adminId from frontend, paymentMethod optional
-
-    if (!paymentMethod) return res.status(400).json({ error: "Payment method is required." });
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [[request]] = await conn.query(`
-            SELECT mr.amount, mr.reason, mr.donor_id, d.user_id AS donor_user_id,
-                mr.reference_number AS request_ref
-            FROM money_request mr
-            JOIN Donor d ON mr.donor_id = d.donor_id
-            WHERE mr.request_id = ? AND mr.status = 'pending'
-        `, [id]);
-
-        if (!request) {
-            await conn.rollback();
-            return res.status(404).json({ error: "Request not found or already processed." });
-        }
-
-        // Fetch donor name for better notification message
-        const [[donorInfo]] = await conn.query(
-            "SELECT name FROM User WHERE user_id = ?",
-            [request.donor_user_id]  // request.donor_user_id is the user_id of the donor
-        );
-        const donorName = donorInfo ? donorInfo.name : `Donor ID ${request.donor_id}`;
-
-        // 1. Update request status to 'approved'
-        await conn.query(
-            `UPDATE money_request SET status = 'approved', reviewed_at = NOW() WHERE request_id = ?`,
-            [id]
-        );
-
-        // 2. Create completed distribution (no donor approval)
-        const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
-        const [[{ lastDistId }]] = await conn.query("SELECT COALESCE(MAX(distribution_id),0) AS lastDistId FROM Fund_Distribution");
-        const distRef = `FD-${datePart}-${String(Number(lastDistId)+1).padStart(5,'0')}`;
-
-        let resolvedAdminId = null;
-        if (adminId) {
-            const [[adminRow]] = await conn.query("SELECT admin_id FROM Admin WHERE admin_id = ?", [adminId]);
-            if (adminRow) resolvedAdminId = adminRow.admin_id;
-        }
-        if (!resolvedAdminId) {
-            const [[fallback]] = await conn.query("SELECT admin_id FROM Admin LIMIT 1");
-            resolvedAdminId = fallback?.admin_id;
-        }
-
-        await conn.query(`
-            INSERT INTO Fund_Distribution
-            (amount, distribution_date, payment_method, status, purpose, admin_id, donor_id, reference_number)
-            VALUES (?, CURDATE(), ?, 'completed', ?, ?, ?, ?)
-        `, [request.amount, paymentMethod, `Approved request: ${request.reason}`, resolvedAdminId, request.donor_id, distRef]);
-
-        // 3. Notify donor
-        await conn.query(`
-            INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, ?, NOW())
-        `, [
-            'Money Request Approved',
-            `Your request for $${request.amount} (${request.reason}) has been approved. Funds have been sent. Reference: ${distRef}`,
-            'fund_distribution',
-            request.donor_user_id
-        ]);
-
-       // Notify the admin that they approved the request
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, NULL , NOW())`,
-            [
-                'Money Request Approved',
-                `You approved $${request.amount} request from ${donorName}. Ref: ${distRef}`,
-                'money_request_approved'
-            ]
-        );
-
-
-        await conn.commit();
-        res.json({ message: "Request approved, funds distributed.", distributionRef: distRef });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: "Failed to approve request." });
-    } finally {
-        conn.release();
-    }
-});
-
-// ─── Admin: reject a request ──────────────────────────────────
-app.put("/api/admin/money-requests/:id/reject", async (req, res) => {
-    const { id } = req.params;
-    const { reason } = req.body;
-    if (!reason?.trim()) return res.status(400).json({ error: "Rejection reason required." });
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [[request]] = await conn.query(`
-            SELECT mr.amount, mr.donor_id, d.user_id AS donor_user_id
-            FROM money_request mr
-            JOIN Donor d ON mr.donor_id = d.donor_id
-            WHERE mr.request_id = ? AND mr.status = 'pending'
-        `, [id]);
-
-        if (!request) {
-            await conn.rollback();
-            return res.status(404).json({ error: "Request not found or already processed." });
-        }
-
-        const [[donorInfo]] = await conn.query(
-            "SELECT name FROM User WHERE user_id = ?",
-            [request.donor_user_id]
-        );
-        const donorName = donorInfo ? donorInfo.name : `Donor ID ${request.donor_id}`;
-
-        await conn.query(`
-            UPDATE money_request
-            SET status = 'rejected', rejection_reason = ?, reviewed_at = NOW()
-            WHERE request_id = ?
-        `, [reason.trim(), id]);
-
-        await conn.query(`
-            INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, ?, NOW())
-        `, [
-            'Money Request Rejected',
-            `Your request was rejected. Reason: ${reason}`,
-            'money_request',
-            request.donor_user_id
-        ]);
-
-
-       // Notify the admin that they rejected the request
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Money Request Rejected',
-                `You rejected $${request.amount} request from ${donorName}.`,
-                'money_request_rejected'
-            ]
-        );
-
-        await conn.commit();
-        res.json({ message: "Request rejected." });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: "Failed to reject request." });
-    } finally {
-        conn.release();
-    }
-});
-
-
+// ─── ❤️ Thank You LOVE ❤️ ───
 
 
 // ==============================================================

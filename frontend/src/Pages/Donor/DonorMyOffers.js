@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import Skeleton from '../../Components/Shared/Skeleton';
+import EmptyState from '../../Components/Shared/EmptyState';
+import Button from '../../Components/Shared/Button';
 import '../../Styles/Donor/DonorMyOffers.css';
 
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
+import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -321,10 +325,20 @@ const DonorMyOffers = () => {
 
                     <div className="offers-table-wrapper">
                         {isLoading ? (
-                            <div className="loading-container">
-                                <div className="rdb-spinner"></div>
-                                <p>Loading Offers...</p>
+                            <div style={{ padding: '20px' }}>
+                                <Skeleton.Row count={6} />
                             </div>
+                        ) : displayedOffers.length === 0 ? (
+                            <EmptyState
+                                icon={<RestaurantMenuIcon style={{ fontSize: 48 }} />}
+                                title="No offers yet"
+                                description="Create your first food donation to share with your community."
+                                action={
+                                    <Button variant="primary" leftIcon={<AddIcon />} onClick={() => navigate('/donor-new-offer')}>
+                                        Create New Offer
+                                    </Button>
+                                }
+                            />
                         ) : (
                             <table className="offers-table">
                                 <thead>
@@ -339,8 +353,7 @@ const DonorMyOffers = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {displayedOffers.length > 0 ? (
-                                        displayedOffers.map((offer) => (
+                                    {displayedOffers.map((offer) => (
                                             <tr key={offer.offer_id}>
                                                 <td>#{offer.offer_id}</td>
                                                 <td className="title-cell">{offer.food_name}</td>
@@ -389,12 +402,7 @@ const DonorMyOffers = () => {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))
-                                    ) : (
-                                        <tr className="empty-row">
-                                            <td colSpan="7">No offers found.</td>
-                                        </tr>
-                                    )}
+                                    ))}
                                 </tbody>
                             </table>
                         )}

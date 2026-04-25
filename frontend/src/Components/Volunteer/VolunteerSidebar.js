@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import '../../Styles/Volunteer/VolunteerSidebar.css';
+import BottomNav from '../Shared/BottomNav';
 
 // Material UI Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -12,10 +13,20 @@ import RateReviewIcon from '@mui/icons-material/RateReview';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 const VolunteerSidebar = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => { setIsOpen(false); }, [location.pathname]);
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     // Mock user (replace with actual localStorage data later)
     const user = { user_id: 1 };
@@ -30,17 +41,37 @@ const VolunteerSidebar = () => {
     const handleLogout = () => {
         // Demo logout - no backend call
         localStorage.removeItem('volunteer_user');
-        alert('Logged out (demo)');
         navigate('/signin');
     };
 
     return (
-        <aside className="vs-sidebar">
+        <>
+            <button
+                className="vs-mobile-toggle"
+                onClick={() => setIsOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={isOpen}
+            >
+                <MenuIcon />
+            </button>
+            <div
+                className={`vs-overlay ${isOpen ? 'is-open' : ''}`}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+            />
+        <aside className={`vs-sidebar ${isOpen ? 'is-open' : ''}`}>
             <div className="vs-sidebar-header">
                 <div className="logo-circle">
                     <img src="/Images/logo-circle.png" alt="Logo" className="header-logo-img" />
                 </div>
                 <h1 className="vs-logo-text">FeedHope</h1>
+                <button
+                    className="vs-mobile-close"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Close menu"
+                >
+                    <CloseIcon />
+                </button>
             </div>
 
             <div className="vs-role-box">
@@ -79,6 +110,17 @@ const VolunteerSidebar = () => {
                 </button>
             </div>
         </aside>
+        <BottomNav
+            accent="volunteer"
+            items={[
+                { to: '/volunteer-dashboard', label: 'Home', icon: <DashboardIcon fontSize="small" />, end: true },
+                { to: '/volunteer-available-offers', label: 'Available', icon: <RestaurantMenuIcon fontSize="small" /> },
+                { to: '/volunteer/my-deliveries', label: 'Deliveries', icon: <LocalShippingIcon fontSize="small" /> },
+                { to: '/volunteer-notifications', label: 'Alerts', icon: <NotificationsIcon fontSize="small" />, badge: unreadCount },
+                { to: '/volunteer-profile', label: 'Profile', icon: <PersonIcon fontSize="small" /> },
+            ]}
+        />
+        </>
     );
 };
 

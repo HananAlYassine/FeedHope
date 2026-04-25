@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import "../Styles/ContactUs.css";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import TwitterIcon from '@mui/icons-material/Twitter';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 const ContactUs = () => {
 
@@ -13,48 +15,49 @@ const ContactUs = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+        e.preventDefault();
+        setError('');
+        setSuccess('');
 
-    if (!formData.full_name || !formData.email || !formData.message) {
-        return setError('All fields are required.');
-    }
-
-    setLoading(true);
-    try {
-        const response = await fetch('http://localhost:5000/api/contact-us', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                full_name: formData.full_name,
-                email: formData.email,
-                message: formData.message,
-                //  No user_id needed — backend finds it automatically by email
-            }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return setError(data.error || 'Something went wrong.');
+        if (!formData.full_name || !formData.email || !formData.message) {
+            return setError('All fields are required.');
         }
 
-        setSuccess('Your message has been sent successfully! ✅');
-        setFormData({ full_name: '', email: '', message: '' });
+        setLoading(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/contact-us', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    message: formData.message,
+                    //  No user_id needed — backend finds it automatically by email
+                }),
+            });
 
-    } catch (err) {
-        setError('Could not connect to the server.');
-    } finally {
-        setLoading(false);
-    }
-};
+            const data = await response.json();
+
+            if (!response.ok) {
+                return setError(data.error || 'Something went wrong.');
+            }
+
+            setSuccess('Your message has been sent successfully! ✅');
+            setFormData({ full_name: '', email: '', message: '' });
+
+        } catch (err) {
+            setError('Could not connect to the server.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Function to handle external navigation
     const handleExternalLink = (url) => {
@@ -70,13 +73,23 @@ const ContactUs = () => {
                     </div>
                     <span>FeedHope</span>
                 </Link>
-                <nav>
+                <button
+                    className="contact-nav-toggle"
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-label="Toggle menu"
+                    aria-expanded={menuOpen}
+                >
+                    {menuOpen ? <CloseIcon /> : <MenuIcon />}
+                </button>
+                <nav className={menuOpen ? 'is-open' : ''}>
                     <ul>
-                        <li><Link to="/mission">Our Mission</Link></li>
-                        <li><Link to="/how-it-works">How it Works</Link></li>
-                        <li><Link to="/signin" className="contact-btn-signin">Sign In</Link></li>
+                        <li><NavLink to="/mission" onClick={() => setMenuOpen(false)}>Our Mission</NavLink></li>
+                        <li><NavLink to="/how-it-works" onClick={() => setMenuOpen(false)}>How it Works</NavLink></li>
+                        <li><NavLink to="/contact" onClick={() => setMenuOpen(false)}>Contact Us</NavLink></li>
+                        <li className="contact-nav-mobile-signin"><Link to="/signin" className="contact-btn-signin" onClick={() => setMenuOpen(false)}>Sign In</Link></li>
                     </ul>
                 </nav>
+                <Link to="/signin" className="contact-btn-signin contact-nav-desktop-signin">Sign In</Link>
             </header>
 
             <main className="contact-main">
@@ -84,7 +97,7 @@ const ContactUs = () => {
                     <div className="contact-info-section">
                         <h1>Get in Touch</h1>
                         <p>Have questions about donating or volunteering? We'd love to hear from you.</p>
-                        
+
                         <div className="contact-details">
                             {/* Phone Item */}
                             <div className="detail-item">
@@ -115,14 +128,14 @@ const ContactUs = () => {
                         </div>
 
                         <div className="contact-socials">
-                            <div 
+                            <div
                                 className="social-link-icon"
                                 onClick={() => handleExternalLink("https://twitter.com/feedhope")}
                                 style={{ cursor: 'pointer' }}
                             >
                                 <TwitterIcon />
                             </div>
-                            <div 
+                            <div
                                 className="social-link-icon"
                                 onClick={() => handleExternalLink("https://instagram.com/feedhope")}
                                 style={{ cursor: 'pointer' }}
@@ -134,52 +147,52 @@ const ContactUs = () => {
 
                     <div className="contact-form-section">
                         <form onSubmit={handleSubmit}>
-                            
+
                             {error && <p style={{ color: '#ef4444', fontSize: '14px', marginBottom: '10px' }}>{error}</p>}
                             {success && <p style={{ color: '#22c55e', fontSize: '14px', marginBottom: '10px' }}>{success}</p>}
 
                             <div className="contact-form-group">
-                            <label>Full Name</label>
-                            <input
-                                type="text"
-                                name="full_name"
-                                placeholder="John Doe"
-                                value={formData.full_name}
-                                onChange={handleChange}
-                                required
-                            />
+                                <label>Full Name</label>
+                                <input
+                                    type="text"
+                                    name="full_name"
+                                    placeholder="John Doe"
+                                    value={formData.full_name}
+                                    onChange={handleChange}
+                                    required
+                                />
                             </div>
 
                             <div className="contact-form-group">
-                            <label>Email Address</label>
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="john@example.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                            />
+                                <label>Email Address</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    placeholder="john@example.com"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                />
                             </div>
 
                             <div className="contact-form-group">
-                            <label>Message</label>
-                            <textarea
-                                name="message"
-                                placeholder="How can we help you?"
-                                rows="4"
-                                value={formData.message}
-                                onChange={handleChange}
-                                required
-                            />
+                                <label>Message</label>
+                                <textarea
+                                    name="message"
+                                    placeholder="How can we help you?"
+                                    rows="4"
+                                    value={formData.message}
+                                    onChange={handleChange}
+                                    required
+                                />
                             </div>
 
                             <button type="submit" className="contact-submit-btn" disabled={loading}>
-                            {loading ? 'Sending...' : 'Send Message'}
+                                {loading ? 'Sending...' : 'Send Message'}
                             </button>
 
                         </form>
-                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -187,4 +200,3 @@ const ContactUs = () => {
 };
 
 export default ContactUs;
-

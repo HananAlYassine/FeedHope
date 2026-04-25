@@ -66,7 +66,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
@@ -74,6 +73,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
 }
 
 /* Button container inside banner (horizontal row) */
@@ -118,6 +118,52 @@
 .vdb-banner-btn--outline:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: #fff;
+}
+
+/* Danger variant (Delete Photo) */
+.vdb-banner-btn--danger {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 200, 200, 0.55);
+    color: #fff;
+}
+
+.vdb-banner-btn--danger:hover:not(:disabled) {
+    background: rgba(244, 67, 54, 0.55);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.vdb-banner-btn--danger.is-inactive,
+.vdb-banner-btn--danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Camera overlay button on banner avatar */
+.vcp-avatar-camera {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+}
+
+.vcp-avatar-camera:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.vcp-avatar-camera:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ========== STATS ROW (4‑column grid) ========== */
@@ -329,55 +375,6 @@
     margin: 0;
 }
 
-/* Picture action buttons */
-.vcp-picture-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    margin-top: 16px;
-}
-
-.vcp-picture-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 10px 16px;
-    border-radius: 30px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.2s;
-}
-
-.vcp-change-btn {
-    background: #f0f7ff;
-    color: #1976d2;
-    border-color: #b9d4f0;
-}
-
-.vcp-change-btn:hover:not(:disabled) {
-    background: #e3f0ff;
-    border-color: #1976d2;
-}
-
-.vcp-delete-btn {
-    background: #fff5f5;
-    color: #d32f2f;
-    border-color: #f5c6cb;
-}
-
-.vcp-delete-btn:hover:not(:disabled) {
-    background: #ffe5e5;
-    border-color: #d32f2f;
-}
-
-.vcp-picture-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
 
 /* ========== MODALS (same as receiver) ========== */
 .vcp-modal-overlay {
@@ -560,6 +557,19 @@
     .vdb-stat-card {
         border-right: none;
         border-bottom: 1px solid #e2e8f0;
+    }
+
+    /* Keep banner avatar + camera button visible on mobile */
+    .vdb-banner-avatar {
+        display: flex !important;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 12px;
+    }
+
+    .vcp-avatar-camera {
+        width: 32px;
+        height: 32px;
     }
 }
 

@@ -22,6 +22,51 @@
     top: 0;
     box-shadow: var(--vs-shadow);
     z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+/* Mobile hamburger toggle */
+.vs-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 105;
+    width: 40px;
+    height: 40px;
+    background: var(--vs-bg);
+    border: 1px solid var(--vs-border);
+    border-radius: 8px;
+    color: var(--vs-blue);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.vs-mobile-close {
+    display: none;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--vs-text-muted);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.vs-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.vs-overlay.is-open {
+    display: block;
+    opacity: 1;
 }
 
 /* Header with logo - no orange shadow */
@@ -192,32 +237,51 @@
     background: #ffebee;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Mobile drawer with hamburger toggle */
+@media (max-width: 992px) {
+    .vs-mobile-toggle {
+        display: flex;
+    }
+
+    .vs-mobile-close {
+        display: inline-flex;
+    }
+
     .vs-sidebar {
-        width: 80px;
+        transform: translateX(-100%);
+        width: 280px;
+        max-width: 80vw;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 120;
     }
 
-    .vs-logo-text,
-    .vs-nav-text,
-    .vs-role-name,
-    .vs-logout-btn span {
-        display: none;
+    .vs-sidebar.is-open {
+        transform: translateX(0);
     }
 
-    .vs-sidebar-header {
-        justify-content: center;
+    .vs-sidebar-header,
+    .vs-role-box,
+    .vs-sidebar-footer {
+        flex-shrink: 0;
     }
 
-    .vs-nav-item {
-        justify-content: center;
+    .vs-sidebar-nav {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
     }
 
-    .vs-nav-content {
-        justify-content: center;
-    }
-
-    .vs-logout-btn {
-        justify-content: center;
+    /* Reset main-content offsets for all volunteer pages on mobile */
+    .vdb-main,
+    .vao-main,
+    .vh-main,
+    .vr-main,
+    .vao-accepted-main,
+    .vn-main {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        padding-top: 64px !important;
+        padding-bottom: 80px !important;
     }
 }

@@ -58,6 +58,24 @@
     background: rgba(255, 255, 255, 0.15);
 }
 
+/* Danger banner button (Delete Photo) */
+.rdb-banner-btn--danger {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 200, 200, 0.55);
+    color: #fff;
+}
+
+.rdb-banner-btn--danger:hover:not(:disabled) {
+    background: rgba(244, 67, 54, 0.55);
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.rdb-banner-btn--danger.is-inactive,
+.rdb-banner-btn--danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ── Contact Information items ───────────────────────────────── */
 /* Each row: icon on left, label + value stack on right */
 .rcp-contact-item {
@@ -310,6 +328,19 @@
     .rcp-modal {
         max-width: 100%;
     }
+
+    /* Keep banner avatar + camera button visible on mobile */
+    .rdb-banner-avatar {
+        display: flex !important;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 12px;
+    }
+
+    .rcp-avatar-camera {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 
@@ -332,7 +363,6 @@
     justify-content: center;
     border-radius: 50%;
     background: linear-gradient(135deg, #1976d2, #0d47a1);
-    overflow: hidden;
 }
 
 /* Account avatar (larger circle in right column) */
@@ -365,7 +395,7 @@
     margin: 0;
 }
 
-/* Wrapper for account avatar + text + buttons */
+/* Wrapper for account avatar + text */
 .rcp-account-avatar-wrap {
     display: flex;
     flex-direction: column;
@@ -374,55 +404,30 @@
     padding: 28px 20px 24px;
 }
 
-/* Action buttons (Change / Delete) below account avatar */
-.rcp-picture-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    margin-top: 16px;
-}
-
-.rcp-picture-btn {
+/* Camera overlay button on banner avatar */
+.rcp-avatar-camera {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 10px 16px;
-    border-radius: 30px;
-    font-size: 14px;
-    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
+    transition: background 0.2s;
+    padding: 0;
 }
 
-/* Change button (blue) */
-.rcp-change-btn {
-    background: #f0f7ff;
-    color: #1976d2;
-    border-color: #b9d4f0;
+.rcp-avatar-camera:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.65);
 }
 
-.rcp-change-btn:hover:not(:disabled) {
-    background: #e3f0ff;
-    border-color: #1976d2;
-}
-
-/* Delete button (red) */
-.rcp-delete-btn {
-    background: #fff5f5;
-    color: #d32f2f;
-    border-color: #f5c6cb;
-}
-
-.rcp-delete-btn:hover:not(:disabled) {
-    background: #ffe5e5;
-    border-color: #d32f2f;
-}
-
-/* Disabled state for both buttons */
-.rcp-picture-btn:disabled {
+.rcp-avatar-camera:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }

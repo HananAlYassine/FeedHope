@@ -1,0 +1,94 @@
+.fh-bnav {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--fh-z-sticky);
+    background: var(--fh-surface);
+    border-top: 1px solid var(--fh-border);
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.06);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    align-items: stretch;
+}
+
+@media (max-width: 992px) {
+    .fh-bnav {
+        display: flex;
+    }
+}
+
+.fh-bnav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 4px;
+    color: var(--fh-text-muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: var(--fh-radius-sm);
+    transition: color var(--fh-transition-fast), background var(--fh-transition-fast);
+    position: relative;
+}
+
+.fh-bnav-item:hover {
+    background: var(--fh-gray-50);
+}
+
+.fh-bnav-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fh-bnav-label {
+    line-height: 1;
+}
+
+.fh-bnav-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--fh-danger);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--fh-surface);
+}
+
+/* Active state per accent */
+.fh-bnav--donor .fh-bnav-item.is-active { color: var(--fh-donor); }
+.fh-bnav--receiver .fh-bnav-item.is-active { color: var(--fh-receiver); }
+.fh-bnav--volunteer .fh-bnav-item.is-active { color: var(--fh-volunteer); }
+.fh-bnav--admin .fh-bnav-item.is-active { color: var(--fh-admin); }
+
+.fh-bnav-item.is-active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 30%;
+    right: 30%;
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    background: currentColor;
+}
+
+/* Reserve safe-area space for content above bottom nav */
+@media (max-width: 992px) {
+    body.has-bottom-nav {
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    }
+}

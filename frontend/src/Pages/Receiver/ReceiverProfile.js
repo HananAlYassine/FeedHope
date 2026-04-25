@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+import { useToast } from '../../Components/Shared/Toast';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 import '../../Styles/Receiver/ReceiverProfile.css';
 
@@ -35,6 +36,7 @@ const formatMonthYear = (dateStr) => {
 
 const ReceiverProfile = () => {
     const navigate = useNavigate();
+    const { success, error: toastError } = useToast();
 
     const [user,    setUser]    = useState(null);
     const [profile, setProfile] = useState(null);
@@ -72,9 +74,7 @@ const ReceiverProfile = () => {
 
     // Load user from localStorage once
     useEffect(() => {
-        // -- get user from local storage ---
         const storedUser = localStorage.getItem('feedhope_user');
-        // -- if not logged-in redirect to login page ---
         if (!storedUser) { navigate('/signin'); return; }
         const parsed = JSON.parse(storedUser);
         setUser(parsed);
@@ -83,10 +83,10 @@ const ReceiverProfile = () => {
 
     // Fetch profile when user becomes available
     useEffect(() => {
-        if (!user) return;  // --- wait untill user exist ---
+        if (!user) return;
         const fetchProfile = async () => {
             try {
-                setLoading(true); // loading message
+                setLoading(true);
                 const res  = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`);
                 const data = await res.json();
                 if (!res.ok) { setError(data.error || 'Failed to load profile.'); return; }
@@ -117,7 +117,7 @@ const ReceiverProfile = () => {
     // Upload picture
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
-        if (!file) return; // If user opens file picker and cancels, stop.
+        if (!file) return;
         const formData = new FormData();
         formData.append('profilePicture', file);
         setUploading(true);
@@ -131,12 +131,13 @@ const ReceiverProfile = () => {
             const updatedUser = { ...user, profile_picture: data.profile_picture };
             localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
             setUser(updatedUser);
+            success('Profile picture updated.');
         } catch (err) {
             console.error(err);
-            alert('Failed to upload picture.');
+            toastError('Failed to upload picture.');
         } finally {
-            setUploading(false); // Stop loading state.
-            if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input value
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -152,9 +153,10 @@ const ReceiverProfile = () => {
             const updatedUser = { ...user, profile_picture: null };
             localStorage.setItem('feedhope_user', JSON.stringify(updatedUser));
             setUser(updatedUser);
+            success('Profile picture removed.');
         } catch (err) {
             console.error(err);
-            alert('Failed to delete picture.');
+            toastError('Failed to delete picture.');
         } finally {
             setUploading(false);
         }
@@ -165,7 +167,6 @@ const ReceiverProfile = () => {
     const handleCloseEdit = () => { setShowEditModal(false); setEditError(''); setEditSuccess(''); };
     const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-    // --- Save Edited Profile ---
     const handleEditSubmit = async () => {
         setEditError(''); setEditSuccess(''); setEditSaving(true);
         const updatedUser = { ...user, name: editForm.name };
@@ -176,11 +177,10 @@ const ReceiverProfile = () => {
             const res  = await fetch(`http://localhost:5000/api/receiver/profile/${user.user_id}`, {
                 method:  'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(editForm) // --- Convert object to JSON ---
+                body:    JSON.stringify(editForm)
             });
             const data = await res.json();
             if (!res.ok) { setEditError(data.error || 'Failed to save changes.'); return; }
-            // Update frontend profile
             setProfile(prev => ({
                 ...prev,
                 name:         editForm.name,
@@ -193,7 +193,7 @@ const ReceiverProfile = () => {
             const updatedUser2 = { ...user, name: editForm.name };
             localStorage.setItem('feedhope_user', JSON.stringify(updatedUser2));
             setUser(updatedUser2);
-            setTimeout(() => handleCloseEdit(), 1200); // Closes after 1.2 sec
+            setTimeout(() => handleCloseEdit(), 1200);
         } catch {
             setEditError('Network error. Please try again.');
         } finally {
@@ -203,9 +203,9 @@ const ReceiverProfile = () => {
 
     // Password handlers
     const handleOpenPw = () => {
-        setPwError(''); setPwSuccess(''); // clear old errors
-        setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); // reset form 
-        setShowPwModal(true); // show modal
+        setPwError(''); setPwSuccess('');
+        setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setShowPwModal(true);
     };
 
     const handleClosePw = () => {
@@ -249,7 +249,7 @@ const ReceiverProfile = () => {
 
     if (loading) return <div className="rdb-loading-screen"><div className="rdb-spinner" /><p>Loading your profile…</p></div>;
     if (error)   return <div className="rdb-error-screen"><p className="rdb-error-msg">{error}</p></div>;
-    if (!profile) return null; // If profile data doesn’t exist → render NOTHING
+    if (!profile) return null;
 
     const orgName = profile.organization_name || profile.name || '—';
     const orgType = profile.org_type || profile.business_type || '—';
@@ -280,11 +280,35 @@ const ReceiverProfile = () => {
                         ) : (
                             getInitial(orgName)
                         )}
+                        <button
+                            className="rcp-avatar-camera"
+                            onClick={() => fileInputRef.current.click()}
+                            disabled={uploading}
+                            aria-label="Change profile picture"
+                            title="Change profile picture"
+                        >
+                            <CameraAltIcon style={{ fontSize: 14 }} />
+                        </button>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            onChange={handleFileChange}
+                        />
                     </div>
                     <div className="rcp-banner-actions">
                         <button className="rdb-banner-btn" onClick={handleOpenEdit}>
                             <EditIcon style={{ fontSize: 15, marginRight: 6, verticalAlign: 'middle' }} />
                             Edit Profile
+                        </button>
+                        <button
+                            className={`rdb-banner-btn rdb-banner-btn--danger ${!profilePicture ? 'is-inactive' : ''}`}
+                            onClick={handleDeletePicture}
+                            disabled={uploading || !profilePicture}
+                        >
+                            <DeleteIcon style={{ fontSize: 15, marginRight: 6, verticalAlign: 'middle' }} />
+                            Delete Photo
                         </button>
                         <button className="rdb-banner-btn rdb-banner-btn--outline" onClick={handleOpenPw}>
                             <LockIcon style={{ fontSize: 15, marginRight: 6, verticalAlign: 'middle' }} />
@@ -389,31 +413,6 @@ const ReceiverProfile = () => {
                                 </div>
                                 <p className="rcp-account-org">{orgName}</p>
                                 <span className="rdb-status-badge rdb-status-badge--accepted rcp-role-badge">Receiver</span>
-                                <div className="rcp-picture-actions">
-                                    <button
-                                        className="rcp-picture-btn rcp-change-btn"
-                                        onClick={() => fileInputRef.current.click()}
-                                        disabled={uploading}
-                                    >
-                                        <CameraAltIcon style={{ fontSize: 16, marginRight: 6 }} />
-                                        Change Profile Picture
-                                    </button>
-                                    <button
-                                        className="rcp-picture-btn rcp-delete-btn"
-                                        onClick={handleDeletePicture}
-                                        disabled={uploading || !profilePicture}
-                                    >
-                                        <DeleteIcon style={{ fontSize: 16, marginRight: 6 }} />
-                                        Delete Profile Picture
-                                    </button>
-                                </div>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    ref={fileInputRef}
-                                    style={{ display: 'none' }}
-                                    onChange={handleFileChange}
-                                />
                             </div>
                         </section>
                     </div>

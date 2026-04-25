@@ -33,6 +33,51 @@
     bottom: 0;
     padding-bottom: 16px;
     z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+/* Mobile hamburger toggle */
+.asb-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 105;
+    width: 40px;
+    height: 40px;
+    background: var(--asb-bg);
+    border: 1px solid var(--asb-border);
+    border-radius: 8px;
+    color: var(--asb-accent-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.asb-mobile-close {
+    display: none;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--asb-text-sub);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.asb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.asb-overlay.is-open {
+    display: block;
+    opacity: 1;
 }
 
 /* ── Logo row ────────────────────────────────────────────── */
@@ -132,6 +177,20 @@
 .asb-nav-item--active {
     background: var(--asb-accent) !important;
     color:      #fff !important;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(55, 71, 79, 0.25);
+}
+
+.asb-nav-item--active::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 22px;
+    background: var(--asb-accent);
+    border-radius: 0 4px 4px 0;
 }
 
 /* notification badge */
@@ -171,7 +230,51 @@
 .asb-logout:hover  { background: #ef9a9a; }
 .asb-logout:active { background: #c62828 !important; color: #fff !important; transform: scale(0.98); }
 
-/* ── Mobile ──────────────────────────────────────────────── */
-@media (max-width: 768px) {
-    .asb-sidebar { display: none; }
+/* ── Mobile drawer with hamburger toggle ─────────────────── */
+@media (max-width: 992px) {
+    .asb-mobile-toggle {
+        display: flex;
+    }
+
+    .asb-mobile-close {
+        display: inline-flex;
+    }
+
+    .asb-sidebar {
+        transform: translateX(-100%);
+        width: 268px;
+        max-width: 80vw;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 120;
+    }
+
+    .asb-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .asb-logo,
+    .asb-role-row,
+    .asb-logout {
+        flex-shrink: 0;
+    }
+
+    .asb-nav {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    /* Reset main-content offsets for all admin pages on mobile */
+    .aum-main,
+    .afd-main,
+    .afo-main,
+    .ap-main,
+    .an-main,
+    .amd-main,
+    .adb-main {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        padding-top: 64px !important;
+        padding-bottom: 80px !important;
+    }
 }

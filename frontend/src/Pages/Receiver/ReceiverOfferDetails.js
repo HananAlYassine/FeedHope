@@ -9,6 +9,7 @@ import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverOfferDetails.css';
 import '../../Styles/Receiver/ReceiverBrowseOffers.css';
 
+
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -23,6 +24,9 @@ import RestaurantIcon from '@mui/icons-material/Restaurant';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import PeopleIcon from '@mui/icons-material/People';
 
+// ----- Helper Functions -----
+
+// Converts date into readable format like: Feb 14, 2026
 const formatDate = (dt) => {
   if (!dt) return 'N/A';
   return new Date(dt).toLocaleDateString('en-US', {
@@ -32,6 +36,7 @@ const formatDate = (dt) => {
   });
 };
 
+// Converts time into: 03:45 PM
 const formatTime = (dt) => {
   if (!dt) return 'N/A';
   const d = new Date(dt);
@@ -40,9 +45,10 @@ const formatTime = (dt) => {
 
 const ReceiverOfferDetails = () => {
   const navigate = useNavigate();
-  const { offerId } = useParams();
-  const stored = localStorage.getItem('feedhope_user');
-  const user = stored ? JSON.parse(stored) : null;
+
+  const { offerId } = useParams(); // offerId — extracted from URL
+  const stored = localStorage.getItem('feedhope_user'); // Reads user data from browser storage
+  const user = stored ? JSON.parse(stored) : null; // Converts JSON -> object
 
   const organizationName = user?.name || 'Receiver';
 
@@ -52,7 +58,7 @@ const ReceiverOfferDetails = () => {
   const [accepting, setAccepting] = useState(false);
 
   const fetchOffer = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); // Reset UI before fetching
     setError(null);
     try {
       const res = await fetch(`http://localhost:5000/api/offers/${offerId}`);
@@ -61,7 +67,7 @@ const ReceiverOfferDetails = () => {
         throw new Error(body.error || 'Failed to fetch offer details');
       }
       const data = await res.json();
-      setOffer(data);
+      setOffer(data);  // Save data into state
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,6 +80,7 @@ const ReceiverOfferDetails = () => {
   }, [fetchOffer]);
 
   const handleAccept = async () => {
+    // -- Check login --
     if (!user?.user_id) {
       alert('You must be logged in to accept an offer.');
       return;
@@ -87,7 +94,7 @@ const ReceiverOfferDetails = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
-      // alert('Offer accepted successfully!');
+      window.dispatchEvent(new Event('notification-read'));
       fetchOffer();
     } catch (err) {
       alert(err.message);
@@ -101,6 +108,7 @@ const ReceiverOfferDetails = () => {
     navigate('/signin');
   };
 
+// Returns CSS class depending on Status
   const statusClass = (status) => {
     switch ((status || '').toLowerCase()) {
       case 'available': return 'rod-status rod-status--available';
@@ -109,11 +117,13 @@ const ReceiverOfferDetails = () => {
     }
   };
 
+  // Capitalizes text
   const statusLabel = (status) => {
     if (!status) return 'Unknown';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  // Combines them --> "Street, City, Country"
   const pickupAddress = offer
     ? [offer.street, offer.city, offer.country].filter(Boolean).join(', ') || 'Address not provided'
     : '';

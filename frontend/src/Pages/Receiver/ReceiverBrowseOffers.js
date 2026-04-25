@@ -25,11 +25,9 @@ import EmojiFoodBeverageIcon  from '@mui/icons-material/EmojiFoodBeverage';
 import WarehouseIcon          from '@mui/icons-material/Warehouse';
 import ImageNotSupportedIcon  from '@mui/icons-material/ImageNotSupported';
 
-// ---- Helper Functions ----
-
 // Returns an icon based on the category name of the offer
 const getCategoryIcon = (categoryName) => {
-  const name = categoryName?.toLowerCase() || ''; // convert to lowercase
+  const name = categoryName?.toLowerCase() || '';
   if (name.includes('meal') || name.includes('prepared')) return <RestaurantIcon fontSize="small" />;
   if (name.includes('bakery'))   return <BakeryDiningIcon fontSize="small" />;
   if (name.includes('grain'))    return <GrainIcon fontSize="small" />;
@@ -46,9 +44,8 @@ const formatExpiry = (datetime) => {
   return new Date(datetime).toLocaleString();
 };
 
-// -- This is a single offer UI card. --
-const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
 
+const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
   const weight      = offer.quantity_by_kg ? `${offer.quantity_by_kg} kg` : '—';
   const portions    = offer.number_of_person || 0;
   const donorAddress = [offer.street, offer.city].filter(Boolean).join(', ') || 'Address not provided';
@@ -134,7 +131,6 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
 
 const ReceiverBrowseOffers = () => {
   const navigate = useNavigate();
-  // -- Gets logged-in user from browser storage. --
   const stored   = localStorage.getItem('feedhope_user');
   const user     = stored ? JSON.parse(stored) : null;
 
@@ -148,7 +144,6 @@ const ReceiverBrowseOffers = () => {
   const [activeCategoryId, setActiveCategoryId] = useState('all');
   const [accepting,        setAccepting]        = useState(null);
 
-  // Gets all offers from backend
   const fetchOffers = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:5000/api/offers');
@@ -160,7 +155,6 @@ const ReceiverBrowseOffers = () => {
     }
   }, []);
 
-  // Used for dropdown filter
   const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch('http://localhost:5000/api/categories');
@@ -175,7 +169,7 @@ const ReceiverBrowseOffers = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchOffers(), fetchCategories()]); // fetch offers + categories together
+      await Promise.all([fetchOffers(), fetchCategories()]);
       setLoading(false);
     };
     loadData();
@@ -191,7 +185,6 @@ const ReceiverBrowseOffers = () => {
   };
 
   const handleAccept = async (offerId) => {
-    // check login
     if (!user?.user_id) {
       alert('You must be logged in to accept an offer.');
       return;
@@ -218,7 +211,6 @@ const ReceiverBrowseOffers = () => {
   };
 
   const filteredOffers = offers.filter(offer => {
-    // checks if the offer belongs to the selected category.
     const matchesCat    = activeCategoryId === 'all' || offer.category_id === Number(activeCategoryId);
     const q             = searchQuery.toLowerCase();
     const matchesSearch =

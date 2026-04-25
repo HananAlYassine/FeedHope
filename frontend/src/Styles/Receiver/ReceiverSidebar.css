@@ -18,6 +18,51 @@
     bottom: 0;
     padding-bottom: 16px;
     z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+/* Mobile hamburger toggle */
+.rsb-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 105;
+    width: 40px;
+    height: 40px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #2e7d32;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.rsb-mobile-close {
+    display: none;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.rsb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.rsb-overlay.is-open {
+    display: block;
+    opacity: 1;
 }
 
 /* ── Logo row ────────────────────────────────────────────────── */
@@ -168,7 +213,45 @@
     outline-offset: 2px;
 }
 
-/* ── Mobile: hide sidebar ────────────────────────────────────── */
-@media (max-width: 768px) {
-    .rsb-sidebar { display: none; }
+/* ── Mobile: drawer with hamburger toggle ───────────────────── */
+@media (max-width: 992px) {
+    .rsb-mobile-toggle {
+        display: flex;
+    }
+
+    .rsb-mobile-close {
+        display: inline-flex;
+    }
+
+    .rsb-sidebar {
+        transform: translateX(-100%);
+        width: 260px;
+        max-width: 80vw;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 120;
+    }
+
+    .rsb-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .rsb-logo,
+    .rsb-role-row,
+    .rsb-logout {
+        flex-shrink: 0;
+    }
+
+    .rsb-nav {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    /* Reset main-content offsets for all receiver pages on mobile */
+    .rdb-main {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        padding-top: 64px !important;
+        padding-bottom: 80px !important;
+    }
 }

@@ -1,0 +1,104 @@
+/* ============================================================
+   FeedHope — Design Tokens
+   Single source of truth for color, spacing, type, radius, shadow.
+   Role accent colors live alongside neutrals so each role can
+   pick its hue without redefining the foundation.
+============================================================ */
+
+:root {
+    /* ── Brand ─────────────────────────────────────────────── */
+    --fh-brand: #0f9b6f;
+    --fh-brand-dark: #0c7a5c;
+    --fh-brand-light: #d6f3e6;
+
+    /* ── Role accents ──────────────────────────────────────── */
+    --fh-donor: #f57c00;
+    --fh-donor-dark: #e65100;
+    --fh-donor-light: #fff3e0;
+
+    --fh-receiver: #2e7d32;
+    --fh-receiver-dark: #1b5e20;
+    --fh-receiver-light: #e8f5e9;
+
+    --fh-volunteer: #1976d2;
+    --fh-volunteer-dark: #0d47a1;
+    --fh-volunteer-light: #e3f2fd;
+
+    --fh-admin: #37474f;
+    --fh-admin-dark: #263238;
+    --fh-admin-light: #eceff1;
+
+    /* ── Neutrals (gray scale) ─────────────────────────────── */
+    --fh-gray-50: #f8fafc;
+    --fh-gray-100: #f1f5f9;
+    --fh-gray-200: #e2e8f0;
+    --fh-gray-300: #cbd5e1;
+    --fh-gray-400: #94a3b8;
+    --fh-gray-500: #64748b;
+    --fh-gray-600: #475569;
+    --fh-gray-700: #334155;
+    --fh-gray-800: #1e293b;
+    --fh-gray-900: #0f172a;
+
+    --fh-bg: #f4f6f8;
+    --fh-surface: #ffffff;
+    --fh-border: var(--fh-gray-200);
+    --fh-text: var(--fh-gray-900);
+    --fh-text-muted: var(--fh-gray-500);
+
+    /* ── Semantic ──────────────────────────────────────────── */
+    --fh-success: #10b981;
+    --fh-success-light: #d1fae5;
+    --fh-danger: #ef4444;
+    --fh-danger-light: #fee2e2;
+    --fh-warning: #f59e0b;
+    --fh-warning-light: #fef3c7;
+    --fh-info: #3b82f6;
+    --fh-info-light: #dbeafe;
+
+    /* ── Spacing scale (4px base) ──────────────────────────── */
+    --fh-space-1: 4px;
+    --fh-space-2: 8px;
+    --fh-space-3: 12px;
+    --fh-space-4: 16px;
+    --fh-space-5: 20px;
+    --fh-space-6: 24px;
+    --fh-space-8: 32px;
+    --fh-space-10: 40px;
+    --fh-space-12: 48px;
+
+    /* ── Border radius ─────────────────────────────────────── */
+    --fh-radius-sm: 6px;
+    --fh-radius-md: 10px;
+    --fh-radius-lg: 14px;
+    --fh-radius-xl: 20px;
+    --fh-radius-pill: 999px;
+
+    /* ── Shadows ───────────────────────────────────────────── */
+    --fh-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --fh-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --fh-shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.12);
+    --fh-shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.15);
+
+    /* ── Typography ────────────────────────────────────────── */
+    --fh-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --fh-text-xs: 11px;
+    --fh-text-sm: 13px;
+    --fh-text-base: 14px;
+    --fh-text-md: 16px;
+    --fh-text-lg: 18px;
+    --fh-text-xl: 22px;
+    --fh-text-2xl: 28px;
+
+    /* ── Motion ────────────────────────────────────────────── */
+    --fh-transition-fast: 150ms ease;
+    --fh-transition-base: 250ms ease;
+
+    /* ── Z-index scale ─────────────────────────────────────── */
+    --fh-z-dropdown: 50;
+    --fh-z-sticky: 80;
+    --fh-z-overlay: 100;
+    --fh-z-drawer: 120;
+    --fh-z-toast: 200;
+    --fh-z-modal: 300;
+}

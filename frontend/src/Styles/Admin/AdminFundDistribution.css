@@ -1,30 +1,43 @@
 /* ============================================================
-    FeedHope — Omar & Hanan — AdminFundDistribution.css
+    FeedHope — AdminFundDistribution.css
+    Structural pattern mirrors DonorDashboard.css
+    Theme: admin slate/navy
 ============================================================ */
 
-/* ── Variables ─────────────────────────────────────────────── */
 :root {
-    --afd-sidebar-w: 240px;
+    --afd-accent: #2d3a8c;
+    --afd-accent-dark: #1e2a6e;
+    --afd-accent-light: #eef0f8;
+
+    --afd-blue: #1565c0;
+    --afd-blue-light: #e3f2fd;
+    --afd-slate: #37474f;
+    --afd-slate-light: #eceff1;
+    --afd-green: #10b981;
+    --afd-green-light: #d1fae5;
+    --afd-orange: #f59e0b;
+    --afd-orange-light: #fef3c7;
+    --afd-red: #dc2626;
+    --afd-red-light: #fee2e2;
+
+    --afd-text-main: #1a1a1a;
+    --afd-text-sub: #555555;
+    --afd-text-muted: #888888;
+    --afd-border: #e0e0e0;
     --afd-bg-page: #f4f6f8;
     --afd-bg-card: #ffffff;
-    --afd-border: #e8e8e8;
-    --afd-text-main: #1a1a2e;
-    --afd-text-sub: #6b7280;
-    --afd-text-muted: #9ca3af;
-    --afd-accent: #2d3a8c;
-    /* dark navy */
-    --afd-accent-dark: #1e2a6e;
-    --afd-blue-pill: #3b4fd8;
-    /* pill selected state */
-    --afd-radius-sm: 8px;
-    --afd-radius-md: 12px;
-    --afd-radius-lg: 16px;
-    --afd-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --afd-sidebar-w: 240px;
+
+    --afd-radius-sm: 6px;
+    --afd-radius-md: 10px;
+    --afd-radius-lg: 14px;
+    --afd-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 }
 
-/* ── Reset ──────────────────────────────────────────────────── */
 body {
     background-color: var(--afd-bg-page) !important;
+    color: var(--afd-text-main) !important;
+    display: block !important;
     margin: 0;
     padding: 0;
     text-align: left !important;
@@ -35,78 +48,78 @@ body {
     display: flex;
     min-height: 100vh;
     background: var(--afd-bg-page);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--afd-text-main);
 }
 
 .afd-main {
     margin-left: var(--afd-sidebar-w);
     flex: 1;
     padding: 24px 28px;
-    width: calc(100% - var(--afd-sidebar-w));
-    box-sizing: border-box;
-    min-width: 0;
+    min-height: 100vh;
+    max-width: calc(100vw - var(--afd-sidebar-w));
+    display: block !important;
 }
 
-.afd-content-wrapper {
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* ══════════════════════════════════════════════════════════════
-    BANNER
+/* ════════════════════════════════════════════════════════════
+   BANNER (slate gradient — admin theme)
 ══════════════════════════════════════════════════════════════ */
 .afd-banner {
     background: linear-gradient(135deg, #37474f 0%, #546e7a 60%, #455a64 100%);
     border-radius: var(--afd-radius-lg);
-    margin-bottom: 22px;
-    padding: 28px 36px;
+    padding: 32px 36px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 22px;
     position: relative;
     overflow: hidden;
     color: #fff;
-    min-height: 140px;
-    box-sizing: border-box;
+    min-height: 170px;
 }
 
-.afd-banner::before {
+.afd-banner::before,
+.afd-banner::after {
     content: '';
     position: absolute;
-    right: 180px;
-    top: -50px;
-    width: 200px;
-    height: 200px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 50%;
     pointer-events: none;
 }
 
+.afd-banner::before {
+    right: 200px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
 .afd-banner::after {
-    content: '';
-    position: absolute;
     right: -30px;
-    bottom: -50px;
-    width: 180px;
-    height: 180px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 50%;
-    pointer-events: none;
+    bottom: -60px;
+    width: 220px;
+    height: 220px;
 }
 
 .afd-banner-text {
+    flex: 1;
     z-index: 1;
 }
 
 .afd-banner-title {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
-    margin: 0 0 5px 0;
+    margin: 0 0 6px 0;
+    line-height: 1.2;
 }
 
 .afd-banner-subtitle {
     font-size: 13.5px;
-    opacity: 0.85;
+    opacity: 0.9;
     margin: 0;
+    max-width: 460px;
+    line-height: 1.5;
 }
 
 .afd-banner-date {
@@ -120,7 +133,7 @@ body {
     flex-shrink: 0;
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
    LOADING / ERROR
 ══════════════════════════════════════════════════════════════ */
 .afd-loading {
@@ -139,12 +152,12 @@ body {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 20px;
     border: 1px solid #fecaca;
+    margin-bottom: 22px;
 }
 
 .afd-retry-btn {
-    background: #37474f;
+    background: var(--afd-slate);
     color: #fff;
     border: none;
     padding: 7px 16px;
@@ -158,17 +171,17 @@ body {
     background: #263238;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STATS ROW — two cards
+/* ════════════════════════════════════════════════════════════
+   STATS ROW — two separate cards side by side
 ══════════════════════════════════════════════════════════════ */
 .afd-stats-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     margin-bottom: 22px;
 }
 
 .afd-stat-card {
-    flex: 1;
     background: var(--afd-bg-card);
     border-radius: var(--afd-radius-md);
     border: 1px solid var(--afd-border);
@@ -180,58 +193,56 @@ body {
 }
 
 .afd-stat-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--afd-radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #fff;
 }
 
 .afd-stat-card--distributed .afd-stat-icon {
-    background: #1565c0;
+    background: var(--afd-blue-light);
+    color: var(--afd-blue);
 }
 
 .afd-stat-card--balance .afd-stat-icon {
-    background: #37474f;
+    background: var(--afd-slate-light);
+    color: var(--afd-slate);
 }
 
 .afd-stat-info {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-}
-
-.afd-stat-label {
-    font-size: 11.5px;
-    color: var(--afd-text-muted);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .afd-stat-value {
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 700;
+    line-height: 1.1;
     color: var(--afd-text-main);
-    line-height: 1.2;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   TWO-COLUMN GRID
+.afd-stat-label {
+    font-size: 12.5px;
+    color: var(--afd-text-muted);
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TWO-COLUMN GRID — Requests (left) + History (right)
 ══════════════════════════════════════════════════════════════ */
 .afd-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     align-items: stretch;
-    /* ensures both panels equal height */
-    min-width: 0;
+    /* both panels match the taller one's height */
 }
 
-/* ── Panel (card shell) ─────────────────────────────────────── */
+/* ── Card base ─────────────────────────────────────────────── */
 .afd-panel {
     background: var(--afd-bg-card);
     border-radius: var(--afd-radius-md);
@@ -241,196 +252,34 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 100%;
+    min-height: 420px;
+    /* gives the panels visual weight even when empty */
 }
 
-/* Panel header — plain, no background colour, just a bottom border */
 .afd-panel-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
-    padding: 20px 24px 16px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--afd-border);
 }
 
 .afd-panel-title {
-    font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
+    font-size: 15px;
     color: var(--afd-text-main);
     margin: 0;
     flex: 1;
 }
 
-/* Small count pill (history panel) */
 .afd-panel-count {
-    background: #f3f4f6;
-    color: var(--afd-text-muted);
-    font-size: 12px;
-    font-weight: 600;
+    background: var(--afd-accent-light);
+    color: var(--afd-accent);
+    font-size: 11px;
+    font-weight: 700;
     padding: 3px 10px;
     border-radius: 20px;
-    border: 1px solid var(--afd-border);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   NEW DISTRIBUTION FORM
-══════════════════════════════════════════════════════════════ */
-.afd-form {
-    padding: 20px 24px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    flex: 1;
-}
-
-.afd-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.afd-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--afd-text-main);
-    letter-spacing: 0.01em;
-}
-
-/* Normal bordered inputs (full border) */
-.afd-input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--afd-border);
-    border-radius: var(--afd-radius-sm);
-    font-size: 14px;
-    color: var(--afd-text-main);
-    background: #fff;
-    outline: none;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-}
-
-.afd-input::placeholder {
-    color: var(--afd-text-muted);
-}
-
-.afd-input:focus {
-    border-color: var(--afd-accent);
-}
-
-/* Textarea: normal border */
-.afd-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--afd-border);
-    border-radius: var(--afd-radius-sm);
-    font-size: 14px;
-    color: var(--afd-text-main);
-    background: #fff;
-    outline: none;
-    resize: vertical;
-    font-family: inherit;
-    line-height: 1.6;
-    box-sizing: border-box;
-    transition: border-color 0.15s;
-}
-
-.afd-textarea::placeholder {
-    color: var(--afd-text-muted);
-}
-
-.afd-textarea:focus {
-    border-color: var(--afd-accent);
-    background: #fff;
-}
-
-/* ── Payment Method pill buttons ────────────────────────────── */
-.afd-pills {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-/* Each pill: outlined rectangle matching the image */
-.afd-pill {
-    flex: 1;
-    padding: 10px 12px;
-    border: 1px solid var(--afd-border);
-    border-radius: var(--afd-radius-sm);
-    background: #fff;
-    color: var(--afd-text-sub);
-    font-size: 13.5px;
-    font-weight: 500;
-    cursor: pointer;
-    text-align: center;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
-    white-space: nowrap;
-}
-
-.afd-pill:hover {
-    border-color: var(--afd-blue-pill);
-    color: var(--afd-blue-pill);
-}
-
-/* Selected pill: filled dark navy/blue */
-.afd-pill--active {
-    background: var(--afd-text-main);
-    border-color: var(--afd-text-main);
-    color: #ffffff;
-    font-weight: 600;
-}
-
-.afd-pill--active:hover {
-    background: var(--afd-accent-dark);
-    border-color: var(--afd-accent-dark);
-    color: #fff;
-}
-
-/* ── Form footer: divider line + right-aligned submit button ── */
-.afd-form-footer {
-    border-top: 1px solid var(--afd-border);
-    padding: 16px 0 20px;
-    display: flex;
-    justify-content: flex-end;
-    margin-top: auto;
-}
-
-.afd-btn-submit {
-    background: var(--afd-text-main);
-    /* dark navy from image */
-    color: #fff;
-    border: none;
-    padding: 11px 28px;
-    border-radius: var(--afd-radius-sm);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
-    letter-spacing: 0.01em;
-}
-
-.afd-btn-submit:hover {
-    background: var(--afd-accent-dark);
-}
-
-.afd-btn-submit:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   DISTRIBUTION HISTORY LIST
-══════════════════════════════════════════════════════════════ */
-.afd-history-list {
-    padding: 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    max-height: 560px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-width: 0;
-    flex: 1;
 }
 
 .afd-empty {
@@ -440,116 +289,295 @@ body {
     font-size: 14px;
 }
 
-/* Each history card: left blue accent, rounded corners, separated by margin */
-.afd-history-card {
+/* ════════════════════════════════════════════════════════════
+   PENDING DONOR REQUESTS (LEFT)
+══════════════════════════════════════════════════════════════ */
+.afd-requests-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 16px 16px 16px 20px;
-    border-left: 3px solid #3b4fd8;
-    border-radius: var(--afd-radius-sm);
+    flex: 1;
+    /* stretch to fill panel height */
+    overflow-y: auto;
+}
+
+.afd-request-card {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--afd-border);
+    border-left: 3px solid var(--afd-accent);
     background: #fff;
+}
+
+.afd-request-card:last-child {
+    border-bottom: none;
+}
+
+.afd-request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+
+.afd-request-donor {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--afd-text-main);
+}
+
+.afd-request-amount {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--afd-accent);
+    background: var(--afd-accent-light);
+    padding: 3px 10px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+
+.afd-request-reason {
+    color: var(--afd-text-sub);
+    font-size: 13px;
+    line-height: 1.5;
+    background: #f8fafc;
+    padding: 9px 12px;
+    border-radius: var(--afd-radius-sm);
+    margin-bottom: 10px;
+    word-break: break-word;
+}
+
+.afd-request-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 12px;
-    transition: background 0.12s, box-shadow 0.12s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.afd-request-ref {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px;
+    color: var(--afd-text-muted);
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.afd-request-date {
+    font-size: 11.5px;
+    color: var(--afd-text-muted);
+}
+
+.afd-request-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.afd-approve-btn,
+.afd-reject-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.afd-approve-btn {
+    border: 1px solid var(--afd-accent);
+    color: var(--afd-accent);
+}
+
+.afd-approve-btn:hover {
+    background: var(--afd-accent);
+    color: #fff;
+}
+
+.afd-reject-btn {
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.afd-reject-btn:hover {
+    background: var(--afd-red);
+    border-color: var(--afd-red);
+    color: #fff;
+}
+
+.afd-approve-btn:disabled,
+.afd-reject-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════
+   DISTRIBUTION HISTORY (RIGHT)
+══════════════════════════════════════════════════════════════ */
+.afd-history-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* stretch to fill panel height */
+    overflow-y: auto;
+}
+
+.afd-history-card {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--afd-border);
+    border-left: 3px solid var(--afd-accent);
+    background: #fff;
 }
 
 .afd-history-card:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
 }
 
-.afd-history-card:hover {
-    background: #f9fafb;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.afd-history-card--pending {
+    border-left-color: var(--afd-orange);
 }
 
-/* Each row inside the card: space-between layout */
+.afd-history-card--completed {
+    border-left-color: var(--afd-green);
+}
+
+.afd-history-card--rejected {
+    border-left-color: var(--afd-red);
+}
+
 .afd-hcard-row {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    min-width: 0;
+    margin-bottom: 5px;
 }
 
-/* Top row: org name bold dark + amount bold dark */
+.afd-hcard-row:last-child {
+    margin-bottom: 0;
+}
+
+.afd-hcard-row--status {
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--afd-border);
+}
+
 .afd-hcard-org {
     font-size: 14.5px;
     font-weight: 700;
     color: var(--afd-text-main);
-    /* word-break + overflow-wrap keep long org names inside the card
-       both in the sidebar list and inside the modal */
-    word-break: break-word;
-    overflow-wrap: break-word;
     flex: 1;
     min-width: 0;
-    /* flex item must have min-width:0 to shrink below content size */
+    word-break: break-word;
 }
 
 .afd-hcard-amount {
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 700;
     color: var(--afd-text-main);
     flex-shrink: 0;
     white-space: nowrap;
 }
 
-/* Sub row: method muted left, date muted right */
 .afd-hcard-method {
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--afd-text-muted);
     flex: 1;
     min-width: 0;
-    /* required inside flex: lets the element shrink below its content size */
-    word-break: break-word;
-    /* breaks long unspaced strings (URLs, emails) */
-    overflow-wrap: break-word;
-    /* broader browser support for the same behaviour */
 }
 
 .afd-hcard-date {
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--afd-text-muted);
     flex-shrink: 0;
     white-space: nowrap;
 }
 
-/* History panel should also stretch content */
-.afd-panel--history {
-    display: flex;
-    flex-direction: column;
+.afd-hcard-ref {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px;
+    color: var(--afd-text-muted);
 }
 
-/* Show More button - small, centered, not full width */
+.afd-hcard-reason,
+.afd-hcard-rejection {
+    font-size: 12px;
+    margin: 8px 0 0 0;
+    padding-top: 6px;
+    border-top: 1px dashed var(--afd-border);
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.afd-hcard-reason {
+    color: var(--afd-text-sub);
+}
+
+.afd-hcard-rejection {
+    color: var(--afd-red);
+}
+
+/* Status badges (used in cards and modal) */
+.afd-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.afd-badge--pending {
+    background: var(--afd-orange-light);
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.afd-badge--completed {
+    background: var(--afd-green-light);
+    color: #065f46;
+    border: 1px solid #86efac;
+}
+
+.afd-badge--rejected {
+    background: var(--afd-red-light);
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
 .afd-show-more-btn {
     background: transparent;
     border: 1px solid var(--afd-border);
     border-radius: var(--afd-radius-sm);
     padding: 6px 16px;
-    margin: 16px auto 8px auto;
+    margin: 14px auto;
     font-size: 12px;
     font-weight: 500;
     color: var(--afd-accent);
     cursor: pointer;
+    display: block;
     transition: all 0.2s;
-    display: inline-block;
-    width: auto;
-    text-align: center;
 }
 
 .afd-show-more-btn:hover {
     background: var(--afd-accent);
     border-color: var(--afd-accent);
-    color: white;
+    color: #fff;
 }
 
-/* Modal overlay */
+/* ════════════════════════════════════════════════════════════
+   MODAL — shared shell
+══════════════════════════════════════════════════════════════ */
 .afd-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
@@ -559,7 +587,7 @@ body {
 }
 
 .afd-modal {
-    background: white;
+    background: #fff;
     border-radius: var(--afd-radius-md);
     width: 90%;
     max-width: 700px;
@@ -568,6 +596,7 @@ body {
     flex-direction: column;
     box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
     animation: afd-modal-in 0.2s ease;
+    overflow: hidden;
 }
 
 @keyframes afd-modal-in {
@@ -592,8 +621,8 @@ body {
 
 .afd-modal-header h3 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     color: var(--afd-text-main);
 }
 
@@ -603,7 +632,6 @@ body {
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
     padding: 4px;
     border-radius: 50%;
     color: var(--afd-text-muted);
@@ -616,54 +644,299 @@ body {
 }
 
 .afd-modal-body {
-    padding: 12px 20px 20px;
+    padding: 16px 20px 20px;
     overflow-y: auto;
-    /* scrollable when history is long */
-    overflow-x: hidden;
-    /* prevents any child from pushing the modal wider */
     flex: 1;
-    /* Establishes a width boundary so all child text knows where to wrap */
-    min-width: 0;
-    box-sizing: border-box;
+}
+
+.afd-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+/* Generic Cancel button (works in both modals) */
+.afd-modal-cancel-btn {
+    padding: 10px 22px;
+    border-radius: var(--afd-radius-sm);
+    border: 1px solid var(--afd-border);
+    background: #fff;
+    color: var(--afd-text-sub);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.afd-modal-cancel-btn:hover {
+    background: #f5f5f5;
+    color: var(--afd-text-main);
+}
+
+.afd-modal-cancel-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .afd-modal-history-card {
     margin-bottom: 12px;
-    /* Ensures the card itself never exceeds the modal body's width.
-       Without min-width:0, a flex child can overflow its container. */
-    min-width: 0;
-    overflow: hidden;
-    /* last-resort clamp: nothing escapes the card box */
     width: 100%;
     box-sizing: border-box;
 }
 
-.afd-hcard-reason {
-    font-size: 12px;
-    color: var(--afd-text-sub);
-    margin: 8px 0 0 0;
-    padding-top: 6px;
-    border-top: 1px dashed var(--afd-border);
-
-    /* ── Overflow fix ──────────────────────────────────────────
-       word-break: break-word  → breaks long words/emails at any
-       character so they never push past the card boundary.
-       overflow-wrap: break-word → same safety net, broader support.
-       Without these, a single unbroken string (e.g. a long email
-       repeated with no spaces) stretches the card horizontally
-       and spills outside the modal.
-    ────────────────────────────────────────────────────────── */
-    word-break: break-word;
-    overflow-wrap: break-word;
-
-    /* Keep text readable: constrain width to its parent,
-       let it grow as many lines as needed (no truncation). */
-    max-width: 100%;
-    white-space: normal;
-    /* allow natural line-wrapping */
+/* ── Approve Modal — slate gradient header ────────────────── */
+.afd-modal--approve {
+    width: 90%;
+    max-width: 520px;
 }
 
-/* ══════════════════════════════════════════════════════════════
+.afd-modal--approve .afd-modal-header {
+    background: linear-gradient(135deg, #37474f 0%, #546e7a 60%, #455a64 100%);
+    border-bottom: none;
+    padding: 16px 22px;
+}
+
+.afd-modal--approve .afd-modal-header h3 {
+    color: #fff;
+}
+
+.afd-modal--approve .afd-modal-close {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.afd-modal--approve .afd-modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.afd-modal--approve .afd-modal-body {
+    padding: 20px 22px;
+}
+
+.afd-approve-desc {
+    font-size: 13.5px;
+    color: var(--afd-text-sub);
+    margin: 0 0 18px 0;
+    line-height: 1.5;
+    background: var(--afd-accent-light);
+    border-left: 3px solid var(--afd-accent);
+    border-radius: var(--afd-radius-sm);
+    padding: 10px 12px;
+}
+
+.afd-approve-field {
+    margin-bottom: 14px;
+}
+
+.afd-approve-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--afd-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.afd-approve-amount {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--afd-accent-light);
+    border: 2px solid var(--afd-accent);
+    border-radius: var(--afd-radius-sm);
+    padding: 12px 16px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--afd-accent);
+}
+
+.afd-approve-amount small {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--afd-accent-dark);
+    margin-left: auto;
+}
+
+.afd-approve-ref {
+    background: #f8fafc;
+    border: 1px dashed var(--afd-border);
+    border-radius: var(--afd-radius-sm);
+    padding: 10px 14px;
+    font-size: 12.5px;
+    color: var(--afd-text-muted);
+    font-family: 'Courier New', monospace;
+}
+
+.afd-approve-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.afd-approve-pill {
+    padding: 8px 16px;
+    border: 1px solid var(--afd-border);
+    background: #fff;
+    color: var(--afd-text-sub);
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.afd-approve-pill:hover {
+    border-color: var(--afd-accent);
+    color: var(--afd-accent);
+}
+
+.afd-approve-pill--active {
+    background: var(--afd-accent);
+    border-color: var(--afd-accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.afd-approve-field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--afd-border);
+    border-radius: var(--afd-radius-sm);
+    font-size: 13.5px;
+    font-family: inherit;
+    color: var(--afd-text-main);
+    resize: vertical;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.afd-approve-field textarea:focus {
+    border-color: var(--afd-accent);
+}
+
+.afd-approve-reason-box {
+    background: #f8fafc;
+    border-radius: var(--afd-radius-sm);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--afd-text-sub);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.afd-modal-approve-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 22px;
+    border: none;
+    border-radius: var(--afd-radius-sm);
+    background: var(--afd-accent);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.afd-modal-approve-btn:hover {
+    background: var(--afd-accent-dark);
+}
+
+.afd-modal-approve-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ── Reject Modal — red gradient header ───────────────────── */
+.afd-modal--reject {
+    width: 400px;
+    max-width: 90%;
+}
+
+.afd-modal--reject .afd-modal-header {
+    background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
+    border-bottom: none;
+    padding: 20px 24px 16px;
+}
+
+.afd-modal--reject .afd-modal-header h3 {
+    color: #fff;
+    font-size: 18px;
+}
+
+.afd-modal--reject .afd-modal-close {
+    color: #fff;
+}
+
+.afd-modal--reject .afd-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.afd-modal--reject .afd-modal-body {
+    text-align: center;
+    padding: 24px;
+}
+
+.afd-modal--reject .afd-modal-body p {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--afd-text-main);
+    margin: 0 0 12px;
+}
+
+.afd-modal--reject .afd-modal-body label {
+    display: block;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--afd-text-main);
+}
+
+.afd-modal--reject .afd-modal-body textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--afd-border);
+    border-radius: var(--afd-radius-sm);
+    font-size: 14px;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+.afd-modal--reject .afd-modal-actions {
+    justify-content: center;
+}
+
+.afd-modal-reject-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 22px;
+    border-radius: var(--afd-radius-sm);
+    background: #c62828;
+    color: #fff;
+    border: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.afd-modal-reject-btn:hover {
+    background: #b71c1c;
+}
+
+.afd-modal-reject-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════════════════════ */
 .afd-toast {
@@ -694,7 +967,7 @@ body {
 }
 
 .afd-toast--success {
-    background: #37474f;
+    background: var(--afd-slate);
     color: #fff;
 }
 
@@ -703,10 +976,23 @@ body {
     color: #fff;
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════════ */
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
+    .afd-stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .afd-stat-card {
+        border-right: none;
+        border-bottom: 1px solid var(--afd-border);
+    }
+
+    .afd-stat-card:last-child {
+        border-bottom: none;
+    }
+
     .afd-grid {
         grid-template-columns: 1fr;
     }
@@ -715,415 +1001,22 @@ body {
 @media (max-width: 768px) {
     .afd-main {
         margin-left: 0;
-        width: 100%;
         padding: 16px;
+        max-width: 100vw;
     }
 
     .afd-banner {
-        padding: 22px 20px;
         flex-direction: column;
+        text-align: center;
+        padding: 24px 20px;
         align-items: flex-start;
-        gap: 12px;
-        min-height: auto;
     }
 
-    .afd-stats-row {
+    .afd-banner-title {
+        font-size: 22px;
+    }
+
+    .afd-request-actions {
         flex-direction: column;
     }
-
-    .afd-history-list {
-        max-height: none;
-    }
-
-    .afd-pills {
-        flex-direction: column;
-    }
-
-    .afd-pill {
-        flex: auto;
-    }
-}
-
-/* ════════════════════════════════════════════════════════════
-   APPEND THESE STYLES TO THE END OF AdminFundDistribution.css
-════════════════════════════════════════════════════════════ */
-
-/* ── Status Badges on history cards ────────────────────────── */
-.afd-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.afd-badge--pending {
-    background: #fff3e0;
-    color: #92400e;
-    border: 1px solid #ffcc80;
-}
-
-.afd-badge--completed {
-    background: #f0fdf4;
-    color: #065f46;
-    border: 1px solid #bbf7d0;
-}
-
-.afd-badge--rejected {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-}
-
-/* ── Status row inside each history card ───────────────────── */
-.afd-hcard-row--status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 4px;
-    padding-top: 8px;
-    border-top: 1px dashed var(--afd-border);
-}
-
-.afd-hcard-ref {
-    font-family: 'Courier New', monospace;
-    font-size: 11.5px;
-    color: var(--afd-text-muted);
-    font-weight: 500;
-}
-
-/* ── Color-code the left accent stripe by status ───────────── */
-.afd-history-card--pending {
-    border-left-color: #f59e0b;
-}
-
-.afd-history-card--completed {
-    border-left-color: #10b981;
-}
-
-.afd-history-card--rejected {
-    border-left-color: #dc2626;
-}
-
-/* ── Rejection reason line in the full-history modal ───────── */
-.afd-hcard-rejection {
-    font-size: 12px;
-    color: #dc2626;
-    margin: 8px 0 0 0;
-    padding-top: 6px;
-    border-top: 1px dashed var(--afd-border);
-    word-break: break-word;
-    overflow-wrap: break-word;
-}
-
-
-
-
-
-
-
-
-
-/* .afd-requests-panel {
-    margin-bottom: 32px;
-}
-.afd-requests-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-.afd-request-card {
-    background: #fff9e6;
-    border-left: 4px solid #ffb703;
-    padding: 16px;
-    border-radius: 12px;
-}
-.afd-request-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-.afd-request-reason {
-    color: #495057;
-    margin-bottom: 8px;
-}
-.afd-request-date {
-    font-size: 0.8rem;
-    color: #adb5bd;
-    margin-bottom: 12px;
-}
-.afd-request-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-.afd-payment-select {
-    padding: 8px 12px;
-    border-radius: 20px;
-    border: 1px solid #ced4da;
-    background: white;
-}
-.afd-reject-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.afd-reject-btn:disabled {
-    opacity: 0.6;
-}
-.afd-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 20px;
-}
-.afd-modal-reject-btn {
-    background: #dc3545;
-    color: white;
-} */
-
-
-
-
-/* ── Pending Donor Requests Panel (improved) ───────────────── */
-.afd-requests-panel {
-    margin-bottom: 32px;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid var(--afd-border);
-    box-shadow: var(--afd-shadow);
-    overflow: hidden;
-}
-
-.afd-requests-panel .afd-panel-header {
-    background: #f8fafc;
-    border-bottom: 1px solid var(--afd-border);
-    padding: 16px 20px;
-}
-
-.afd-requests-panel .afd-panel-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.afd-requests-list {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.afd-request-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 16px;
-    transition: all 0.15s;
-}
-
-.afd-request-card:hover {
-    background: #fefce8;
-    border-color: #facc15;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-}
-
-.afd-request-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 8px;
-}
-
-.afd-request-donor {
-    font-weight: 700;
-    color: #0f172a;
-    font-size: 0.95rem;
-}
-
-.afd-request-amount {
-    font-weight: 700;
-    color: #f97316;
-    background: #fff7ed;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-}
-
-.afd-request-reason {
-    color: #334155;
-    font-size: 0.85rem;
-    margin-bottom: 8px;
-    line-height: 1.5;
-    background: #f1f5f9;
-    padding: 8px 10px;
-    border-radius: 8px;
-}
-
-.afd-request-date {
-    font-size: 0.7rem;
-    color: #94a3b8;
-    margin-bottom: 12px;
-}
-
-.afd-request-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-/* Compact payment select */
-.afd-payment-select {
-    width: 180px;
-    padding: 6px 10px;
-    font-size: 0.8rem;
-    border-radius: 20px;
-    border: 1px solid #cbd5e1;
-    background: white;
-    cursor: pointer;
-}
-
-/* Reject button – smaller, consistent */
-.afd-reject-btn {
-    background: #fff;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.afd-reject-btn:hover {
-    background: #dc2626;
-    border-color: #dc2626;
-    color: white;
-}
-
-.afd-reject-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-
-
-
-/* ── Reject Modal – Red theme (matching AdminNotifications modals) ── */
-.afd-modal--reject {
-    width: 400px;
-    max-width: 90%;
-}
-
-.afd-modal--reject .afd-modal-header {
-    background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
-    border-bottom: none;
-    border-radius: var(--afd-radius-md) var(--afd-radius-md) 0 0;
-    padding: 20px 24px 16px;
-}
-
-.afd-modal--reject .afd-modal-header h3 {
-    color: #fff;
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.afd-modal--reject .afd-modal-close {
-    color: #fff;
-}
-
-.afd-modal--reject .afd-modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.afd-modal--reject .afd-modal-body {
-    text-align: center;
-    padding: 28px 28px 24px;
-}
-
-.afd-modal--reject .afd-modal-body p {
-    font-size: 15.5px;
-    font-weight: 600;
-    color: var(--afd-text-main);
-    margin: 0 0 10px;
-}
-
-.afd-modal--reject .afd-modal-body label {
-    display: block;
-    text-align: left;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--afd-text-main);
-}
-
-.afd-modal--reject .afd-modal-body textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--afd-border);
-    border-radius: var(--afd-radius-sm);
-    font-size: 14px;
-    resize: vertical;
-    box-sizing: border-box;
-    margin-bottom: 20px;
-}
-
-.afd-modal--reject .afd-modal-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 6px;
-}
-
-.afd-modal--reject .afd-modal-cancel-btn {
-    padding: 9px 22px;
-    border-radius: var(--afd-radius-sm);
-    border: 1px solid var(--afd-border);
-    background: #fff;
-    color: var(--afd-text-sub);
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-
-.afd-modal--reject .afd-modal-cancel-btn:hover {
-    background: #f5f5f5;
-}
-
-.afd-modal--reject .afd-modal-reject-btn {
-    padding: 9px 24px;
-    border-radius: var(--afd-radius-sm);
-    background: #c62828 !important;
-    color: #fff;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 0.15s;
-}
-
-.afd-modal--reject .afd-modal-reject-btn:hover {
-    background: #b71c1c !important;
-}
-
-.afd-modal--reject .afd-modal-reject-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
 }

@@ -57,12 +57,12 @@ const ReceiverDashboard = () => {
     const storedUser = localStorage.getItem('feedhope_user');
     const user       = storedUser ? JSON.parse(storedUser) : null;
 
-    const [dashboardData, setDashboardData] = useState(null); // used to display values
+    const [dashboardData, setDashboardData] = useState(null); // all data from backend
     const [loading,       setLoading]       = useState(true); // show spinner
     const [error,         setError]         = useState(null); // show error message
-    const [accepting,     setAccepting]     = useState(null);
+    const [accepting,     setAccepting]     = useState(null); // track which offer is being accepted
 
-    
+
     useEffect(() => {
         // If there is no logged-in user Redirect them to Sign In page
         if (!user) {
@@ -75,7 +75,7 @@ const ReceiverDashboard = () => {
                 setLoading(true); // We are loading data now
                 // Call the backend API
                 const res  = await fetch(`http://localhost:5000/api/receiver/dashboard/${user.user_id}`);
-                const data = await res.json(); // Backend sends data → we convert it into usable JavaScript object.
+                const data = await res.json(); // Backend sends data -> we convert it into usable JavaScript object.
 
                 // if something went wrong: 1. Show error message 2. Stop execution
                 if (!res.ok) {
@@ -151,23 +151,23 @@ const ReceiverDashboard = () => {
         return (
             <div className="rdb-error-screen">
                 <p className="rdb-error-msg">{error}</p>
-                <button className="rdb-retry-btn" onClick={() => window.location.reload()}> 
+                <button className="rdb-retry-btn" onClick={() => window.location.reload()}>
                     Retry
-                </button> 
+                </button>
             </div>
         );
     }
 
     /*  Extracting data from state
     What each one means:
-        receiver → user info
-        stats → numbers (meals, etc.)
-        offers → available offers
-        notifications → alerts/messages
-        acceptedOffers → offers user accepted
+        receiver -> user info
+        stats -> numbers (meals, etc.)
+        offers -> available offers
+        notifications -> alerts/messages
+        acceptedOffers -> offers user accepted
     */
     const { receiver, stats, offers, notifications, acceptedOffers } = dashboardData;
-    
+
     return (
         <div className="rdb-layout">
             <ReceiverSidebar
@@ -189,12 +189,12 @@ const ReceiverDashboard = () => {
                                 : 'No new offers right now. Check back soon!'}
                         </p>
                     </div>
-                    
+
                     <div className="rdb-banner-icon rdb-banner-avatar">
                         {receiver.profile_picture ? (
-                            <img 
-                                src={`http://localhost:5000${receiver.profile_picture}`} 
-                                alt="profile" 
+                            <img
+                                src={`http://localhost:5000${receiver.profile_picture}`}
+                                alt="profile"
                                 style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
                             />
                         ) : (

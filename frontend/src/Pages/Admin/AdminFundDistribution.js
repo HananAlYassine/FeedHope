@@ -13,6 +13,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 const PAYMENT_METHODS = ['Bank Transfer', 'OMT', 'WishMoney'];
 
@@ -44,15 +45,22 @@ const AdminFundDistribution = () => {
 
     const [stats, setStats] = useState({ totalDistributed: 0, balance: 0 });
     const [history, setHistory] = useState([]);
-    const [requests, setRequests] = useState([]);      // pending money requests
+    const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState(null);
     const [toast, setToast] = useState(null);
-    const [showModal, setShowModal] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState(null);
-    const [rejectReason, setRejectReason] = useState('');
-    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+    // ── Approve Modal ──
+    const [approveModal, setApproveModal] = useState({
+        open: false, request: null, paymentMethod: '', notes: ''
+    });
+
+    // ── Reject Modal ──
+    const [rejectModal, setRejectModal] = useState({
+        open: false, request: null, reason: ''
+    });
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -86,21 +94,40 @@ const AdminFundDistribution = () => {
         setTimeout(() => setToast(null), 3500);
     };
 
-    const handleApproveRequest = async (request, paymentMethod) => {
-        if (!paymentMethod) {
-            showToastMsg('Please select a payment method for this request.', 'error');
+    // ── Open Approve Modal ──
+    const openApproveModal = (request) => {
+        setApproveModal({
+            open: true,
+            request,
+            paymentMethod: '',
+            notes: ''
+        });
+    };
+
+    // ── Confirm Approval ──
+    const handleApproveConfirm = async () => {
+        if (!approveModal.paymentMethod) {
+            showToastMsg('Please select a payment method.', 'error');
             return;
         }
         setActionLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/money-requests/${request.request_id}/approve`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminId, paymentMethod })
-            });
+            const res = await fetch(
+                `http://localhost:5000/api/admin/money-requests/${approveModal.request.request_id}/approve`,
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        adminId,
+                        paymentMethod: approveModal.paymentMethod,
+                        notes: approveModal.notes
+                    })
+                }
+            );
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(data.error || 'Approval failed.');
             showToastMsg(`Request approved. Funds distributed. Ref: ${data.distributionRef}`);
+            setApproveModal({ open: false, request: null, paymentMethod: '', notes: '' });
             fetchAll();
         } catch (err) {
             showToastMsg(err.message, 'error');
@@ -109,28 +136,31 @@ const AdminFundDistribution = () => {
         }
     };
 
+    // ── Open Reject Modal ──
     const openRejectModal = (request) => {
-        setSelectedRequest(request);
-        setRejectReason('');
-        setShowRejectModal(true);
+        setRejectModal({ open: true, request, reason: '' });
     };
 
-    const handleRejectRequest = async () => {
-        if (!rejectReason.trim()) {
+    // ── Confirm Rejection ──
+    const handleRejectConfirm = async () => {
+        if (!rejectModal.reason.trim()) {
             showToastMsg('Please provide a rejection reason.', 'error');
             return;
         }
         setActionLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/money-requests/${selectedRequest.request_id}/reject`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason: rejectReason.trim() })
-            });
+            const res = await fetch(
+                `http://localhost:5000/api/admin/money-requests/${rejectModal.request.request_id}/reject`,
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: rejectModal.reason.trim() })
+                }
+            );
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(data.error || 'Rejection failed.');
             showToastMsg('Request rejected.');
-            setShowRejectModal(false);
+            setRejectModal({ open: false, request: null, reason: '' });
             fetchAll();
         } catch (err) {
             showToastMsg(err.message, 'error');
@@ -192,83 +222,82 @@ const AdminFundDistribution = () => {
                                 </div>
                             </div>
 
-                            {/* Money Requests Section (Pending) */}
-                            <div className="afd-panel afd-requests-panel">
-                                <div className="afd-panel-header">
-                                    <h2 className="afd-panel-title">Pending Donor Requests</h2>
-                                    <span className="afd-panel-count">{requests.length}</span>
-                                </div>
-                                {requests.length === 0 ? (
-                                    <div className="afd-empty">No pending requests.</div>
-                                ) : (
-                                    <div className="afd-requests-list">
-                                        {requests.map(req => (
-                                            <div key={req.request_id} className="afd-request-card">
-                                                <div className="afd-request-header">
-                                                    <span className="afd-request-donor">{req.donor_name}</span>
-                                                    <span className="afd-request-amount">${Number(req.amount).toFixed(2)}</span>
-                                                </div>
-                                                <div className="afd-request-reason">{req.reason}</div>
-                                                <div className="afd-request-date">{formatDate(req.request_date)}</div>
-                                                <div className="afd-request-actions">
-                                                    <select
-                                                        className="afd-payment-select"
-                                                        defaultValue=""
-                                                        onChange={(e) => {
-                                                            const method = e.target.value;
-                                                            if (method) handleApproveRequest(req, method);
-                                                        }}
-                                                        disabled={actionLoading}
-                                                    >
-                                                        <option value="" disabled>Select payment method</option>
-                                                        {PAYMENT_METHODS.map(m => (
-                                                            <option key={m} value={m}>{m}</option>
-                                                        ))}
-                                                    </select>
-                                                    <button
-                                                        className="afd-reject-btn"
-                                                        onClick={() => openRejectModal(req)}
-                                                        disabled={actionLoading}
-                                                    >
-                                                        <CancelIcon sx={{ fontSize: 16 }} /> Reject
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
+                            {/* Two-column grid: Requests (left) + History (right) */}
+                            <div className="afd-grid">
+                                {/* Money Requests Section (Pending) */}
+                                <div className="afd-panel afd-requests-panel">
+                                    <div className="afd-panel-header">
+                                        <h2 className="afd-panel-title">Pending Donor Requests</h2>
+                                        <span className="afd-panel-count">{requests.length}</span>
                                     </div>
-                                )}
-                            </div>
-
-                            {/* Distribution History */}
-                            <div className="afd-panel afd-panel--history">
-                                <div className="afd-panel-header">
-                                    <h2 className="afd-panel-title">Distribution History</h2>
-                                    <span className="afd-panel-count">{history.length}</span>
-                                </div>
-                                <div className="afd-history-list">
-                                    {displayedHistory.length === 0 ? (
-                                        <div className="afd-empty">No distributions yet.</div>
+                                    {requests.length === 0 ? (
+                                        <div className="afd-empty">No pending requests.</div>
                                     ) : (
-                                        <>
-                                            {displayedHistory.map((item) => (
-                                                <div key={item.distribution_id} className={`afd-history-card afd-history-card--${item.status}`}>
-                                                    <div className="afd-hcard-row afd-hcard-row--top">
-                                                        <span className="afd-hcard-org">{item.donor_name || '—'}</span>
-                                                        <span className="afd-hcard-amount">${Number(item.amount).toFixed(0)}</span>
+                                        <div className="afd-requests-list">
+                                            {requests.map(req => (
+                                                <div key={req.request_id} className="afd-request-card">
+                                                    <div className="afd-request-header">
+                                                        <span className="afd-request-donor">{req.donor_name}</span>
+                                                        <span className="afd-request-amount">${Number(req.amount).toFixed(2)}</span>
                                                     </div>
-                                                    <div className="afd-hcard-row afd-hcard-row--sub">
-                                                        <span className="afd-hcard-method">{item.payment_method || '—'}</span>
-                                                        <span className="afd-hcard-date">{formatDate(item.distribution_date)}</span>
+                                                    <div className="afd-request-reason">{req.reason}</div>
+                                                    <div className="afd-request-meta">
+                                                        <span className="afd-request-ref">{req.reference_number || '—'}</span>
+                                                        <span className="afd-request-date">{formatDate(req.request_date)}</span>
                                                     </div>
-                                                    <div className="afd-hcard-row afd-hcard-row--status">
-                                                        {getStatusBadge(item.status)}
-                                                        {item.reference_number && <span className="afd-hcard-ref">{item.reference_number}</span>}
+                                                    <div className="afd-request-actions">
+                                                        <button
+                                                            className="afd-approve-btn"
+                                                            onClick={() => openApproveModal(req)}
+                                                            disabled={actionLoading}
+                                                        >
+                                                            <CheckCircleIcon sx={{ fontSize: 16 }} /> Approve
+                                                        </button>
+                                                        <button
+                                                            className="afd-reject-btn"
+                                                            onClick={() => openRejectModal(req)}
+                                                            disabled={actionLoading}
+                                                        >
+                                                            <CancelIcon sx={{ fontSize: 16 }} /> Reject
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}
-                                            {hasMore && <button className="afd-show-more-btn" onClick={() => setShowModal(true)}>Show More</button>}
-                                        </>
+                                        </div>
                                     )}
+                                </div>
+
+                                {/* Distribution History */}
+                                <div className="afd-panel afd-panel--history">
+                                    <div className="afd-panel-header">
+                                        <h2 className="afd-panel-title">Distribution History</h2>
+                                        <span className="afd-panel-count">{history.length}</span>
+                                    </div>
+                                    <div className="afd-history-list">
+                                        {displayedHistory.length === 0 ? (
+                                            <div className="afd-empty">No distributions yet.</div>
+                                        ) : (
+                                            <>
+                                                {displayedHistory.map((item) => (
+                                                    <div key={item.distribution_id} className={`afd-history-card afd-history-card--${item.status}`}>
+                                                        <div className="afd-hcard-row afd-hcard-row--top">
+                                                            <span className="afd-hcard-org">{item.donor_name || '—'}</span>
+                                                            <span className="afd-hcard-amount">${Number(item.amount).toFixed(0)}</span>
+                                                        </div>
+                                                        <div className="afd-hcard-row afd-hcard-row--sub">
+                                                            <span className="afd-hcard-method">{item.payment_method || '—'}</span>
+                                                            <span className="afd-hcard-date">{formatDate(item.distribution_date)}</span>
+                                                        </div>
+                                                        <div className="afd-hcard-row afd-hcard-row--status">
+                                                            {getStatusBadge(item.status)}
+                                                            {item.reference_number && <span className="afd-hcard-ref">{item.reference_number}</span>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {hasMore && <button className="afd-show-more-btn" onClick={() => setShowHistoryModal(true)}>Show More</button>}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </>
@@ -276,13 +305,13 @@ const AdminFundDistribution = () => {
                 </div>
             </main>
 
-            {/* Full History Modal */}
-            {showModal && (
-                <div className="afd-modal-overlay" onClick={() => setShowModal(false)}>
+            {/* ── Full History Modal ── */}
+            {showHistoryModal && (
+                <div className="afd-modal-overlay" onClick={() => setShowHistoryModal(false)}>
                     <div className="afd-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="afd-modal-header">
                             <h3>Full Distribution History</h3>
-                            <button className="afd-modal-close" onClick={() => setShowModal(false)}><CloseIcon /></button>
+                            <button className="afd-modal-close" onClick={() => setShowHistoryModal(false)}><CloseIcon /></button>
                         </div>
                         <div className="afd-modal-body">
                             {history.map((item) => (
@@ -307,70 +336,131 @@ const AdminFundDistribution = () => {
                 </div>
             )}
 
-            {/* Reject Modal */}
-            {/* {showRejectModal && (
-                <div className="afd-modal-overlay" onClick={() => setShowRejectModal(false)}>
-                    <div className="afd-modal" onClick={(e) => e.stopPropagation()}>
+            {/* ── APPROVE Modal ── */}
+            {approveModal.open && (
+                <div className="afd-modal-overlay" onClick={() => setApproveModal(prev => ({ ...prev, open: false }))}>
+                    <div className="afd-modal afd-modal--approve" onClick={(e) => e.stopPropagation()}>
                         <div className="afd-modal-header">
-                            <h3>Reject Request</h3>
-                            <button className="afd-modal-close" onClick={() => setShowRejectModal(false)}><CloseIcon /></button>
+                            <h3>Approve & Distribute Funds</h3>
+                            <button className="afd-modal-close" onClick={() => setApproveModal(prev => ({ ...prev, open: false }))}>
+                                <CloseIcon />
+                            </button>
                         </div>
                         <div className="afd-modal-body">
-                            <p>Reject request from <strong>{selectedRequest?.donor_name}</strong> for ${selectedRequest?.amount}?</p>
+                            <p className="afd-approve-desc">
+                                You are approving <strong>{approveModal.request?.donor_name}</strong>'s request. Funds will be sent immediately and recorded as <strong>completed</strong>.
+                            </p>
+
+                            {/* Amount (read-only, auto-filled) */}
+                            <div className="afd-approve-field">
+                                <label>Amount</label>
+                                <div className="afd-approve-amount">
+                                    <AttachMoneyIcon sx={{ fontSize: 18, color: '#f97316' }} />
+                                    <span>{Number(approveModal.request?.amount || 0).toFixed(2)}</span>
+                                    <small>USD</small>
+                                </div>
+                            </div>
+
+                            {/* Reference Number (preview) */}
+                            <div className="afd-approve-field">
+                                <label>Reference Number</label>
+                                <div className="afd-approve-ref">Auto-generated upon approval (FD-…)</div>
+                            </div>
+
+                            {/* Payment Method */}
+                            <div className="afd-approve-field">
+                                <label>Payment Method *</label>
+                                <div className="afd-approve-pills">
+                                    {PAYMENT_METHODS.map(m => (
+                                        <button
+                                            key={m}
+                                            type="button"
+                                            className={`afd-approve-pill${approveModal.paymentMethod === m ? ' afd-approve-pill--active' : ''}`}
+                                            onClick={() => setApproveModal(prev => ({ ...prev, paymentMethod: m }))}
+                                        >
+                                            {m}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Notes */}
+                            <div className="afd-approve-field">
+                                <label>Notes (optional)</label>
+                                <textarea
+                                    rows="3"
+                                    placeholder="Optional notes for this distribution..."
+                                    value={approveModal.notes}
+                                    onChange={(e) => setApproveModal(prev => ({ ...prev, notes: e.target.value }))}
+                                />
+                            </div>
+
+                            {/* Original request reason — read-only */}
+                            <div className="afd-approve-field">
+                                <label>Donor's Reason</label>
+                                <div className="afd-approve-reason-box">{approveModal.request?.reason}</div>
+                            </div>
+
+                            <div className="afd-modal-actions">
+                                <button
+                                    className="afd-modal-cancel-btn"
+                                    onClick={() => setApproveModal(prev => ({ ...prev, open: false }))}
+                                    disabled={actionLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="afd-modal-approve-btn"
+                                    onClick={handleApproveConfirm}
+                                    disabled={actionLoading}
+                                >
+                                    <CheckCircleIcon sx={{ fontSize: 16 }} />
+                                    {actionLoading ? 'Processing…' : 'Approve & Send Funds'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── REJECT Modal ── */}
+            {rejectModal.open && (
+                <div className="afd-modal-overlay" onClick={() => setRejectModal(prev => ({ ...prev, open: false }))}>
+                    <div className="afd-modal afd-modal--reject" onClick={(e) => e.stopPropagation()}>
+                        <div className="afd-modal-header">
+                            <h3>Reject Request</h3>
+                            <button className="afd-modal-close" onClick={() => setRejectModal(prev => ({ ...prev, open: false }))}>
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="afd-modal-body">
+                            <p>Reject request from <strong>{rejectModal.request?.donor_name}</strong> for <strong>${Number(rejectModal.request?.amount || 0).toFixed(2)}</strong>?</p>
                             <label>Reason *</label>
                             <textarea
                                 rows="3"
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
+                                value={rejectModal.reason}
+                                onChange={(e) => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
                                 placeholder="Explain why the request is rejected"
                             />
                             <div className="afd-modal-actions">
-                                <button className="afd-modal-cancel-btn" onClick={() => setShowRejectModal(false)}>Cancel</button>
-                                <button className="afd-modal-reject-btn" onClick={handleRejectRequest} disabled={actionLoading}>
+                                <button
+                                    className="afd-modal-cancel-btn"
+                                    onClick={() => setRejectModal(prev => ({ ...prev, open: false }))}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="afd-modal-reject-btn"
+                                    onClick={handleRejectConfirm}
+                                    disabled={actionLoading}
+                                >
                                     <CancelIcon sx={{ fontSize: 16 }} /> Confirm Rejection
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            )} */}
-
-
-
-
-
-            {/* Reject Modal */}
-                {showRejectModal && (
-                    <div className="afd-modal-overlay" onClick={() => setShowRejectModal(false)}>
-                        <div className="afd-modal afd-modal--reject" onClick={(e) => e.stopPropagation()}>
-                            <div className="afd-modal-header">                
-                                <h3>Reject Request</h3>
-                                <button className="afd-modal-close" onClick={() => setShowRejectModal(false)}>
-                                    <CloseIcon />
-                                </button>
-                            </div>
-                            <div className="afd-modal-body">
-                                <p>Reject request from <strong>{selectedRequest?.donor_name}</strong> for ${selectedRequest?.amount}?</p>
-                                <label>Reason *</label>
-                                <textarea
-                                    rows="3"
-                                    value={rejectReason}
-                                    onChange={(e) => setRejectReason(e.target.value)}
-                                    placeholder="Explain why the request is rejected"
-                                />
-                                <div className="afd-modal-actions">
-                                    <button className="afd-modal-cancel-btn" onClick={() => setShowRejectModal(false)}>Cancel</button>
-                                    <button className="afd-modal-reject-btn" onClick={handleRejectRequest} disabled={actionLoading}>
-                                        <CancelIcon sx={{ fontSize: 16 }} /> Confirm Rejection
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-
-
+            )}
 
             {toast && <div className={`afd-toast afd-toast--${toast.type}`}>{toast.msg}</div>}
         </div>

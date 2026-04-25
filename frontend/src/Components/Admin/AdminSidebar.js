@@ -3,8 +3,9 @@
 // ============================================================
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../../Styles/Admin/AdminSidebar.css';
+import BottomNav from '../Shared/BottomNav';
 
 // MUI Icons
 import DashboardIcon        from '@mui/icons-material/Dashboard';
@@ -18,6 +19,8 @@ import BarChartIcon         from '@mui/icons-material/BarChart';
 import NotificationsIcon    from '@mui/icons-material/Notifications';
 import LogoutIcon           from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import MenuIcon             from '@mui/icons-material/Menu';
+import CloseIcon            from '@mui/icons-material/Close';
 
 const NAV_SECTIONS = [
     {
@@ -57,7 +60,19 @@ const NAV_SECTIONS = [
 
 const AdminSidebar = ({ onLogout, activePage }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Derive active item from URL so it always works, even if a page forgets to pass `activePage`
+    const isItemActive = (item) =>
+        activePage === item.key || location.pathname.startsWith(item.path);
+
+    useEffect(() => { setIsOpen(false); }, [location.pathname]);
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
 
     // Get logged‑in admin user from localStorage
@@ -78,7 +93,6 @@ const AdminSidebar = ({ onLogout, activePage }) => {
     };
 
     useEffect(() => {
-        // 1. Function to fetch the count from your existing backend route
         fetchUnreadCount();
         const handleRead = () => fetchUnreadCount();
         window.addEventListener('notification-read', handleRead);
@@ -86,13 +100,34 @@ const AdminSidebar = ({ onLogout, activePage }) => {
     }, [adminUserId]);
 
     return (
-        <aside className="asb-sidebar">
+        <>
+            <button
+                className="asb-mobile-toggle"
+                onClick={() => setIsOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={isOpen}
+            >
+                <MenuIcon />
+            </button>
+            <div
+                className={`asb-overlay ${isOpen ? 'is-open' : ''}`}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+            />
+        <aside className={`asb-sidebar ${isOpen ? 'is-open' : ''}`}>
             {/* ── Logo ── */}
             <div className="asb-logo">
                 <div className="asb-logo-circle">
                     <img src="/Images/logo-circle.png" alt="FeedHope Logo" className="asb-logo-img" />
                 </div>
                 <span className="asb-logo-text">FeedHope</span>
+                <button
+                    className="asb-mobile-close"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Close menu"
+                >
+                    <CloseIcon />
+                </button>
             </div>
 
             {/* ── Admin badge ── */}
@@ -108,19 +143,22 @@ const AdminSidebar = ({ onLogout, activePage }) => {
                 {NAV_SECTIONS.map(({ section, items }) => (
                     <div key={section}>
                         <p className="asb-nav-label">{section}</p>
-                        {items.map(({ key, label, Icon, path, hasBadge }) => (
-                            <button
-                                key={key}
-                                className={`asb-nav-item ${activePage === key ? 'asb-nav-item--active' : ''}`}
-                                onClick={() => navigate(path)}
-                            >
-                                <Icon sx={{ fontSize: 18 }} />
-                                {label}
-                                {hasBadge && unreadCount > 0 && (
-                                    <span className="asb-badge">{unreadCount}</span>
-                                )}
-                            </button>
-                        ))}
+                        {items.map((item) => {
+                            const { key, label, Icon, path, hasBadge } = item;
+                            return (
+                                <button
+                                    key={key}
+                                    className={`asb-nav-item ${isItemActive(item) ? 'asb-nav-item--active' : ''}`}
+                                    onClick={() => navigate(path)}
+                                >
+                                    <Icon sx={{ fontSize: 18 }} />
+                                    {label}
+                                    {hasBadge && unreadCount > 0 && (
+                                        <span className="asb-badge">{unreadCount}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 ))}
             </nav>
@@ -131,6 +169,17 @@ const AdminSidebar = ({ onLogout, activePage }) => {
                 Log Out
             </button>
         </aside>
+        <BottomNav
+            accent="admin"
+            items={[
+                { to: '/admin-dashboard', label: 'Home', icon: <DashboardIcon fontSize="small" />, end: true },
+                { to: '/admin-users', label: 'Users', icon: <PeopleIcon fontSize="small" /> },
+                { to: '/admin-food-offers', label: 'Food', icon: <RestaurantMenuIcon fontSize="small" /> },
+                { to: '/admin-notifications', label: 'Alerts', icon: <NotificationsIcon fontSize="small" />, badge: unreadCount },
+                { to: '/admin-profile', label: 'Profile', icon: <PersonIcon fontSize="small" /> },
+            ]}
+        />
+        </>
     );
 };
 

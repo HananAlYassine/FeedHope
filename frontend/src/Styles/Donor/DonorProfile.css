@@ -309,6 +309,19 @@
     .dcp-modal {
         max-width: 100%;
     }
+
+    /* Keep the avatar + camera button visible on mobile (Dashboard hides it) */
+    .ddb-banner-avatar {
+        display: flex !important;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 12px;
+    }
+
+    .dcp-avatar-camera {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 input[type="password"]::-ms-reveal,

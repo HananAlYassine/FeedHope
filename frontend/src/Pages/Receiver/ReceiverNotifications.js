@@ -16,6 +16,9 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import InfoIcon from '@mui/icons-material/Info';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+// --- Helper Functions ---
+
+// Takes a date string and converts it into human-readable text.
 const formatNotificationDate = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -32,6 +35,7 @@ const formatNotificationDate = (dateStr) => {
     return date.toLocaleDateString();
 };
 
+// Returns icon based on notification type
 const getNotificationIcon = (type) => {
     switch (type) {
         case 'offer_accepted': return <RestaurantMenuIcon fontSize="small" />;
@@ -41,9 +45,9 @@ const getNotificationIcon = (type) => {
     }
 };
 
-// Clean white confirmation modal (no slide from top)
+// Clean white confirmation modal
 const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
-    if (!isOpen) return null;
+    if (!isOpen) return null; // If not open -> render nothing
 
     return (
         <div className="modal-overlay" onClick={onCancel}>
@@ -83,7 +87,7 @@ const ReceiverNotifications = () => {
     const [markingAll, setMarkingAll] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [totalNotificationsCount, setTotalNotificationsCount] = useState(0); // NEW: total count for delete all button
-    
+
     // Modal state
     const [modalState, setModalState] = useState({
         open: false,
@@ -114,7 +118,7 @@ const ReceiverNotifications = () => {
             if (!res.ok) throw new Error('Failed to fetch notifications');
             const data = await res.json();
             setNotifications(data);
-            
+
             const unreadRes = await fetch(`http://localhost:5000/api/receiver/notifications/${userId}?status=unread`);
             const unreadData = await unreadRes.json();
             setUnreadCount(unreadData.length);
@@ -153,8 +157,8 @@ const ReceiverNotifications = () => {
                     n.notification_id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
                 )
             );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-            window.dispatchEvent(new Event('notification-read'));
+            setUnreadCount(prev => Math.max(0, prev - 1)); // Decrease unread count by 1
+            window.dispatchEvent(new Event('notification-read')); // This sends a global event
         } catch (err) {
             console.error("Mark as read error:", err);
             alert(err.message);
@@ -185,7 +189,7 @@ const ReceiverNotifications = () => {
                 method: 'DELETE'
             });
             if (!res.ok) throw new Error('Failed to delete notifications');
-            await fetchNotifications();
+            await fetchNotifications(); // Refresh notifications
             refreshTotalCount(); // update total count after deletion
             window.dispatchEvent(new Event('notification-read'));
         } catch (err) {
@@ -322,7 +326,7 @@ const ReceiverNotifications = () => {
                             Unread Notifications
                         </button>
                     </div>
-                    
+
                     <div className="rn-action-buttons">
                         <button
                             className="rn-mark-all-btn"
@@ -337,7 +341,7 @@ const ReceiverNotifications = () => {
                             onClick={openDeleteAllModal}
                             disabled={totalNotificationsCount === 0}   // Disabled when no notifications exist
                         >
-                            🗑️ Delete All
+                            Delete All
                         </button>
                     </div>
                 </div>

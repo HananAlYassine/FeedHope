@@ -719,3 +719,94 @@
     margin-top: 16px;
     margin-bottom: 0;
 }
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 992px) {
+    .reg-card-container {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 40px);
+    }
+
+    .reg-hero-section {
+        min-height: 220px;
+        flex: none;
+    }
+
+    .reg-hero-content {
+        padding: 30px;
+    }
+
+    .reg-form-section {
+        flex: 1;
+        padding: 32px 36px;
+    }
+
+    .reg-brand-logo {
+        font-size: 28px;
+    }
+
+    .reg-logo-circle-img {
+        width: 56px;
+        height: 56px;
+    }
+
+    .impact-value {
+        font-size: 36px;
+    }
+}
+
+@media (max-width: 600px) {
+    .reg-page-layout {
+        padding: 0;
+    }
+
+    .reg-card-container {
+        border-radius: 0;
+        min-height: 100vh;
+    }
+
+    .reg-hero-content {
+        padding: 24px 20px;
+    }
+
+    .reg-form-section {
+        padding: 24px 20px;
+    }
+
+    .auth-input-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width-field {
+        grid-column: span 1;
+    }
+
+    .role-pills-nav {
+        flex-wrap: wrap;
+    }
+
+    .role-nav-btn {
+        flex: 1 1 calc(50% - 6px);
+    }
+
+    .otp-inputs-row {
+        gap: 6px;
+    }
+
+    .otp-digit-input {
+        width: 42px;
+        height: 52px;
+        font-size: 22px;
+    }
+
+    .cr-code-text {
+        font-size: 36px;
+        letter-spacing: 8px;
+        padding-left: 8px;
+    }
+
+    .popup-backdrop {
+        padding: 12px;
+    }
+}

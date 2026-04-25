@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import "../Styles/HowItWorks.css";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 const HowItWorks = () => {
+    const [menuOpen, setMenuOpen] = useState(false);
     return (
         <div className="how-wrapper">
             <header className="how-header-nav">
@@ -12,13 +15,23 @@ const HowItWorks = () => {
                     </div>
                     <span>FeedHope</span>
                 </Link>
-                <nav>
+                <button
+                    className="how-nav-toggle"
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-label="Toggle menu"
+                    aria-expanded={menuOpen}
+                >
+                    {menuOpen ? <CloseIcon /> : <MenuIcon />}
+                </button>
+                <nav className={menuOpen ? 'is-open' : ''}>
                     <ul>
-                        <li><Link to="/mission">Our Mission</Link></li>
-                        <li><Link to="/contact">Contact Us</Link></li>
-                        <li><Link to="/signin" className="how-btn-signin">Sign In</Link></li>
+                        <li><NavLink to="/mission" onClick={() => setMenuOpen(false)}>Our Mission</NavLink></li>
+                        <li><NavLink to="/how-it-works" onClick={() => setMenuOpen(false)}>How it Works</NavLink></li>
+                        <li><NavLink to="/contact" onClick={() => setMenuOpen(false)}>Contact Us</NavLink></li>
+                        <li className="how-nav-mobile-signin"><Link to="/signin" className="how-btn-signin" onClick={() => setMenuOpen(false)}>Sign In</Link></li>
                     </ul>
                 </nav>
+                <Link to="/signin" className="how-btn-signin how-nav-desktop-signin">Sign In</Link>
             </header>
 
             <main className="how-main">

@@ -3,9 +3,10 @@
 // ==========================
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../../Styles/Receiver/ReceiverSidebar.css';
+import BottomNav from '../Shared/BottomNav';
 
 // MUI Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -16,8 +17,9 @@ import HistoryIcon from '@mui/icons-material/History';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
-// --- sidebar menu configuration ---
 const NAV_ITEMS = [
     { section: 'OVERVIEW', key: 'dashboard', label: 'Dashboard', Icon: DashboardIcon, path: '/receiver-dashboard' },
     { section: 'OVERVIEW', key: 'profile', label: 'My Profile', Icon: PersonIcon, path: '/receiver-profile' },
@@ -27,23 +29,28 @@ const NAV_ITEMS = [
     { section: 'ACTIVITY', key: 'notifications', label: 'Notifications', Icon: NotificationsIcon, path: '/receiver-notifications', hasBadge: true },
 ];
 
-const ReceiverSidebar = ({ activePage }) => { 
-
+const ReceiverSidebar = ({ activePage }) => {  // removed unreadCount from props
     const navigate = useNavigate();
+    const location = useLocation();
+    const storedUser = localStorage.getItem('feedhope_user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const userId = user?.user_id;
 
-    // --- Get Logged-in User ---
-    const storedUser = localStorage.getItem('feedhope_user'); // Get user data from browser storage
-    const user = storedUser ? JSON.parse(storedUser) : null; // Convert it from string → JSON
-    const userId = user?.user_id;  // Extract user_id
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
 
-    const [unreadCount, setUnreadCount] = useState(0); // Starts at 0
+    useEffect(() => { setIsOpen(false); }, [location.pathname]);
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     // Fetch unread count from backend
     const fetchUnreadCount = async () => {
-        if (!userId) return; // Checks if user exists
+        if (!userId) return;
         try {
             const response = await axios.get(`http://localhost:5000/api/receiver/notifications/unread-count/${userId}`);
-            setUnreadCount(response.data.count); // Updates state
+            setUnreadCount(response.data.count);
         } catch (err) {
             console.error("Failed to fetch unread count:", err);
         }
@@ -70,8 +77,8 @@ const ReceiverSidebar = ({ activePage }) => {
         } catch (err) {
             console.error("Logout syslog failed:", err);
         } finally {
-            localStorage.removeItem('feedhope_user');  // Clear user locally
-            navigate('/signin'); //Redirect to login page
+            localStorage.removeItem('feedhope_user');
+            navigate('/signin');
         }
     };
 
@@ -82,12 +89,33 @@ const ReceiverSidebar = ({ activePage }) => {
     }, {});
 
     return (
-        <aside className="rsb-sidebar">
+        <>
+            <button
+                className="rsb-mobile-toggle"
+                onClick={() => setIsOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={isOpen}
+            >
+                <MenuIcon />
+            </button>
+            <div
+                className={`rsb-overlay ${isOpen ? 'is-open' : ''}`}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+            />
+        <aside className={`rsb-sidebar ${isOpen ? 'is-open' : ''}`}>
             <div className="rsb-logo">
                 <div className="logo-circle">
                     <img src="/Images/logo-circle.png" alt="Logo" className="header-logo-img" />
                 </div>
                 <span className="rsb-logo-text">FeedHope</span>
+                <button
+                    className="rsb-mobile-close"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Close menu"
+                >
+                    <CloseIcon />
+                </button>
             </div>
 
             <div className="rsb-role-row">
@@ -120,6 +148,17 @@ const ReceiverSidebar = ({ activePage }) => {
                 Log Out
             </button>
         </aside>
+        <BottomNav
+            accent="receiver"
+            items={[
+                { to: '/receiver-dashboard', label: 'Home', icon: <DashboardIcon fontSize="small" />, end: true },
+                { to: '/receiver-browse', label: 'Browse', icon: <SearchIcon fontSize="small" /> },
+                { to: '/receiver-accepted', label: 'Accepted', icon: <CheckCircleIcon fontSize="small" /> },
+                { to: '/receiver-notifications', label: 'Alerts', icon: <NotificationsIcon fontSize="small" />, badge: unreadCount },
+                { to: '/receiver-profile', label: 'Profile', icon: <PersonIcon fontSize="small" /> },
+            ]}
+        />
+        </>
     );
 };
 

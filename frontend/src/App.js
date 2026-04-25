@@ -3,6 +3,7 @@
 // ========================================
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './Components/Shared/Toast';
 
 // ── Public pages ──
 import LandingPage from "./Pages/LandingPage";
@@ -87,6 +88,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 function App() {
     return (
         <Router>
+            <ToastProvider>
             <Routes>
                 {/* ── Public Routes ── */}
                 <Route path="/" element={<LandingPage />} />
@@ -164,6 +166,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
 
             </Routes>
+            </ToastProvider>
         </Router>
     );
 }

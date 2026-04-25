@@ -7,9 +7,9 @@ import {
 } from '@mui/icons-material';
 import "../../Styles/Registration.css";
 
-/* ═══════════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────────────
     POPUP 1 — Code Reveal Popup
-═══════════════════════════════════════════════════════════ */
+───────────────────────────────────────────────────────── */
 const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
     const [copied, setCopied] = useState(false);
 
@@ -33,7 +33,7 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
                 <div className="cr-body">
                     <div className="cr-code-box">
                         <div className="cr-shimmer" />
-                        <p className="cr-dev-label">🛠&nbsp;&nbsp;Dev Mode — One-Time Code</p>
+                        <p className="cr-dev-label">Dev Mode — One-Time Code</p>
                         <p className="cr-code-text">{devCode}</p>
                     </div>
 
@@ -52,7 +52,7 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
                         onClick={onClose}
                         disabled={!copied}
                     >
-                        {copied ? '✓ Got it — Enter the Code' : 'Copy the code first'}
+                        {copied ? 'Got it — Enter the Code' : 'Copy the code first'}
                     </button>
 
                     <p className="cr-hint">
@@ -64,9 +64,9 @@ const CodeRevealPopup = ({ devCode, pendingEmail, onClose }) => {
     );
 };
 
-/* ═══════════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────────────
     POPUP 2 — OTP Entry Modal
-═══════════════════════════════════════════════════════════ */
+───────────────────────────────────────────────────────── */
 const OtpEntryModal = ({
     pendingEmail, otp, otpRefs,
     verifyError, verifySuccess,
@@ -93,7 +93,7 @@ const OtpEntryModal = ({
                         <div className="otp-success-icon">
                             <CheckCircle style={{ fontSize: '76px', color: '#10b981' }} />
                         </div>
-                        <h3 className="otp-success-title">Email Verified! 🎉</h3>
+                        <h3 className="otp-success-title">Email Verified!</h3>
                         <p className="otp-success-subtitle">
                             Your account is now active.<br />Redirecting you to sign in…
                         </p>
@@ -114,7 +114,7 @@ const OtpEntryModal = ({
                         </div>
                         {verifyError && (
                             <div className="otp-error-box">
-                                <span className="otp-error-icon">⚠️</span>
+                                <span className="otp-error-icon">!</span>
                                 <p className="otp-error-text">{verifyError}</p>
                             </div>
                         )}
@@ -123,7 +123,7 @@ const OtpEntryModal = ({
                             disabled={otp.join('').length < 6}
                             className={`otp-submit-btn${otp.join('').length >= 6 ? ' is-ready' : ''}`}
                         >
-                            ✅ Verify &amp; Activate Account
+                            Verify &amp; Activate Account
                         </button>
                         <p className="otp-tip">
                             Tip: You can paste the code directly into the boxes above.
@@ -135,9 +135,9 @@ const OtpEntryModal = ({
     </div>
 );
 
-/* ═══════════════════════════════════════════════════════════
+/* ─────────────────────────────────────────────────────────
     MAIN — VOLUNTEER REGISTRATION
-═══════════════════════════════════════════════════════════ */
+───────────────────────────────────────────────────────── */
 const VolunteerRegister = () => {
     const navigate = useNavigate();
 
@@ -195,28 +195,32 @@ const VolunteerRegister = () => {
         setTimeout(() => otpRefs.current[0]?.focus(), 120);
     };
 
+    // Function runs when user types in an OTP box
     const handleOtpChange = (index, value) => {
-        if (!/^\d*$/.test(value)) return;
+        if (!/^\d*$/.test(value)) return; // Allow only numbers
         const updated = [...otp];
-        updated[index] = value.slice(-1);
+        updated[index] = value.slice(-1); // Update digit --> Keeps only last digit
         setOtp(updated);
         if (value && index < 5) otpRefs.current[index + 1]?.focus();
     };
 
+    // Runs when user presses a key (like Backspace)
     const handleOtpKeyDown = (index, e) => {
         if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs.current[index - 1]?.focus();
     };
 
+    // Runs when user pastes something
     const handleOtpPaste = (e) => {
         const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
         if (pasted.length === 6) { setOtp(pasted.split('')); otpRefs.current[5]?.focus(); }
         e.preventDefault();
     };
 
+    // Runs when user submits OTP form
     const handleVerify = async (e) => {
         e.preventDefault();
         setVerifyError('');
-        const code = otp.join('');
+        const code = otp.join(''); // Convert array -> string
         if (code.length < 6) { setVerifyError('Please enter all 6 digits.'); return; }
 
         try {
@@ -293,7 +297,7 @@ const VolunteerRegister = () => {
                     </div>
 
                     <div className="reg-form-section">
-                        <Link to="/" className="back-link">← Back to Home</Link>
+                        <Link to="/" className="back-link">Back to Home</Link>
                         <h2 style={{ margin: '10px 0 5px', fontWeight: 800 }}>Create Account</h2>
                         <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px' }}>Join our food rescue mission and make a difference today</p>
 

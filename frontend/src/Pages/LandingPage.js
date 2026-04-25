@@ -1,11 +1,14 @@
 import "../Styles/LandingPage.css";
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from "react-router-dom";
 import TwitterIcon from '@mui/icons-material/Twitter';
 import InstagramIcon from '@mui/icons-material/Instagram';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 const LandingPage = () => {
     const navigate = useNavigate();
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const handleLogoClick = () => {
         window.location.reload();
@@ -27,15 +30,24 @@ const LandingPage = () => {
                     </div>
                     FeedHope
                 </div>
-                <nav>
+                <button
+                    className="nav-toggle"
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-label="Toggle menu"
+                    aria-expanded={menuOpen}
+                >
+                    {menuOpen ? <CloseIcon /> : <MenuIcon />}
+                </button>
+                <nav className={menuOpen ? 'is-open' : ''}>
                     <ul>
-                        <li><Link to="/mission">Our Mission</Link></li>
-                        <li><Link to="/how-it-works">How it Works</Link></li>
-                        <li><Link to="/contact">Contact Us</Link></li>
+                        <li><Link to="/mission" onClick={() => setMenuOpen(false)}>Our Mission</Link></li>
+                        <li><Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How it Works</Link></li>
+                        <li><Link to="/contact" onClick={() => setMenuOpen(false)}>Contact Us</Link></li>
+                        <li className="nav-mobile-signin"><Link to="/signin" className="btn-signin" onClick={() => setMenuOpen(false)}>Sign In</Link></li>
                     </ul>
                 </nav>
 
-                <Link to="/signin" className="btn-signin">Sign In</Link>
+                <Link to="/signin" className="btn-signin nav-desktop-signin">Sign In</Link>
             </header>
 
             <main>

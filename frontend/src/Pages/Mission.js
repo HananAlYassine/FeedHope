@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import "../Styles/Mission.css";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 
 const Mission = () => {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="mission-wrapper">
       <header className="mission-header-nav">
@@ -12,13 +15,23 @@ const Mission = () => {
           </div>
           <span>FeedHope</span>
         </Link>
-        <nav>
+        <button
+          className="mission-nav-toggle"
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+        <nav className={menuOpen ? 'is-open' : ''}>
           <ul>
-            <li><Link to="/how-it-works">How it Works</Link></li>
-            <li><Link to="/contact">Contact Us</Link></li>
-            <li><Link to="/signin" className="mission-btn-signin">Sign In</Link></li>
+            <li><NavLink to="/mission" onClick={() => setMenuOpen(false)}>Our Mission</NavLink></li>
+            <li><NavLink to="/how-it-works" onClick={() => setMenuOpen(false)}>How it Works</NavLink></li>
+            <li><NavLink to="/contact" onClick={() => setMenuOpen(false)}>Contact Us</NavLink></li>
+            <li className="mission-nav-mobile-signin"><Link to="/signin" className="mission-btn-signin" onClick={() => setMenuOpen(false)}>Sign In</Link></li>
           </ul>
         </nav>
+        <Link to="/signin" className="mission-btn-signin mission-nav-desktop-signin">Sign In</Link>
       </header>
 
       <main className="mission-main">

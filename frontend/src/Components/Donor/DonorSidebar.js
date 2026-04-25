@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../../Styles/Donor/DonorSidebar.css';
+import BottomNav from '../Shared/BottomNav';
 
 // Material UI Icons
 import {
@@ -18,11 +19,26 @@ import {
   SwapHoriz as SwapHorizIcon,
   Wallet,
   AccountBalanceWallet as AccountBalanceWalletIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const DonorSidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when drawer is open on mobile
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
   // Get user from localStorage
   const storedUser = localStorage.getItem('feedhope_user');
@@ -67,12 +83,33 @@ const DonorSidebar = () => {
   };
 
   return (
-    <aside className="fh-sidebar">
+    <>
+      <button
+        className="fh-mobile-toggle"
+        onClick={() => setIsOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={isOpen}
+      >
+        <MenuIcon />
+      </button>
+      <div
+        className={`fh-overlay ${isOpen ? 'is-open' : ''}`}
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+      />
+    <aside className={`fh-sidebar ${isOpen ? 'is-open' : ''}`}>
       <div className="fh-sidebar-header">
         <div className="logo-circlee">
           <img src="/Images/logo-circle.png" alt="Logo" className="header-logo-img" />
         </div>
         <h1 className="fh-logo-text">FeedHope</h1>
+        <button
+          className="fh-mobile-close"
+          onClick={() => setIsOpen(false)}
+          aria-label="Close menu"
+        >
+          <CloseIcon />
+        </button>
       </div>
 
       <div className="fh-role-box">
@@ -116,6 +153,17 @@ const DonorSidebar = () => {
         </button>
       </div>
     </aside>
+    <BottomNav
+      accent="donor"
+      items={[
+        { to: '/donor-dashboard', label: 'Home', icon: <DashboardIcon fontSize="small" />, end: true },
+        { to: '/donor-my-offers', label: 'Offers', icon: <ListAltIcon fontSize="small" /> },
+        { to: '/donor-new-offer', label: 'New', icon: <AddCircleIcon /> },
+        { to: '/donor-notifications', label: 'Alerts', icon: <NotificationsIcon fontSize="small" />, badge: unreadCount },
+        { to: '/donor-profile', label: 'Profile', icon: <PersonIcon fontSize="small" /> },
+      ]}
+    />
+    </>
   );
 };
 
