@@ -2079,11 +2079,22 @@ app.put("/api/donor/change-password/:userId", async (req, res) => {
 });
 
 // 1. GET - Fetch donor's offers (with optional status filter)
-app.get('/api/donor/my-offers/:donorId', async (req, res) => {
-    const { donorId } = req.params;
+app.get('/api/donor/my-offers/:userId', async (req, res) => {
+    const { userId } = req.params;
     const { status } = req.query;
 
     try {
+        // 1. Get donor_id from the logged‑in user_id
+        const [donorRows] = await pool.query(
+            "SELECT donor_id FROM Donor WHERE user_id = ?",
+            [userId]
+        );
+        if (donorRows.length === 0) {
+            return res.status(404).json({ error: "Donor profile not found for this user." });
+        }
+        const donorId = donorRows[0].donor_id;
+
+        // 2. Build the dynamic query
         let query = `
             SELECT
                 o.offer_id,
@@ -2102,23 +2113,25 @@ app.get('/api/donor/my-offers/:donorId', async (req, res) => {
             LEFT JOIN food_category c ON o.category_id = c.category_id
             WHERE o.donor_id = ?
         `;
-
-        const queryParams = [donorId];
+        const params = [donorId];
 
         if (status && status !== 'All') {
-            query += " AND o.status = ?";
-            queryParams.push(status);
+            // Convert frontend status (e.g. "In_delivery") to DB format ("in_delivery")
+            const dbStatus = status.toLowerCase();
+            query += " AND LOWER(o.status) = ?";
+            params.push(dbStatus);
         }
 
         query += " ORDER BY o.created_at DESC";
 
-        const [rows] = await pool.query(query, queryParams);
-        res.json(rows);
+        const [offers] = await pool.query(query, params);
+        res.json(offers);
     } catch (error) {
         console.error('SQL ERROR:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // 2. GET - Fetch single offer details for editing
 app.get('/api/donor/offer/:offerId', async (req, res) => {
@@ -2140,9 +2153,9 @@ app.get('/api/donor/offer/:offerId', async (req, res) => {
                 c.category_name,
                 o.donor_id,
                 o.created_at
-             FROM food_offer o
-             LEFT JOIN food_category c ON o.category_id = c.category_id
-             WHERE o.offer_id = ?`,
+            FROM food_offer o
+            LEFT JOIN food_category c ON o.category_id = c.category_id
+            WHERE o.offer_id = ?`,
             [offerId]
         );
 
