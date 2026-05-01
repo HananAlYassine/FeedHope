@@ -4163,7 +4163,7 @@ app.get('/api/admin/notifications', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected'
+                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected', 'expiration_alert' , 'assignment_request'
             )
             AND n.user_id IS NULL
             ORDER BY n.date DESC
@@ -4190,7 +4190,7 @@ app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected'
+                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected', 'expiration_alert' , 'assignment_request'
                 )
         `);
         res.json({ message: 'All notifications marked as read.' });
@@ -4626,7 +4626,344 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
 
 
 
+// ==============================================================
+// ──────────────── EXPIRATION ALERTS ──────────────────────────
+// ==============================================================
 
+import cron from 'node-cron';
+
+// ─── Helper: check for offers about to expire ─────────────────
+async function checkExpiringOffers() {
+    console.log('[CRON] Checking expiring food offers...');
+    const conn = await pool.getConnection();
+    try {
+        // Find offers that:
+        //   - status is 'available' or 'accepted' (assigned to receiver but no volunteer yet)
+        //   - no active delivery (i.e. no volunteer assigned at all)
+        //   - expiration date is within next 24 hours, but not already expired
+        //   - no recent alert for this offer (last 24h)
+        const [offersToAlert] = await conn.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.expiration_date_and_time,
+                fo.donor_id
+            FROM Food_offer fo
+            WHERE fo.status IN ('available', 'accepted')
+              AND NOT EXISTS (
+                  SELECT 1 FROM Delivery d
+                  WHERE d.offer_id = fo.offer_id
+                    AND d.delivery_status IN ('in_delivery', 'completed')
+              )
+              AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 24 HOUR)
+              AND fo.expiration_date_and_time > NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM expiration_alert ea
+                  WHERE ea.offer_id = fo.offer_id
+                    AND ea.alert_time > NOW() - INTERVAL 24 HOUR
+              )
+        `);
+
+        if (offersToAlert.length === 0) {
+            console.log('[CRON] No new expiring offers found.');
+            return;
+        }
+
+        for (const offer of offersToAlert) {
+            const message = `Food offer "${offer.food_name}" (ID: ${offer.offer_id}) is about to expire on ${new Date(offer.expiration_date_and_time).toLocaleString()}. No volunteer has been assigned yet. Please take action.`;
+
+            // Get any existing admin ID (e.g., the first admin in the table)
+            const [[adminRow]] = await conn.query(
+                "SELECT admin_id FROM Admin LIMIT 1"
+            );
+            const adminId = adminRow ? adminRow.admin_id : 1; // fallback to 1 if no admin found
+
+            // 1. Insert into expiration_alert table 
+            await conn.query(
+                `INSERT INTO expiration_alert (alert_time, message, admin_id, offer_id)
+                VALUES (NOW(), ?, ?, ?)`,
+                [message, adminId, offer.offer_id]
+            );
+
+             // 2. Insert into Notifications table (admin notification, user_id = NULL)
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                VALUES (?, ?, ?, NULL, NOW())`,
+                ['Expiration Alert⚠️', message, 'expiration_alert']
+            );
+
+
+            console.log(`[CRON] Alert created for offer ID ${offer.offer_id}`);
+        }
+    } catch (err) {
+        console.error('[CRON] Error checking expiring offers:', err);
+    } finally {
+        conn.release();
+    }
+}
+
+// Run every 30 minutes (you can adjust the schedule)
+cron.schedule('*/30 * * * *', checkExpiringOffers);
+
+// Also run immediately on server start
+checkExpiringOffers();
+
+
+// ─── GET /api/admin/expiration-alerts ─────────────────────────
+app.get('/api/admin/expiration-alerts', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                ea.alert_id,
+                ea.alert_time,
+                ea.message,
+                ea.offer_id,
+                fo.food_name,
+                fo.expiration_date_and_time AS expiration_date
+            FROM expiration_alert ea
+            JOIN Food_offer fo ON ea.offer_id = fo.offer_id
+            ORDER BY ea.alert_time DESC
+        `);
+        res.json({ alerts: rows });
+    } catch (err) {
+        console.error('GET /api/admin/expiration-alerts error:', err);
+        res.status(500).json({ error: 'Failed to fetch expiration alerts.' });
+    }
+});
+
+// ─── DELETE /api/admin/expiration-alerts/:alertId ─────────────
+app.delete('/api/admin/expiration-alerts/:alertId', async (req, res) => {
+    const { alertId } = req.params;
+    try {
+        const [result] = await pool.query(
+            'DELETE FROM expiration_alert WHERE alert_id = ?',
+            [alertId]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Alert not found.' });
+        }
+        res.json({ message: 'Alert dismissed successfully.' });
+    } catch (err) {
+        console.error('DELETE /api/admin/expiration-alerts error:', err);
+        res.status(500).json({ error: 'Failed to dismiss alert.' });
+    }
+});
+
+
+// ==============================================================
+// ──────────────── Admin → Request a volunteer ─────────────────
+// ==============================================================
+
+// Admin requests a volunteer for an expiring offer
+app.post('/api/admin/request-volunteer', async (req, res) => {
+    const { offerId, volunteerUserId, message, adminId } = req.body;
+    if (!offerId || !volunteerUserId) {
+        return res.status(400).json({ error: 'Offer ID and Volunteer ID required.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Check that offer is still available/accepted and no volunteer assigned
+        const [[offer]] = await conn.query(
+            `SELECT status, food_name FROM Food_offer WHERE offer_id = ?`,
+            [offerId]
+        );
+        if (!offer || !['available','accepted'].includes(offer.status)) {
+            await conn.rollback();
+            return res.status(400).json({ error: 'Offer is not available for assignment.' });
+        }
+
+        // Insert request
+        const [result] = await conn.query(
+            `INSERT INTO Volunteer_Assignment_Request
+             (offer_id, volunteer_user_id, admin_message, status, admin_id, requested_at)
+             VALUES (?, ?, ?, 'pending', ?, NOW())`,
+            [offerId, volunteerUserId, message || null, adminId || null]
+        );
+
+        // Notify the volunteer
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'New Assignment Request',
+                `Admin needs you to deliver "${offer.food_name}". Message: ${message || 'Please accept or reject this request.'}`,
+                'assignment_request',
+                volunteerUserId
+            ]
+        );
+
+        // Notify admin (user_id = NULL) – fixed string syntax
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Request Sent',
+                `Request sent to volunteer (ID ${volunteerUserId}) for offer "${offer.food_name}".`,
+                'assignment_request'
+            ]
+        );
+
+        await conn.commit();
+        res.status(201).json({ message: 'Request sent to volunteer.', requestId: result.insertId });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to send request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+// ==============================================================
+// ──────────────── Volunteer accepts request ───────────────────
+// ==============================================================
+
+app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) => {
+    const { requestId } = req.params;
+    const { volunteerUserId } = req.body; // for security
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(
+            `SELECT * FROM Volunteer_Assignment_Request
+             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
+            [requestId, volunteerUserId]
+        );
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Request not found or already processed.' });
+        }
+
+        // Update request status
+        await conn.query(
+            `UPDATE Volunteer_Assignment_Request
+             SET status = 'accepted', responded_at = NOW()
+             WHERE request_id = ?`,
+            [requestId]
+        );
+
+        // Create Delivery record and update Food_offer status
+        const [[offer]] = await conn.query(
+            `SELECT donor_id FROM Food_offer WHERE offer_id = ?`,
+            [request.offer_id]
+        );
+        const [[volunteer]] = await conn.query(
+            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`,
+            [volunteerUserId]
+        );
+
+        await conn.query(
+            `INSERT INTO Delivery (delivery_status, volunteer_id, offer_id, pickup_time)
+             VALUES ('pending_pickup', ?, ?, NOW())`,
+            [volunteer.volunteer_id, request.offer_id]
+        );
+
+        await conn.query(
+            `UPDATE Food_offer SET status = 'in_delivery' WHERE offer_id = ?`,
+            [request.offer_id]
+        );
+
+        // Notify admin that volunteer accepted
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            ['Assignment Accepted', `Volunteer accepted the request for offer ID ${request.offer_id}.`, 'assignment_response', null]
+        );
+
+        // Remove any expiration alert for this offer
+        await conn.query(`DELETE FROM expiration_alert WHERE offer_id = ?`, [request.offer_id]);
+
+        await conn.commit();
+        res.json({ message: 'Request accepted. You are now assigned to this delivery.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to accept request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+
+// ==============================================================
+// ──────────────── Volunteer rejects request ───────────────────
+// ==============================================================
+
+app.put('/api/volunteer/assignment-request/:requestId/reject', async (req, res) => {
+    const { requestId } = req.params;
+    const { volunteerUserId, reason } = req.body;
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(
+            `SELECT * FROM Volunteer_Assignment_Request
+             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
+            [requestId, volunteerUserId]
+        );
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Request not found or already processed.' });
+        }
+
+        await conn.query(
+            `UPDATE Volunteer_Assignment_Request
+             SET status = 'rejected', responded_at = NOW(), volunteer_reason = ?
+             WHERE request_id = ?`,
+            [reason || null, requestId]
+        );
+
+        // Notify admin with reason
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            ['Assignment Rejected', `Volunteer rejected the request for offer ID ${request.offer_id}. Reason: ${reason || 'No reason provided.'}`, 'assignment_response', null]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Request rejected.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to reject request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+// ===============================================================================
+// ───── Volunteer fetches pending requests (for their dashboard) ─────
+// ===============================================================================
+
+app.get('/api/volunteer/pending-requests/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [rows] = await pool.query(`
+            SELECT r.request_id, r.offer_id, r.admin_message, r.requested_at,
+                o.food_name, o.expiration_date_and_time
+            FROM Volunteer_Assignment_Request r
+            JOIN Food_offer o ON r.offer_id = o.offer_id
+            WHERE r.volunteer_user_id = ? AND r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        `, [userId]);
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch requests.' });
+    }
+});
 
 
 

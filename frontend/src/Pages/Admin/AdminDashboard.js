@@ -36,7 +36,6 @@ const todayFormatted = () =>
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
 
-// Relative time string (e.g. "3 minutes ago")
 const timeAgo = (dateStr) => {
     if (!dateStr) return '—';
     const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
@@ -46,21 +45,18 @@ const timeAgo = (dateStr) => {
     return `${Math.floor(diff / 86400)}d ago`;
 };
 
-// Role badge colors matching the rest of the app
 const ROLE_COLOR = {
     Donor:     { bg: '#fff3e0', text: '#e65100', dot: '#f59e0b' },
     Receiver:  { bg: '#e8f5e9', text: '#2e7d32', dot: '#43a047' },
     Volunteer: { bg: '#e3f2fd', text: '#1565c0', dot: '#1e88e5' },
 };
 
-// Pie chart palette
 const PIE_COLORS = {
     Donor:     '#f59e0b',
     Receiver:  '#43a047',
     Volunteer: '#1e88e5',
 };
 
-// User status badge
 const STATUS_COLOR = {
     active:   { bg: '#e8f5e9', text: '#2e7d32' },
     pending:  { bg: '#fff8e1', text: '#f59e0b' },
@@ -69,7 +65,6 @@ const STATUS_COLOR = {
     banned:   { bg: '#ffebee', text: '#c62828' },
 };
 
-// ── Custom Pie Label ──────────────────────────────────────────
 const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
     const RADIAN = Math.PI / 180;
     const r = innerRadius + (outerRadius - innerRadius) * 0.55;
@@ -83,14 +78,11 @@ const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent })
     ) : null;
 };
 
-// ── Trend filter options ──────────────────────────────────────
 const TREND_FILTERS = ['Today', 'This Month', 'This Year', 'Last Year'];
 
-// ── Main Component ────────────────────────────────────────────
 const AdminDashboard = () => {
     const navigate = useNavigate();
 
-    // ── State ────────────────────────────────────────────────
     const [stats,         setStats]         = useState(null);
     const [pieData,       setPieData]       = useState([]);
     const [trendData,     setTrendData]     = useState([]);
@@ -100,7 +92,21 @@ const AdminDashboard = () => {
     const [error,         setError]         = useState(null);
     const [trendLoading,  setTrendLoading]  = useState(false);
 
-    // ── Fetch dashboard stats ────────────────────────────────
+    // Expiration alerts
+    const [expirationAlerts, setExpirationAlerts] = useState([]);
+    const [showAlertModal, setShowAlertModal] = useState(false);
+
+    // Volunteers list
+    const [volunteers, setVolunteers] = useState([]);
+
+    // Assign request modal
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [selectedOffer, setSelectedOffer] = useState(null);
+    const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+    const [requestMessage, setRequestMessage] = useState('');
+    const [sendingRequest, setSendingRequest] = useState(false);
+
+    // Fetch dashboard stats
     const fetchStats = async () => {
         try {
             setLoading(true);
@@ -108,7 +114,6 @@ const AdminDashboard = () => {
             const res  = await fetch('http://localhost:5000/api/admin/dashboard/stats');
             const data = await res.json();
             if (!res.ok) { setError(data.error || 'Failed to load stats.'); return; }
-
             setStats(data.stats);
             setPieData(data.userDistribution || []);
             setActivity(data.recentActivity  || []);
@@ -119,7 +124,6 @@ const AdminDashboard = () => {
         }
     };
 
-    // ── Fetch trend data (changes with filter) ────────────────
     const fetchTrend = async (filter) => {
         try {
             setTrendLoading(true);
@@ -128,19 +132,117 @@ const AdminDashboard = () => {
             const data = await res.json();
             if (res.ok) setTrendData(data.trends || []);
         } catch {
-            // silently ignore — chart stays empty
+            // ignore
         } finally {
             setTrendLoading(false);
         }
     };
 
-    // Run on mount
-    useEffect(() => { fetchStats(); }, []);
+    // Fetch volunteers for dropdown
+    const fetchVolunteers = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/admin/volunteers');
+            const data = await res.json();
+            setVolunteers(data.volunteers || []);
+        } catch (err) {
+            console.error('Failed to fetch volunteers:', err);
+        }
+    };
 
-    // Re-fetch trends whenever filter changes
-    useEffect(() => { fetchTrend(trendFilter); }, [trendFilter]);
+    // Fetch expiration alerts
+    const fetchExpirationAlerts = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/admin/expiration-alerts');
+            const data = await res.json();
+            if (res.ok) {
+                setExpirationAlerts(data.alerts || []);
+                if (data.alerts && data.alerts.length > 0 && !showAlertModal) {
+                    setShowAlertModal(true);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch expiration alerts:', err);
+        }
+    };
 
-    // ── Derived values ───────────────────────────────────────
+    // Dismiss single alert
+    const dismissAlert = async (alertId) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/admin/expiration-alerts/${alertId}`, { method: 'DELETE' });
+            if (res.ok) {
+                setExpirationAlerts(prev => prev.filter(a => a.alert_id !== alertId));
+                if (expirationAlerts.length === 1) setShowAlertModal(false);
+            }
+        } catch (err) {
+            console.error('Error dismissing alert:', err);
+        }
+    };
+
+    // Dismiss all alerts
+    const dismissAllAlerts = async () => {
+        for (const alert of expirationAlerts) {
+            await fetch(`http://localhost:5000/api/admin/expiration-alerts/${alert.alert_id}`, { method: 'DELETE' });
+        }
+        setExpirationAlerts([]);
+        setShowAlertModal(false);
+    };
+
+    // Open assign modal
+    const handleAssignClick = (offerId, alertId, foodName, expiryDate) => {
+        const expiryDateObj = new Date(expiryDate);
+        const formattedExpiry = expiryDateObj.toLocaleString();
+        setSelectedOffer({ offerId, alertId, foodName, expiryDate: formattedExpiry });
+        setSelectedVolunteerId('');
+        setRequestMessage(`Are you available to take this offer? It expires on ${formattedExpiry}`);
+        setShowRequestModal(true);
+    };
+
+    // Send request to volunteer
+    const sendAssignmentRequest = async () => {
+        if (!selectedVolunteerId) {
+            alert('Please select a volunteer.');
+            return;
+        }
+        setSendingRequest(true);
+        try {
+            // Get admin ID from localStorage
+            const userStr = localStorage.getItem('feedhope_user');
+            const adminUser = userStr ? JSON.parse(userStr) : null;
+            const adminId = adminUser?.admin_id || null;
+
+            const res = await fetch('http://localhost:5000/api/admin/request-volunteer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    offerId: selectedOffer.offerId,
+                    volunteerUserId: selectedVolunteerId,
+                    message: requestMessage,
+                    adminId: adminId
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            alert('Request sent to volunteer!');
+            window.dispatchEvent(new Event('notification-read'));
+            setShowRequestModal(false);
+            // Do NOT dismiss the alert – it stays until volunteer accepts
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            setSendingRequest(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStats();
+        fetchExpirationAlerts();
+        fetchVolunteers();
+    }, []);
+
+    useEffect(() => {
+        fetchTrend(trendFilter);
+    }, [trendFilter]);
+
     const totalDonationsKg = stats?.total_donations_kg   ?? 0;
     const activeVolunteers = stats?.active_volunteers     ?? 0;
     const pendingRequests  = stats?.pending_requests      ?? 0;
@@ -151,7 +253,6 @@ const AdminDashboard = () => {
         navigate('/signin');
     };
 
-    // ── Render ───────────────────────────────────────────────
     return (
         <div className="adsh-layout">
             <AdminSidebar onLogout={handleLogout} activePage="dashboard" />
@@ -159,9 +260,7 @@ const AdminDashboard = () => {
             <main className="adsh-main">
                 <div className="adsh-content-wrapper">
 
-                    {/* ══════════════════════════════════════
-                        BANNER
-                    ══════════════════════════════════════ */}
+                    {/* Banner */}
                     <div className="adsh-banner">
                         <div className="adsh-banner-text">
                             <h1 className="adsh-banner-title">Dashboard Overview</h1>
@@ -175,9 +274,128 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    {/* ══════════════════════════════════════
-                        LOADING / ERROR
-                    ══════════════════════════════════════ */}
+                    {/* Expiration Alerts Modal */}
+                    {showAlertModal && expirationAlerts.length > 0 && (
+                        <div className="adsh-modal-overlay">
+                            <div className="adsh-modal adsh-modal--danger">
+                                <div className="adsh-modal-header">
+                                    <h3>⚠️ Expiration Alerts</h3>
+                                    <button className="adsh-modal-close" onClick={() => setShowAlertModal(false)}>×</button>
+                                </div>
+                                <div className="adsh-modal-body">
+                                    <p>The following food offers are about to expire and still have no volunteer assigned:</p>
+                                    <ul>
+                                        {expirationAlerts.map(alert => (
+                                            <li key={alert.alert_id}>
+                                                {alert.message}
+                                                <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        className="adsh-dismiss-btn"
+                                                        onClick={() => dismissAlert(alert.alert_id)}
+                                                    >
+                                                        Dismiss
+                                                    </button>
+                                                    <button
+                                                        className="adsh-assign-btn"
+                                                        onClick={() => handleAssignClick(
+                                                            alert.offer_id,
+                                                            alert.alert_id,
+                                                            alert.food_name,
+                                                            alert.expiration_date
+                                                        )}
+                                                    >
+                                                        Assign to Volunteer
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="adsh-modal-footer">
+                                    <button className="adsh-dismiss-all-btn" onClick={dismissAllAlerts}>
+                                        Dismiss All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Persistent Red Alert Box */}
+                    {expirationAlerts.length > 0 && (
+                        <div className="adsh-alert-banner">
+                            <div className="adsh-alert-icon">⚠️</div>
+                            <div className="adsh-alert-content">
+                                <strong>🚨 Expiration Alerts ({expirationAlerts.length})</strong>
+                                <div className="adsh-alert-messages">
+                                    {expirationAlerts.map(alert => (
+                                        <div key={alert.alert_id} className="adsh-alert-item">
+                                            {alert.message}
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button onClick={() => dismissAlert(alert.alert_id)}>✖</button>
+                                                <button
+                                                    onClick={() => handleAssignClick(
+                                                        alert.offer_id,
+                                                        alert.alert_id,
+                                                        alert.food_name,
+                                                        alert.expiration_date
+                                                    )}
+                                                >
+                                                    Assign
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button className="adsh-alert-dismiss-all" onClick={dismissAllAlerts}>
+                                    Dismiss All
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Assign Request Modal (Volunteer selection + message) */}
+                    {showRequestModal && selectedOffer && (
+                        <div className="adsh-modal-overlay" onClick={() => setShowRequestModal(false)}>
+                            <div className="adsh-modal" onClick={e => e.stopPropagation()}>
+                                <div className="adsh-modal-header">
+                                    <h3>Request Volunteer for "{selectedOffer.foodName}"</h3>
+                                    <button className="adsh-modal-close" onClick={() => setShowRequestModal(false)}>×</button>
+                                </div>
+                                <div className="adsh-modal-body">
+                                    <p>Select a volunteer:</p>
+                                    <select
+                                        className="adsh-select"
+                                        value={selectedVolunteerId}
+                                        onChange={e => setSelectedVolunteerId(e.target.value)}
+                                        style={{ width: '100%', padding: '8px', marginBottom: '16px' }}
+                                    >
+                                        <option value="">— Choose a volunteer —</option>
+                                        {volunteers.map(v => (
+                                            <option key={v.user_id} value={v.user_id}>
+                                                {v.name} {v.phone ? `· ${v.phone}` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p>Message to volunteer:</p>
+                                    <textarea
+                                        className="adsh-textarea"
+                                        rows="3"
+                                        value={requestMessage}
+                                        onChange={e => setRequestMessage(e.target.value)}
+                                        style={{ width: '100%', padding: '8px' }}
+                                    />
+                                </div>
+                                <div className="adsh-modal-footer">
+                                    <button className="adsh-btn-cancel" onClick={() => setShowRequestModal(false)}>Cancel</button>
+                                    <button className="adsh-btn-confirm" onClick={sendAssignmentRequest} disabled={sendingRequest}>
+                                        {sendingRequest ? 'Sending...' : 'Send Request'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Loading / Error */}
                     {loading && (
                         <div className="adsh-loading-wrap">
                             <div className="adsh-spinner" />
@@ -194,12 +412,8 @@ const AdminDashboard = () => {
 
                     {!loading && !error && (
                         <>
-                            {/* ══════════════════════════════════════
-                                STAT CARDS
-                            ══════════════════════════════════════ */}
+                            {/* Stats Cards */}
                             <div className="adsh-stats-row">
-
-                                {/* 1 — Total Donations */}
                                 <div className="adsh-stat-card">
                                     <div className="adsh-stat-icon adsh-stat-icon--donations">
                                         <ScaleIcon sx={{ fontSize: 24 }} />
@@ -212,8 +426,6 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* 2 — Active Volunteers */}
                                 <div className="adsh-stat-card">
                                     <div className="adsh-stat-icon adsh-stat-icon--volunteers">
                                         <PeopleAltIcon sx={{ fontSize: 24 }} />
@@ -225,8 +437,6 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* 3 — Pending Requests */}
                                 <div className="adsh-stat-card">
                                     <div className="adsh-stat-icon adsh-stat-icon--pending">
                                         <PendingActionsIcon sx={{ fontSize: 24 }} />
@@ -238,8 +448,6 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* 4 — Meals Delivered */}
                                 <div className="adsh-stat-card">
                                     <div className="adsh-stat-icon adsh-stat-icon--meals">
                                         <LocalDiningIcon sx={{ fontSize: 24 }} />
@@ -251,17 +459,11 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
-                            {/* END STAT CARDS */}
 
-
-                            {/* ══════════════════════════════════════
-                                PIE CHART + TREND CHART (side by side)
-                            ══════════════════════════════════════ */}
+                            {/* Charts Row */}
                             <div className="adsh-charts-row">
-
-                                {/* ── Pie: User Distribution ─── */}
+                                {/* Pie Chart */}
                                 <div className="adsh-card adsh-card--pie">
                                     <div className="adsh-card-header">
                                         <h2 className="adsh-card-title">User Distribution</h2>
@@ -282,31 +484,21 @@ const AdminDashboard = () => {
                                                             label={renderPieLabel}
                                                         >
                                                             {pieData.map((entry) => (
-                                                                <Cell
-                                                                    key={entry.name}
-                                                                    fill={PIE_COLORS[entry.name] || '#999'}
-                                                                />
+                                                                <Cell key={entry.name} fill={PIE_COLORS[entry.name] || '#999'} />
                                                             ))}
                                                         </Pie>
                                                     </PieChart>
                                                 </ResponsiveContainer>
-
-                                                {/* Legend */}
                                                 <div className="adsh-pie-legend">
                                                     {pieData.map((entry) => {
                                                         const total = pieData.reduce((s, d) => s + d.value, 0);
-                                                        const pct = total > 0
-                                                            ? ((entry.value / total) * 100).toFixed(1)
-                                                            : '0.0';
+                                                        const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0.0';
                                                         return (
                                                             <div key={entry.name} className="adsh-legend-item">
-                                                                <FiberManualRecordIcon
-                                                                    sx={{ fontSize: 12, color: PIE_COLORS[entry.name] || '#999' }}
-                                                                />
+                                                                <FiberManualRecordIcon sx={{ fontSize: 12, color: PIE_COLORS[entry.name] || '#999' }} />
                                                                 <span className="adsh-legend-label">{entry.name}</span>
                                                                 <span className="adsh-legend-val">
-                                                                    {entry.value.toLocaleString()}
-                                                                    <em> ({pct}%)</em>
+                                                                    {entry.value.toLocaleString()} <em>({pct}%)</em>
                                                                 </span>
                                                             </div>
                                                         );
@@ -319,7 +511,7 @@ const AdminDashboard = () => {
                                     </div>
                                 </div>
 
-                                {/* ── Area: Donation Trends ─── */}
+                                {/* Trend Chart */}
                                 <div className="adsh-card adsh-card--trend">
                                     <div className="adsh-card-header adsh-card-header--row">
                                         <div>
@@ -338,50 +530,23 @@ const AdminDashboard = () => {
                                             ))}
                                         </div>
                                     </div>
-
                                     <div className="adsh-trend-wrap">
                                         {trendLoading ? (
                                             <div className="adsh-chart-empty">Loading…</div>
                                         ) : trendData.length > 0 ? (
                                             <ResponsiveContainer width="100%" height={220}>
-                                                <AreaChart data={trendData}
-                                                           margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                                                <AreaChart data={trendData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                                                     <defs>
                                                         <linearGradient id="adshGrad" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="5%"  stopColor="#546e7a" stopOpacity={0.25} />
+                                                            <stop offset="5%" stopColor="#546e7a" stopOpacity={0.25} />
                                                             <stop offset="95%" stopColor="#546e7a" stopOpacity={0.02} />
                                                         </linearGradient>
                                                     </defs>
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                                    <XAxis
-                                                        dataKey="label"
-                                                        tick={{ fontSize: 12, fill: '#888' }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                    />
-                                                    <YAxis
-                                                        tick={{ fontSize: 12, fill: '#888' }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                        unit=" kg"
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            borderRadius: 8,
-                                                            border: '1px solid #e0e0e0',
-                                                            fontSize: 13,
-                                                        }}
-                                                        formatter={(v) => [`${v} kg`, 'Donations']}
-                                                    />
-                                                    <Area
-                                                        type="monotone"
-                                                        dataKey="value"
-                                                        stroke="#546e7a"
-                                                        strokeWidth={2.5}
-                                                        fill="url(#adshGrad)"
-                                                        dot={{ r: 3, fill: '#546e7a' }}
-                                                        activeDot={{ r: 5 }}
-                                                    />
+                                                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} unit=" kg" />
+                                                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13 }} formatter={(v) => [`${v} kg`, 'Donations']} />
+                                                    <Area type="monotone" dataKey="value" stroke="#546e7a" strokeWidth={2.5} fill="url(#adshGrad)" dot={{ r: 3, fill: '#546e7a' }} activeDot={{ r: 5 }} />
                                                 </AreaChart>
                                             </ResponsiveContainer>
                                         ) : (
@@ -389,97 +554,52 @@ const AdminDashboard = () => {
                                         )}
                                     </div>
                                 </div>
-
                             </div>
-                            {/* END CHARTS ROW */}
 
-
-                            {/* ══════════════════════════════════════
-                                RECENT ACTIVITY TABLE
-                            ══════════════════════════════════════ */}
+                            {/* Recent Activity Table */}
                             <div className="adsh-card adsh-card--activity">
                                 <div className="adsh-card-header">
                                     <h2 className="adsh-card-title">Recent Activity</h2>
                                     <p className="adsh-card-subtitle">Latest user registrations & actions</p>
                                 </div>
-
                                 <div className="adsh-table-wrap">
                                     {activity.length === 0 ? (
-                                        <div className="adsh-chart-empty adsh-chart-empty--table">
-                                            No recent activity yet.
-                                        </div>
+                                        <div className="adsh-chart-empty adsh-chart-empty--table">No recent activity yet.</div>
                                     ) : (
                                         <table className="adsh-table">
                                             <thead>
-                                                <tr>
-                                                    <th>User</th>
-                                                    <th>Role</th>
-                                                    <th>Action</th>
-                                                    <th>Status</th>
-                                                    <th>Time</th>
-                                                </tr>
+                                                <tr><th>User</th><th>Role</th><th>Action</th><th>Status</th><th>Time</th></tr>
                                             </thead>
                                             <tbody>
                                                 {activity.map((row, i) => {
-                                                    const rc  = ROLE_COLOR[row.role]   || { bg: '#f5f5f5', text: '#555', dot: '#aaa' };
-                                                    const sc  = STATUS_COLOR[row.status?.toLowerCase()] || { bg: '#f5f5f5', text: '#888' };
-                                                    const initials = (row.name || '?')
-                                                        .split(' ')
-                                                        .slice(0, 2)
-                                                        .map(w => w[0])
-                                                        .join('')
-                                                        .toUpperCase();
-
+                                                    const rc = ROLE_COLOR[row.role] || { bg: '#f5f5f5', text: '#555', dot: '#aaa' };
+                                                    const sc = STATUS_COLOR[row.status?.toLowerCase()] || { bg: '#f5f5f5', text: '#888' };
+                                                    const initials = (row.name || '?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
                                                     return (
                                                         <tr key={i}>
-                                                            {/* User cell */}
                                                             <td>
                                                                 <div className="adsh-user-cell">
                                                                     {row.profile_picture ? (
-                                                                        <img
-                                                                            src={`http://localhost:5000${row.profile_picture}`}
-                                                                            alt={row.name}
-                                                                            className="adsh-avatar"
-                                                                        />
+                                                                        <img src={`http://localhost:5000${row.profile_picture}`} alt={row.name} className="adsh-avatar" />
                                                                     ) : (
-                                                                        <div className="adsh-avatar-letter"
-                                                                             style={{ background: rc.dot }}>
-                                                                            {initials}
-                                                                        </div>
+                                                                        <div className="adsh-avatar-letter" style={{ background: rc.dot }}>{initials}</div>
                                                                     )}
                                                                     <span className="adsh-user-name">{row.name}</span>
                                                                 </div>
                                                             </td>
-
-                                                            {/* Role badge */}
                                                             <td>
-                                                                <span className="adsh-role-badge"
-                                                                      style={{ background: rc.bg, color: rc.text }}>
-                                                                    <FiberManualRecordIcon
-                                                                        sx={{ fontSize: 8, mr: '4px', color: rc.dot }} />
+                                                                <span className="adsh-role-badge" style={{ background: rc.bg, color: rc.text }}>
+                                                                    <FiberManualRecordIcon sx={{ fontSize: 8, mr: '4px', color: rc.dot }} />
                                                                     {row.role}
                                                                 </span>
                                                             </td>
-
-                                                            {/* Action */}
-                                                            <td className="adsh-action-cell">
-                                                                {row.action || 'Account Created'}
-                                                            </td>
-
-                                                            {/* Status badge */}
+                                                            <td className="adsh-action-cell">{row.action || 'Account Created'}</td>
                                                             <td>
-                                                                <span className="adsh-status-badge"
-                                                                      style={{ background: sc.bg, color: sc.text }}>
-                                                                    {row.status
-                                                                        ? row.status.charAt(0).toUpperCase() + row.status.slice(1)
-                                                                        : '—'}
+                                                                <span className="adsh-status-badge" style={{ background: sc.bg, color: sc.text }}>
+                                                                    {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : '—'}
                                                                 </span>
                                                             </td>
-
-                                                            {/* Time */}
-                                                            <td className="adsh-time-cell">
-                                                                {timeAgo(row.created_at)}
-                                                            </td>
+                                                            <td className="adsh-time-cell">{timeAgo(row.created_at)}</td>
                                                         </tr>
                                                     );
                                                 })}
@@ -488,11 +608,8 @@ const AdminDashboard = () => {
                                     )}
                                 </div>
                             </div>
-                            {/* END RECENT ACTIVITY */}
-
                         </>
                     )}
-
                 </div>
             </main>
         </div>
