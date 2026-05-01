@@ -94,6 +94,7 @@ const AdminMoneyDonations = () => {
             const data = await res.json();
             if (!res.ok) { showToast(data.error || 'Approval failed.', 'error'); return; }
             showToast('Donation approved and added to balance.');
+            window.dispatchEvent(new Event('notification-read'));
             fetchAllDonations(); // refresh the full list so stats update instantly
         } catch {
             showToast('Server error. Please try again.', 'error');
@@ -128,6 +129,7 @@ const AdminMoneyDonations = () => {
             const data = await res.json();
             if (!res.ok) { showToast(data.error || 'Rejection failed.', 'error'); return; }
             showToast('Donation rejected.');
+            window.dispatchEvent(new Event('notification-read'));
             setRejectModal({ open: false, donationId: null, donorName: '', amount: '', reason: '' });
             fetchAllDonations();
         } catch {

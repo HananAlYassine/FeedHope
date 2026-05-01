@@ -297,7 +297,7 @@ const VolunteerRegister = () => {
                     </div>
 
                     <div className="reg-form-section">
-                        <Link to="/" className="back-link">Back to Home</Link>
+                        <Link to="/" className="back-link">← Back to Home</Link>
                         <h2 style={{ margin: '10px 0 5px', fontWeight: 800 }}>Create Account</h2>
                         <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px' }}>Join our food rescue mission and make a difference today</p>
 

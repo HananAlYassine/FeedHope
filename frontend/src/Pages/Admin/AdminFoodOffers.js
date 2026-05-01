@@ -37,6 +37,7 @@ const STATUS_BADGE = {
     completed:  { label: 'Completed',   cls: 'afo-badge--completed'  },
     expired:    { label: 'Expired',     cls: 'afo-badge--expired'    },
     cancelled:  { label: 'Cancelled',   cls: 'afo-badge--cancelled'  },
+    delivered:   { label: 'Delivered',   cls: 'afo-badge--delivered'  } 
 };
 
 // ── Main Component ────────────────────────────────────────────
@@ -392,13 +393,24 @@ const AdminFoodOffers = () => {
                 const isExpired    = offerStatus === 'expired';
                 const isCancelled  = offerStatus === 'cancelled';
                 const isCompleted  = offerStatus === 'completed';
+                const isDelivered  = offerStatus === 'delivered';
 
-                // Assign is blocked if volunteer already attached, or offer is terminal
-                const assignDisabled  = isAssigned || isExpired || isCancelled || isCompleted;
-                // Expire is blocked if already in a terminal or assigned state
-                const expireDisabled  = isExpired  || isCancelled || isAssigned || isCompleted;
-                // Cancel is blocked if already cancelled or in a terminal state
-                const cancelDisabled  = isCancelled || isExpired  || isCompleted;
+                // // Assign is blocked if volunteer already attached, or offer is terminal
+                // const assignDisabled  = isAssigned || isExpired || isCancelled || isCompleted;
+                // // Expire is blocked if already in a terminal or assigned state
+                // const expireDisabled  = isExpired  || isCancelled || isAssigned || isCompleted;
+                // // Cancel is blocked if already cancelled or in a terminal state
+                // const cancelDisabled  = isCancelled || isExpired  || isCompleted;
+
+
+                // Assign – now also disabled for delivered
+                const assignDisabled  = isAssigned || isExpired || isCancelled || isCompleted || isDelivered;
+
+                // Expire – now also disabled for delivered
+                const expireDisabled  = isExpired || isCancelled || isAssigned || isCompleted || isDelivered;
+
+                // Cancel – disabled for cancelled, expired, completed, delivered, AND in_delivery
+                const cancelDisabled  = isCancelled || isExpired || isCompleted || isDelivered || isAssigned;
 
                 return (
                     <div

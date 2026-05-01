@@ -127,6 +127,7 @@ const AdminFundDistribution = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Approval failed.');
             showToastMsg(`Request approved. Funds distributed. Ref: ${data.distributionRef}`);
+            window.dispatchEvent(new Event('notification-read'));
             setApproveModal({ open: false, request: null, paymentMethod: '', notes: '' });
             fetchAll();
         } catch (err) {
@@ -160,6 +161,7 @@ const AdminFundDistribution = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Rejection failed.');
             showToastMsg('Request rejected.');
+            window.dispatchEvent(new Event('notification-read'));
             setRejectModal({ open: false, request: null, reason: '' });
             fetchAll();
         } catch (err) {

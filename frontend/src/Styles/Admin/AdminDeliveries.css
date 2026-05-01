@@ -1,0 +1,726 @@
+/* ============================================================
+   FeedHope — Omar & Hanan — AdminDeliveries.css
+============================================================ */
+
+/* ── CSS Variables (scoped to this page's layout) ────────── */
+:root {
+    --adl-gray:          #37474f;
+    --adl-gray-dark:     #263238;
+    --adl-gray-light:    #eceff1;
+    --adl-gray-mid:      #546e7a;
+    --adl-border:        #e0e0e0;
+    --adl-bg-page:       #f4f6f8;
+    --adl-bg-card:       #ffffff;
+    --adl-text-main:     #1a1a1a;
+    --adl-text-sub:      #555555;
+    --adl-text-muted:    #888888;
+    --adl-sidebar-w:     240px;
+    --adl-radius-sm:     6px;
+    --adl-radius-md:     10px;
+    --adl-radius-lg:     14px;
+    --adl-shadow:        0 1px 4px rgba(0, 0, 0, 0.07);
+
+    /* Accent colors for modals and actions */
+    --adl-accent-info:   #546e7a;
+    --adl-accent-danger: #c62828;
+    --adl-accent-success:#2e7d32;
+}
+
+/* ── Global body reset ───────────────────────────────────── */
+body {
+    background-color: var(--adl-bg-page) !important;
+    margin: 0;
+    padding: 0;
+    text-align: left !important;
+}
+
+/* ── Page layout: sidebar + main content side by side ─────── */
+.adl-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--adl-bg-page);
+}
+
+/* ── Main content area (offset by sidebar width) ─────────── */
+.adl-main {
+    margin-left: var(--adl-sidebar-w);
+    flex: 1;
+    padding: 24px 28px;
+    width: calc(100% - var(--adl-sidebar-w));
+    max-width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    display: block;
+}
+
+/* ── Content wrapper (no extra spacing) ──────────────────── */
+.adl-content-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
+}
+
+/* ══════════════════════════════════════════════════════════
+   BANNER — gradient header with title, subtitle, and date
+══════════════════════════════════════════════════════════ */
+
+.adl-banner {
+    background: linear-gradient(135deg, #37474f 0%, #546e7a 60%, #455a64 100%);
+    border-radius: var(--adl-radius-lg);
+    margin: 0 0 22px 0 !important;
+    padding: 28px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 140px;
+    width: 100%;
+    box-sizing: border-box;
+    clear: both;
+}
+
+/* Decorative background circle (left) */
+.adl-banner::before {
+    content: '';
+    position: absolute;
+    right: 180px;
+    top: -50px;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Decorative background circle (right) */
+.adl-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -50px;
+    width: 180px;
+    height: 180px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.adl-banner-text     { z-index: 1; }
+.adl-banner-title    { font-size: 26px; font-weight: 700; margin-bottom: 5px; }
+.adl-banner-subtitle { font-size: 13.5px; opacity: 0.85; }
+
+/* Date display on the right side of the banner */
+.adl-banner-date {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    z-index: 1;
+    font-size: 13px;
+    opacity: 0.85;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   STATS ROW — three cards: Pending, In Transit, Delivered
+══════════════════════════════════════════════════════════ */
+
+.adl-stats-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 22px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Individual stat card */
+.adl-stat-card {
+    flex: 1;
+    background: var(--adl-bg-card);
+    border: 1px solid var(--adl-border);
+    border-radius: var(--adl-radius-md);
+    box-shadow: var(--adl-shadow);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+/* Colored icon circle on each stat card */
+.adl-stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+/* Pending = yellow/amber */
+.adl-stat-icon--pending    { background: #f59e0b; }
+/* In Transit = blue */
+.adl-stat-icon--transit    { background: #1565c0; }
+/* Delivered = green */
+.adl-stat-icon--delivered  { background: #2e7d32; }
+
+.adl-stat-info { min-width: 0; }
+
+.adl-stat-label {
+    font-size: 12px;
+    color: var(--adl-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.adl-stat-count {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--adl-text-main);
+    line-height: 1;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLE CARD — filter section + deliveries table
+══════════════════════════════════════════════════════════ */
+
+.adl-card {
+    background: var(--adl-bg-card);
+    border-radius: var(--adl-radius-md);
+    border: 1px solid var(--adl-border);
+    box-shadow: var(--adl-shadow);
+    overflow: hidden;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* ── Filter bar (label + search + dropdown) ───────────────── */
+.adl-filters-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0 20px;
+}
+
+.adl-filters-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--adl-text-main);
+}
+
+.adl-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px 16px 20px;
+    border-bottom: 1px solid var(--adl-border);
+    flex-wrap: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Search input wrapper (holds the icon + input together) */
+.adl-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 240px;
+}
+
+.adl-search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--adl-text-muted);
+    pointer-events: none;
+}
+
+.adl-search {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    border: 1px solid var(--adl-border);
+    border-radius: var(--adl-radius-sm);
+    font-size: 14px;
+    color: var(--adl-text-main);
+    background: #fafafa;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.adl-search:focus {
+    border-color: var(--adl-gray);
+    background: #fff;
+}
+
+/* Status filter dropdown */
+.adl-select {
+    padding: 9px 32px 9px 12px;
+    border: 1px solid var(--adl-border);
+    border-radius: var(--adl-radius-sm);
+    font-size: 14px;
+    color: var(--adl-text-sub);
+    background: #fafafa;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    width: 180px;
+    flex-shrink: 0;
+}
+
+.adl-select:focus {
+    border-color: var(--adl-gray);
+    background-color: #fff;
+}
+
+/* ── Deliveries table ─────────────────────────────────────── */
+.adl-table-wrap { overflow-x: auto; width: 100%; }
+
+.adl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: left;
+}
+
+.adl-table thead tr {
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--adl-border);
+}
+
+.adl-table th {
+    padding: 13px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--adl-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.adl-table tbody tr {
+    border-bottom: 1px solid var(--adl-border);
+    transition: background 0.12s;
+}
+
+.adl-table tbody tr:last-child  { border-bottom: none; }
+.adl-table tbody tr:hover       { background: #fafafa; }
+
+.adl-table td {
+    padding: 14px 16px;
+    color: var(--adl-text-sub);
+    white-space: nowrap;
+    text-align: left;
+}
+
+/* Bold cell for offer name */
+.adl-td-title {
+    font-weight: 600;
+    color: var(--adl-text-main) !important;
+}
+
+/* Sub-text under donor/receiver name (the address line) */
+.adl-td-sub {
+    font-size: 12px;
+    color: var(--adl-text-muted);
+    margin-top: 2px;
+}
+
+/* Empty state row */
+.adl-empty {
+    text-align: center !important;
+    padding: 40px 20px !important;
+    color: var(--adl-text-muted) !important;
+    font-size: 14px;
+}
+
+/* ── Status badges ────────────────────────────────────────── */
+.adl-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Pending Pickup = yellow */
+.adl-badge--pending   { background: #fff8e1; color: #f59e0b; }
+/* In Transit = blue */
+.adl-badge--transit   { background: #e3f2fd; color: #1565c0; }
+/* Delivered = green */
+.adl-badge--delivered { background: #e8f5e9; color: #2e7d32; }
+/* Completed = purple */
+.adl-badge--completed { background: #f3e5f5; color: #6a1b9a; }
+/* Cancelled = red */
+.adl-badge--cancelled { background: #ffebee; color: #c62828; }
+
+/* ── Volunteer avatar cell ────────────────────────────────── */
+.adl-volunteer-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Circular avatar (image or letter fallback) */
+.adl-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* Letter avatar when no photo exists */
+.adl-avatar-letter {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--adl-gray);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* "Unassigned" label for pending deliveries */
+.adl-unassigned {
+    font-size: 13px;
+    color: var(--adl-text-muted);
+    font-style: italic;
+}
+
+/* ── Action buttons in the last column ───────────────────── */
+.adl-action-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* "View Details" button — outlined */
+.adl-btn-view {
+    padding: 6px 13px;
+    border-radius: var(--adl-radius-sm);
+    font-size: 12.5px;
+    font-weight: 500;
+    border: 1px solid var(--adl-border);
+    background: #fff;
+    color: var(--adl-text-sub);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.adl-btn-view:hover { background: #f5f5f5; border-color: #bbb; }
+
+/* "Mark as Delivered" button — solid slate */
+.adl-btn-mark {
+    padding: 6px 13px;
+    border-radius: var(--adl-radius-sm);
+    font-size: 12.5px;
+    font-weight: 600;
+    border: none;
+    background: var(--adl-gray);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.adl-btn-mark:hover    { background: var(--adl-gray-dark); }
+.adl-btn-mark:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ── Loading / Error states ───────────────────────────────── */
+.adl-loading-wrap,
+.adl-error-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 14px;
+    color: var(--adl-text-muted);
+    font-size: 14px;
+}
+
+.adl-error-msg { color: #c62828; font-size: 14px; text-align: center; }
+
+.adl-retry-btn {
+    padding: 8px 20px;
+    background: var(--adl-gray);
+    color: #fff;
+    border: none;
+    border-radius: var(--adl-radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+.adl-retry-btn:hover { background: var(--adl-gray-dark); }
+
+/* ══════════════════════════════════════════════════════════
+   MODAL SYSTEM — backdrop + centered dialog
+══════════════════════════════════════════════════════════ */
+
+/* Full-screen backdrop with blur */
+.adl-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 40, 50, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Modal dialog container */
+.adl-modal {
+    background: #ffffff;
+    border-radius: var(--adl-radius-lg);
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.05),
+        0 20px 60px rgba(0, 0, 0, 0.22);
+    width: 560px;
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    text-align: left;
+    animation: adl-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Small/confirmation modal variant */
+.adl-modal--sm      { width: 400px; }
+.adl-modal--confirm { width: 380px; }
+
+@keyframes adl-modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* Modal header bar */
+.adl-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--adl-border);
+    background: #f8f9fa;
+    border-radius: var(--adl-radius-lg) var(--adl-radius-lg) 0 0;
+}
+
+/* Colored icon pill in the modal header */
+.adl-modal-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+}
+.adl-modal-header-icon--info    { background: var(--adl-accent-info);    }
+.adl-modal-header-icon--success { background: var(--adl-accent-success); }
+.adl-modal-header-icon--danger  { background: var(--adl-accent-danger);  }
+
+.adl-modal-header h2 {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--adl-text-main);
+    margin: 0;
+}
+
+/* ✕ close button inside modal header */
+.adl-modal-close {
+    background: none;
+    border: none;
+    font-size: 17px;
+    color: var(--adl-text-muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: var(--adl-radius-sm);
+    transition: background 0.15s, color 0.15s;
+    margin-left: auto;
+}
+.adl-modal-close:hover {
+    background: var(--adl-gray-light);
+    color: var(--adl-gray-dark);
+}
+
+/* Modal body padding */
+.adl-modal-body {
+    padding: 22px 24px 20px;
+}
+
+/* Centred body variant for confirmation dialogs */
+.adl-modal-body--confirm {
+    text-align: center;
+    padding: 28px 28px 24px;
+}
+
+/* Confirmation text inside confirm modals */
+.adl-confirm-message {
+    font-size: 14.5px;
+    color: var(--adl-text-sub);
+    line-height: 1.6;
+    margin: 0 0 24px;
+}
+
+/* ── Detail rows in "View Details" modal ──────────────────── */
+.adl-detail-grid { display: flex; flex-direction: column; gap: 0; }
+
+.adl-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.adl-detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.adl-detail-row span   { color: var(--adl-text-muted); font-size: 13px; }
+.adl-detail-row strong { color: var(--adl-text-main); font-weight: 600; text-align: right; }
+
+/* ── Modal footer (close / action buttons at bottom) ─────── */
+.adl-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 24px 20px;
+    border-top: 1px solid var(--adl-border);
+    background: #f8f9fa;
+    border-radius: 0 0 var(--adl-radius-lg) var(--adl-radius-lg);
+}
+
+/* Row of action buttons inside a modal */
+.adl-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 0;
+}
+
+/* Secondary / cancel button */
+.adl-btn-cancel {
+    padding: 9px 22px;
+    border-radius: var(--adl-radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid var(--adl-border);
+    background: #fff;
+    color: var(--adl-text-sub);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.adl-btn-cancel:hover { background: #f5f5f5; }
+
+/* Primary confirm / submit button */
+.adl-btn-confirm {
+    padding: 9px 24px;
+    border-radius: var(--adl-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--adl-gray);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.adl-btn-confirm:hover    { background: var(--adl-gray-dark); }
+.adl-btn-confirm:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Danger (red) variant for destructive actions */
+.adl-btn-danger             { background: var(--adl-accent-danger) !important; }
+.adl-btn-danger:hover       { background: #b71c1c !important; }
+
+/* ── Toast notification (bottom-right corner) ────────────── */
+.adl-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 2000;
+    padding: 13px 22px;
+    border-radius: var(--adl-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    animation: adl-toast-in 0.2s ease both;
+}
+@keyframes adl-toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+.adl-toast--success { background: #37474f; color: #fff; }
+.adl-toast--error   { background: #c62828; color: #fff; }
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — mobile adjustments
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .adl-main {
+        margin-left: 0;
+        width: 100%;
+        padding: 16px;
+    }
+
+    .adl-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+        padding: 22px 20px;
+        min-height: unset;
+    }
+
+    .adl-banner-date { align-self: flex-start; }
+
+    /* Stack stat cards vertically on mobile */
+    .adl-stats-row { flex-direction: column; }
+
+    .adl-filters { flex-wrap: wrap; gap: 12px; }
+
+    .adl-search-wrap { min-width: 100%; flex: auto; }
+
+    .adl-select { width: 100%; flex-shrink: 1; }
+
+    .adl-table td,
+    .adl-table th { white-space: normal; }
+
+    /* Full-width modals on small screens */
+    .adl-modal,
+    .adl-modal--sm,
+    .adl-modal--confirm {
+        width: 100%;
+        max-width: 100%;
+        border-radius: var(--adl-radius-md);
+    }
+
+    .adl-modal-backdrop { padding: 12px; align-items: flex-end; }
+
+    /* Stack action buttons vertically on mobile */
+    .adl-action-btns { flex-direction: column; gap: 5px; }
+}

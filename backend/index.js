@@ -90,10 +90,14 @@ app.post("/api/register/donor", async (req, res) => {
         );
         const uid = u.insertId; // The auto-generated user_id
 
-        // Insert the address linked to this user
+        // Sanitize latitude and longitude
+        let lat = (latitude && !isNaN(parseFloat(latitude))) ? parseFloat(latitude) : null;
+        let lng = (longitude && !isNaN(parseFloat(longitude))) ? parseFloat(longitude) : null;
+
+
         const [a] = await conn.query(
             "INSERT INTO Address (street, city, country, latitude, longitude, user_id) VALUES (?,?,?,?,?,?)",
-            [street, city, country, latitude, longitude, uid]
+            [street, city, country, lat, lng, uid]   
         );
 
         // Create a Role row for 'Donor' and link it in User_Role
@@ -174,11 +178,16 @@ app.post("/api/register/receiver", async (req, res) => {
         );
         const uid = u.insertId;
 
-        // Insert the address for this receiver
+        // Sanitize latitude and longitude
+        let lat = (latitude && !isNaN(parseFloat(latitude))) ? parseFloat(latitude) : null;
+        let lng = (longitude && !isNaN(parseFloat(longitude))) ? parseFloat(longitude) : null;
+
+
         const [a] = await conn.query(
             "INSERT INTO Address (street, city, country, latitude, longitude, user_id) VALUES (?,?,?,?,?,?)",
-            [street, city, country, latitude, longitude, uid]
+            [street, city, country, lat, lng, uid]   
         );
+
 
         // Create Role row and link it
         const [r] = await conn.query("INSERT INTO Role (role_name, user_id) VALUES ('Receiver', ?)", [uid]);
@@ -846,6 +855,11 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
             ]
         );
 
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Accept Offer', `Receiver accepted offer ID ${offerId} (${offer.food_name})`, userId]
+        );
+
         await conn.commit();
         res.status(200).json({ message: "Offer accepted successfully!" });
 
@@ -1398,6 +1412,11 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
             WHERE d.donor_id = (SELECT donor_id FROM Food_offer WHERE offer_id = ?)
         `, [offerId]);
 
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Cancel Offer', `Receiver cancelled offer ID ${offerId}`, userId]
+        );
+
         const donorName = donorInfo ? donorInfo.donor_name : 'Unknown donor';
 
         // Notify the admin
@@ -1493,6 +1512,12 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
                 `Receiver "${receiverName}" rated donor ${donorRating}/5 and volunteer ${volunteerRating}/5 for offer #${offerId}. Comment: "${comment || 'No comment'}"`,
                 'feedback_submitted'
             ]
+        );
+
+
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['Feedback', `Receiver gave donor rating ${donorRating} and volunteer rating ${volunteerRating} for offer ID ${offerId}`, userId]
         );
 
         await conn.commit();
@@ -2498,6 +2523,11 @@ app.delete('/api/donor/delete-offer/:offerId', async (req, res) => {
             ]
         );
 
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['cancel_offer', `Donor deleted offer ID ${offerId}`, user_id]
+        );
+
         await conn.commit();
         res.json({ message: 'Deleted successfully' });
     } catch (error) {
@@ -3131,20 +3161,31 @@ app.get('/api/admin/volunteers', async (req, res) => {
 
 
 // ─────────────────────────────────────────────────────────────
-//  PUT /api/admin/food-offers/assign-volunteer
-//  Assigns a volunteer to an offer and sets status to 'in_delivery'.
-//  Body: { offerId, volunteerId }
+//  PUT /api/admin/food-offers/assign-volunteer 
+//  Assigns a volunteer to an offer, creates a Delivery record,
+//  sets Food_offer.status = 'in_delivery'
 // ─────────────────────────────────────────────────────────────
 app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
-    const { offerId, volunteerId } = req.body;
-    if (!offerId || !volunteerId) {
-        return res.status(400).json({ error: 'offerId and volunteerId are required.' });
+    const { offerId, volunteerId: volunteerUserId } = req.body; // volunteerUserId is user_id
+    if (!offerId || !volunteerUserId) {
+        return res.status(400).json({ error: 'offerId and volunteerId (user_id) are required.' });
     }
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
 
-        // Fetch offer details (food name + donor's user_id) for notifications
+        // 1. Get the actual volunteer_id from Volunteer table using user_id
+        const [[volunteerRow]] = await conn.query(
+            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`,
+            [volunteerUserId]
+        );
+        if (!volunteerRow) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Volunteer profile not found for this user.' });
+        }
+        const actualVolunteerId = volunteerRow.volunteer_id;
+
+        // 2. Fetch offer details for notifications
         const [[offerDetails]] = await conn.query(`
             SELECT fo.food_name, d.user_id AS donor_user_id
             FROM Food_offer fo
@@ -3157,7 +3198,7 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
             return res.status(404).json({ error: 'Offer not found.' });
         }
 
-        // Update the offer status - you may also insert into a Delivery table here
+        // 3. Update Food_offer status
         const [result] = await conn.query(`
             UPDATE Food_offer
             SET status = 'in_delivery'
@@ -3169,26 +3210,32 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
             return res.status(404).json({ error: 'Offer not found.' });
         }
 
-        // ── ADMIN NOTIFICATION: volunteer assigned ──
+        // 4. Insert into Delivery table with status 'in_transit' (so it appears as In Transit immediately)
+        await conn.query(`
+            INSERT INTO Delivery (delivery_status, volunteer_id, offer_id, pickup_time)
+            VALUES ('in_delivery', ?, ?, NOW())
+        `, [actualVolunteerId, offerId]);
+
+        // 5. ADMIN NOTIFICATION
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
             [
                 'Volunteer Assigned',
-                `Volunteer ID ${volunteerId} assigned to deliver "${offerDetails.food_name}" (Offer #${offerId}).`,
+                `Volunteer (user_id ${volunteerUserId}) assigned to deliver "${offerDetails.food_name}" (Offer #${offerId}) and is now In Transit.`,
                 'volunteer_assigned'
             ]
         );
 
-        // Notify donor
+        // 6. Notify donor
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, ?, NOW())`,
-            ['Delivery Assigned', `A volunteer has been assigned to deliver your offer "${offerDetails.food_name}".`, 'delivery_update', offerDetails.donor_user_id]
+            ['Delivery Assigned', `A volunteer has been assigned to deliver your offer "${offerDetails.food_name}" and is now on the way.`, 'delivery_update', offerDetails.donor_user_id]
         );
 
         await conn.commit();
-        res.json({ message: 'Volunteer assigned successfully.' });
+        res.json({ message: 'Volunteer assigned successfully. Delivery is now In Transit.' });
     } catch (err) {
         await conn.rollback();
         console.error('PUT /api/admin/food-offers/assign-volunteer error:', err);
@@ -3197,6 +3244,7 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
         conn.release();
     }
 });
+
 
 // ─────────────────────────────────────────────────────────────
 //  PUT /api/admin/food-offers/:offerId/expire
@@ -4139,11 +4187,10 @@ app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
             WHERE user_id IS NULL
                 AND read_at  IS NULL
                 AND type IN (
-                    'new_registration',
-                    'new_offer',
-                    'offer_accepted',
-                    'money_donation',
-                    'fund_distribution'
+                'new_registration', 'new_offer', 'offer_accepted',
+                'money_donation', 'fund_distribution',
+                'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
+                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected'
                 )
         `);
         res.json({ message: 'All notifications marked as read.' });
@@ -4225,6 +4272,361 @@ app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
         res.json({ count: 0 });
     }
 });
+
+
+
+
+// ==============================================================
+// ──────────────── ADMIN DELIVERIES API ─────────────────────────
+// ==============================================================
+
+// Helper: calculate distance in km between two lat/lng points using Haversine formula
+// const calculateDistance = (lat1, lon1, lat2, lon2) => {
+//     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+//     const R = 6371; // Earth's radius in km
+//     const dLat = (lat2 - lat1) * Math.PI / 180;
+//     const dLon = (lon2 - lon1) * Math.PI / 180;
+//     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+//               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+//               Math.sin(dLon/2) * Math.sin(dLon/2);
+//     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+//     return Math.round(R * c * 10) / 10; // round to 1 decimal
+// };
+
+
+
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    // Treat missing or zero coordinates as invalid
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    if (Math.abs(lat1) < 0.0001 && Math.abs(lon1) < 0.0001) return null;
+    if (Math.abs(lat2) < 0.0001 && Math.abs(lon2) < 0.0001) return null;
+
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    let dist = R * c;
+    // If the distance is extremely small (e.g., both points are 0,0), treat as invalid
+    if (dist < 0.01) return null;
+    return Math.round(dist * 10) / 10;
+};
+
+// ──── GET /api/admin/deliveries ─────────────────────────────────
+// Returns all deliveries with full details: offer, donor, receiver, volunteer, status, distance.
+app.get('/api/admin/deliveries', async (req, res) => {
+    try {
+        // Query accepted food offers with donor, receiver, address details
+        // Left join Delivery and Volunteer to get volunteer info and delivery status
+        const [rows] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.status AS offer_status,
+                fo.pickup_time,
+                -- Donor info (using Donor.address_id)
+                donor_user.name AS donor_name,
+                donor_addr.street AS donor_street,
+                donor_addr.city AS donor_city,
+                donor_addr.country AS donor_country,
+                donor_addr.latitude AS donor_lat,
+                donor_addr.longitude AS donor_lon,
+                -- Receiver info (via Receiver_location → Address)
+                receiver_user.name AS receiver_name,
+                receiver_addr.street AS receiver_street,
+                receiver_addr.city AS receiver_city,
+                receiver_addr.country AS receiver_country,
+                receiver_addr.latitude AS receiver_lat,
+                receiver_addr.longitude AS receiver_lon,
+                -- Delivery info (distance_km column does NOT exist in your Delivery table; omit it)
+                d.delivery_id,
+                d.delivery_status,
+                d.delivery_time AS delivered_time,
+                -- Volunteer info
+                vol_user.name AS volunteer_name,
+                vol_user.profile_picture AS volunteer_profile_photo
+            FROM Food_offer fo
+            -- Donor join : correct - use Donor.address_id
+            JOIN Donor dnr ON fo.donor_id = dnr.donor_id
+            JOIN User donor_user ON dnr.user_id = donor_user.user_id
+            JOIN Address donor_addr ON dnr.address_id = donor_addr.address_id
+            -- Receiver join : correct - via Receiver_location
+            LEFT JOIN Receiver rc ON fo.receiver_id = rc.receiver_id
+            LEFT JOIN User receiver_user ON rc.user_id = receiver_user.user_id
+            LEFT JOIN Receiver_location rl ON rc.receiver_id = rl.receiver_id
+            LEFT JOIN Address receiver_addr ON rl.address_id = receiver_addr.address_id
+            -- Delivery (if exists) and Volunteer
+            LEFT JOIN Delivery d ON fo.offer_id = d.offer_id
+            LEFT JOIN Volunteer v ON d.volunteer_id = v.volunteer_id
+            LEFT JOIN User vol_user ON v.user_id = vol_user.user_id
+            WHERE fo.receiver_id IS NOT NULL              -- Only accepted offers
+              AND fo.status NOT IN ('available', 'expired')
+            ORDER BY fo.offer_id DESC
+        `);
+
+        // Process rows: compute distance, map status
+        const deliveries = rows.map(row => {
+            let status = 'pending_pickup';
+            // Determine status based on delivery_status and offer_status
+            if (row.offer_status === 'cancelled') {
+                status = 'cancelled';
+            } else if (row.delivery_status === 'completed') {
+                status = 'delivered';
+            } else if (row.delivery_status === 'in_delivery') {
+                status = 'in_delivery';
+            }else if (row.delivery_status === 'assigned') {
+                status = 'pending_pickup';
+            } else if (!row.delivery_id && row.offer_status === 'accepted') {
+                status = 'pending_pickup';
+            } else if (row.offer_status === 'delivered') {
+                status = 'delivered';
+            }
+
+            // Compute distance from donor and receiver lat/lng (since distance_km doesn't exist)
+            let distance = null;
+            if (row.donor_lat && row.donor_lon && row.receiver_lat && row.receiver_lon) {
+                distance = calculateDistance(row.donor_lat, row.donor_lon, row.receiver_lat, row.receiver_lon);
+            }
+
+            return {
+                delivery_id: row.delivery_id,
+                offer_id: row.offer_id,
+                food_name: row.food_name,
+                donor_name: row.donor_name,
+                donor_address: `${row.donor_street || ''}, ${row.donor_city || ''}, ${row.donor_country || ''}`.replace(/^, |, ,/, ''),
+                receiver_name: row.receiver_name,
+                receiver_address: `${row.receiver_street || ''}, ${row.receiver_city || ''}, ${row.receiver_country || ''}`.replace(/^, |, ,/, ''),
+                volunteer_name: row.volunteer_name || null,
+                volunteer_profile_photo: row.volunteer_profile_photo || null,
+                status: status,
+                distance_km: distance,
+                pickup_time: row.pickup_time,
+                delivered_time: row.delivered_time
+            };
+        });
+
+        res.json({ deliveries });
+    } catch (err) {
+        console.error('GET /api/admin/deliveries error:', err);
+        res.status(500).json({ error: 'Failed to fetch deliveries.' });
+    }
+});
+
+
+
+
+// ==============================================================
+// ──────────────── ADMIN: DASHBOARD Page ──────────────────────
+// ==============================================================
+
+
+// ──────────────── ADMIN: DASHBOARD STATS ──────────────────────
+
+// GET /api/admin/dashboard/stats
+// Returns:
+//   stats            { total_donations_kg, active_volunteers, pending_requests, meals_delivered }
+//   userDistribution [ { name: 'Donor'|'Receiver'|'Volunteer', value: N }, … ]
+//   recentActivity   [ { name, role, action, status, profile_picture, created_at }, … ]
+
+app.get('/api/admin/dashboard/stats', async (req, res) => {
+    try {
+        const [[{ total_donations_kg }]] = await pool.query(`
+            SELECT COALESCE(SUM(fo.quantity_by_kg), 0) AS total_donations_kg
+            FROM Food_offer fo
+            WHERE fo.status IN ('accepted', 'completed', 'delivered', 'in_delivery', 'pending_pickup')
+        `);
+
+        const [[{ active_volunteers }]] = await pool.query(`
+            SELECT COUNT(DISTINCT v.volunteer_id) AS active_volunteers
+            FROM Volunteer v
+            JOIN Delivery d ON d.volunteer_id = v.volunteer_id
+            WHERE d.delivery_status IN ('pending_pickup', 'in_delivery')
+        `);
+
+        const [[{ pending_requests }]] = await pool.query(`
+            SELECT COUNT(*) AS pending_requests
+            FROM Food_offer
+            WHERE status = 'pending'
+        `);
+
+        const [[{ meals_delivered }]] = await pool.query(`
+            SELECT COUNT(*) AS meals_delivered
+            FROM Delivery
+            WHERE delivery_status IN ('delivered', 'completed')
+        `);
+
+        const [roleRows] = await pool.query(`
+            SELECT r.role_name AS role, COUNT(DISTINCT ur.user_id) AS cnt
+            FROM User_Role ur
+            JOIN Role r ON r.role_id = ur.role_id
+            WHERE r.role_name IN ('Donor', 'Receiver', 'Volunteer')
+            GROUP BY r.role_name
+        `);
+
+        const userDistribution = ['Donor', 'Receiver', 'Volunteer'].map(name => ({
+            name,
+            value: Number(roleRows.find(r => r.role === name)?.cnt ?? 0),
+        }));
+
+        // ─────────────────────────────────────────────────────────
+        // RECENT ACTIVITY – ONLY the actions you explicitly want
+        // ─────────────────────────────────────────────────────────
+        const [activityRows] = await pool.query(`
+            SELECT
+                u.name,
+                u.profile_picture,
+                u.status,
+                r.role_name AS role,
+                sl.action,
+                sl.description,
+                sl.timestamp AS action_time
+            FROM Syslog sl
+            JOIN User u ON u.user_id = sl.user_id
+            JOIN Role r ON r.user_id = u.user_id
+            WHERE r.role_name IN ('Donor', 'Receiver', 'Volunteer')
+            AND (
+                (r.role_name = 'Donor' AND sl.action IN ('Create Offer', 'Donation', 'Registration', 'EmailVerified'))
+                OR
+                (r.role_name = 'Volunteer' AND sl.action IN ('Registration', 'EmailVerified'))   -- no 'accept_delivery' exists yet
+                OR
+                (r.role_name = 'Receiver' AND sl.action IN ('Registration', 'EmailVerified','Cancel Offer', 'Accept Offer' , 'Feedback'))     
+            )
+            ORDER BY sl.timestamp DESC
+            LIMIT 15
+        `);
+
+        const recentActivity = activityRows.map(row => ({
+            name: row.name,
+            role: row.role,
+            action: row.action,
+            status: row.status,
+            profile_picture: row.profile_picture,
+            created_at: row.action_time,
+        }));
+
+        res.json({
+            stats: {
+                total_donations_kg: Number(total_donations_kg).toFixed(2),
+                active_volunteers:  Number(active_volunteers),
+                pending_requests:   Number(pending_requests),
+                meals_delivered:    Number(meals_delivered),
+            },
+            userDistribution,
+            recentActivity,
+        });
+
+    } catch (err) {
+        console.error('GET /api/admin/dashboard/stats error:', err);
+        res.status(500).json({ error: 'Failed to load dashboard stats.' });
+    }
+});
+
+
+
+// ──────────────── ADMIN: DONATION TRENDS ──────────────────────
+
+// GET /api/admin/dashboard/trends?filter=Today|This Month|This Year|Last Year
+// Returns:
+//   trends  [ { label: string, value: number }, … ]
+
+app.get('/api/admin/dashboard/trends', async (req, res) => {
+    const filter = req.query.filter || 'This Month';
+
+    try {
+        let rows = [];
+
+        if (filter === 'Today') {
+            // Group by hour (0–23)
+            [rows] = await pool.query(`
+                SELECT
+                    HOUR(created_at)                          AS period,
+                    COALESCE(SUM(quantity_by_kg), 0)          AS value
+                FROM Food_offer
+                WHERE DATE(created_at) = CURDATE()
+                AND status = 'delivered'
+                GROUP BY period
+                ORDER BY period ASC
+            `);
+            // Fill all 24 hours
+            const map = Object.fromEntries(rows.map(r => [r.period, Number(r.value)]));
+            const trends = Array.from({ length: 24 }, (_, h) => ({
+                label: `${String(h).padStart(2, '0')}:00`,
+                value: map[h] ?? 0,
+            }));
+            return res.json({ trends });
+
+        } else if (filter === 'This Month') {
+            // Group by day-of-month
+            [rows] = await pool.query(`
+                SELECT
+                    DAY(created_at)                          AS period,
+                    COALESCE(SUM(quantity_by_kg), 0)         AS value
+                FROM Food_offer
+                WHERE YEAR(created_at)  = YEAR(NOW())
+                AND MONTH(created_at) = MONTH(NOW())
+                AND status = 'delivered'
+                GROUP BY period
+                ORDER BY period ASC
+            `);
+            const map = Object.fromEntries(rows.map(r => [r.period, Number(r.value)]));
+            const daysInMonth = new Date(
+                new Date().getFullYear(), new Date().getMonth() + 1, 0
+            ).getDate();
+            const trends = Array.from({ length: daysInMonth }, (_, i) => ({
+                label: String(i + 1),
+                value: map[i + 1] ?? 0,
+            }));
+            return res.json({ trends });
+
+        } else if (filter === 'This Year') {
+            // Group by month Jan–Dec
+            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            [rows] = await pool.query(`
+                SELECT
+                    MONTH(created_at)                        AS period,
+                    COALESCE(SUM(quantity_by_kg), 0)         AS value
+                FROM Food_offer
+                WHERE YEAR(created_at) = YEAR(NOW())
+                AND status = 'delivered'
+                GROUP BY period
+                ORDER BY period ASC
+            `);
+            const map = Object.fromEntries(rows.map(r => [r.period, Number(r.value)]));
+            const trends = MONTHS.map((label, i) => ({ label, value: map[i + 1] ?? 0 }));
+            return res.json({ trends });
+
+        } else if (filter === 'Last Year') {
+            // Group by month for the previous calendar year
+            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            [rows] = await pool.query(`
+                SELECT
+                    MONTH(created_at)                        AS period,
+                    COALESCE(SUM(quantity_by_kg), 0)         AS value
+                FROM Food_offer
+                WHERE YEAR(created_at) = YEAR(NOW()) - 1
+                AND status = 'delivered'
+                GROUP BY period
+                ORDER BY period ASC
+            `);
+            const map = Object.fromEntries(rows.map(r => [r.period, Number(r.value)]));
+            const trends = MONTHS.map((label, i) => ({ label, value: map[i + 1] ?? 0 }));
+            return res.json({ trends });
+        }
+
+        // Fallback
+        return res.json({ trends: [] });
+
+    } catch (err) {
+        console.error('GET /api/admin/dashboard/trends error:', err);
+        res.status(500).json({ error: 'Failed to load trend data.' });
+    }
+});
+
+
+
+
 
 
 
