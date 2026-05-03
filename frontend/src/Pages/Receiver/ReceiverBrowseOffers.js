@@ -8,33 +8,33 @@ import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 import '../../Styles/Receiver/ReceiverBrowseOffers.css';
 
-import SearchIcon             from '@mui/icons-material/Search';
-import FilterListIcon         from '@mui/icons-material/FilterList';
-import LocationOnIcon         from '@mui/icons-material/LocationOn';
-import ScaleIcon              from '@mui/icons-material/Scale';
-import EventIcon              from '@mui/icons-material/Event';
-import StorefrontIcon         from '@mui/icons-material/Storefront';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import ScaleIcon from '@mui/icons-material/Scale';
+import EventIcon from '@mui/icons-material/Event';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import InfoOutlinedIcon       from '@mui/icons-material/InfoOutlined';
-import RestaurantIcon         from '@mui/icons-material/Restaurant';
-import BakeryDiningIcon       from '@mui/icons-material/BakeryDining';
-import GrainIcon              from '@mui/icons-material/Grain';
-import LocalDrinkIcon         from '@mui/icons-material/LocalDrink';
-import SetMealIcon            from '@mui/icons-material/SetMeal';
-import EmojiFoodBeverageIcon  from '@mui/icons-material/EmojiFoodBeverage';
-import WarehouseIcon          from '@mui/icons-material/Warehouse';
-import ImageNotSupportedIcon  from '@mui/icons-material/ImageNotSupported';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
+import GrainIcon from '@mui/icons-material/Grain';
+import LocalDrinkIcon from '@mui/icons-material/LocalDrink';
+import SetMealIcon from '@mui/icons-material/SetMeal';
+import EmojiFoodBeverageIcon from '@mui/icons-material/EmojiFoodBeverage';
+import WarehouseIcon from '@mui/icons-material/Warehouse';
+import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
 
 // Returns an icon based on the category name of the offer
 const getCategoryIcon = (categoryName) => {
   const name = categoryName?.toLowerCase() || '';
   if (name.includes('meal') || name.includes('prepared')) return <RestaurantIcon fontSize="small" />;
-  if (name.includes('bakery'))   return <BakeryDiningIcon fontSize="small" />;
-  if (name.includes('grain'))    return <GrainIcon fontSize="small" />;
+  if (name.includes('bakery')) return <BakeryDiningIcon fontSize="small" />;
+  if (name.includes('grain')) return <GrainIcon fontSize="small" />;
   if (name.includes('beverage')) return <LocalDrinkIcon fontSize="small" />;
-  if (name.includes('seafood'))  return <SetMealIcon fontSize="small" />;
-  if (name.includes('dairy'))    return <EmojiFoodBeverageIcon fontSize="small" />;
-  if (name.includes('canned'))   return <WarehouseIcon fontSize="small" />;
+  if (name.includes('seafood')) return <SetMealIcon fontSize="small" />;
+  if (name.includes('dairy')) return <EmojiFoodBeverageIcon fontSize="small" />;
+  if (name.includes('canned')) return <WarehouseIcon fontSize="small" />;
   return <RestaurantIcon fontSize="small" />;
 };
 
@@ -46,10 +46,10 @@ const formatExpiry = (datetime) => {
 
 
 const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
-  const weight      = offer.quantity_by_kg ? `${offer.quantity_by_kg} kg` : '—';
-  const portions    = offer.number_of_person || 0;
+  const weight = offer.quantity_by_kg ? `${offer.quantity_by_kg} kg` : '—';
+  const portions = offer.number_of_person || 0;
   const donorAddress = [offer.street, offer.city].filter(Boolean).join(', ') || 'Address not provided';
-  
+
   // Format creation time
   const formatTime = (datetime) => {
     if (!datetime) return '—';
@@ -60,8 +60,8 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
     <article className="rob-card">
       <div className="rob-card-img">
         {offer.image_url ? (
-          <img 
-            src={`http://localhost:5000${offer.image_url}`} 
+          <img
+            src={`http://localhost:5000${offer.image_url}`}
             alt={offer.food_name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
@@ -131,18 +131,18 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
 
 const ReceiverBrowseOffers = () => {
   const navigate = useNavigate();
-  const stored   = localStorage.getItem('feedhope_user');
-  const user     = stored ? JSON.parse(stored) : null;
+  const stored = localStorage.getItem('feedhope_user');
+  const user = stored ? JSON.parse(stored) : null;
 
   const organizationName = user?.name || 'Receiver';
 
-  const [offers,           setOffers]           = useState([]);
-  const [categories,       setCategories]       = useState([]);
-  const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState(null);
-  const [searchQuery,      setSearchQuery]      = useState('');
+  const [offers, setOffers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState('all');
-  const [accepting,        setAccepting]        = useState(null);
+  const [accepting, setAccepting] = useState(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -175,6 +175,13 @@ const ReceiverBrowseOffers = () => {
     loadData();
   }, [fetchOffers, fetchCategories]);
 
+  // Real-time: silently re-fetch every 3s so newly created donor offers
+  // appear here without a manual refresh.
+  useEffect(() => {
+    const interval = setInterval(() => { fetchOffers(); }, 3000);
+    return () => clearInterval(interval);
+  }, [fetchOffers]);
+
   const handleLogout = () => {
     localStorage.removeItem('feedhope_user');
     navigate('/signin');
@@ -192,9 +199,9 @@ const ReceiverBrowseOffers = () => {
     setAccepting(offerId);
     try {
       const res = await fetch('http://localhost:5000/api/receiver/accept-offer', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ offerId, userId: user.user_id }),
+        body: JSON.stringify({ offerId, userId: user.user_id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Accept failed');
@@ -211,8 +218,8 @@ const ReceiverBrowseOffers = () => {
   };
 
   const filteredOffers = offers.filter(offer => {
-    const matchesCat    = activeCategoryId === 'all' || offer.category_id === Number(activeCategoryId);
-    const q             = searchQuery.toLowerCase();
+    const matchesCat = activeCategoryId === 'all' || offer.category_id === Number(activeCategoryId);
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
       offer.food_name?.toLowerCase().includes(q) ||
       offer.donor_name?.toLowerCase().includes(q);

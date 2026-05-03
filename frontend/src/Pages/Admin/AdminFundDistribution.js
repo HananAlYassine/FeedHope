@@ -64,6 +64,33 @@ const AdminFundDistribution = () => {
 
     useEffect(() => { fetchAll(); }, []);
 
+    // Real-time: silently re-fetch every 3s so new requests / distributions
+    // appear without a manual refresh.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const [distRes, reqRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/admin/fund-distribution'),
+                    fetch('http://localhost:5000/api/admin/money-requests')
+                ]);
+                if (distRes.ok) {
+                    const distData = await distRes.json();
+                    setStats({
+                        totalDistributed: distData.totalDistributed ?? 0,
+                        balance: distData.balance ?? 0,
+                    });
+                    setHistory(distData.distributions ?? []);
+                }
+                if (reqRes.ok) {
+                    const reqData = await reqRes.json();
+                    setRequests(reqData);
+                }
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     const fetchAll = async () => {
         try {
             setLoading(true);

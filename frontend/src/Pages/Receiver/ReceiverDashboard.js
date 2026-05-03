@@ -94,6 +94,23 @@ const ReceiverDashboard = () => {
         fetchDashboard(); // Call the function
     }, []);
 
+    // Real-time: silently re-fetch every 3s so newly created offers and
+    // status changes appear without a manual refresh.
+    useEffect(() => {
+        if (!user?.user_id) return;
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/receiver/dashboard/${user.user_id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setDashboardData(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.user_id]);
+
     // This function runs when the user clicks "Accept Offer"
     const handleAcceptOffer = async (offerId) => {
         setAccepting(offerId); // This specific offer is being accepted now

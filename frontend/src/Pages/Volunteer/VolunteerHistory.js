@@ -1,17 +1,18 @@
 // ============================================================
-//  FeedHope — Volunteer History Page (Past Deliveries)
+//  FeedHope — Volunteer History Page
+//  Lists every delivery the volunteer has completed
+//  (Food_offer.status = 'delivered'), with feedback received.
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import VolunteerSidebar from '../../Components/Volunteer/VolunteerSidebar';
 import '../../Styles/Volunteer/VolunteerDashboard.css';
 import '../../Styles/Volunteer/VolunteerHistory.css';
 
 // MUI Icons
 import SearchIcon from '@mui/icons-material/Search';
-import PersonIcon from '@mui/icons-material/Person';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
@@ -21,107 +22,67 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import RouteIcon from '@mui/icons-material/Route';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import NotesIcon from '@mui/icons-material/Notes';
+
+const API_BASE = 'http://localhost:5000';
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return String(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+};
+
+const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
 
 const VolunteerHistory = () => {
     const navigate = useNavigate();
+
+    const [user] = useState(() => {
+        const raw = localStorage.getItem('feedhope_user');
+        return raw ? JSON.parse(raw) : null;
+    });
+
+    const [deliveries, setDeliveries] = useState([]);
+    const [stats, setStats] = useState({ totalDeliveries: 0, peopleHelped: 0, avgRating: 0, totalDistance: 0 });
+    const [loading, setLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState('');
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRating, setSelectedRating] = useState('all');
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [selectedDelivery, setSelectedDelivery] = useState(null);
 
-    // Mock data for completed deliveries
-    const [deliveries] = useState([
-        {
-            id: 1,
-            title: 'Fresh Vegetables',
-            donor: 'Fresh Bites Restaurant',
-            donorAddress: '789 Restaurant Row, Downtown',
-            receiver: 'City Food Bank',
-            receiverAddress: '456 Food Drive, Cityville',
-            distance: 4.5,
-            rating: 4,
-            ratingComment: 'Great delivery, on time!',
-            date: '2026-03-12',
-            weight: 25,
-            category: 'Produce',
-            deliveryTime: '11:45 AM',
-            peopleHelped: 15
-        },
-        {
-            id: 2,
-            title: 'Cakes & Desserts',
-            donor: 'Sweet Dreams Bakery',
-            donorAddress: '123 Bakery Lane, Downtown',
-            receiver: 'Hope Shelter',
-            receiverAddress: '555 Shelter Ave, Cityville',
-            distance: 5.2,
-            rating: 5,
-            ratingComment: 'Excellent service, very professional!',
-            date: '2026-03-10',
-            weight: 12,
-            category: 'Bakery',
-            deliveryTime: '10:30 AM',
-            peopleHelped: 8
-        },
-        {
-            id: 3,
-            title: 'Soup & Sandwiches',
-            donor: 'Community Kitchen',
-            donorAddress: '321 Help Street, Downtown',
-            receiver: 'Downtown Mission',
-            receiverAddress: '789 Mission Blvd, Cityville',
-            distance: 3.8,
-            rating: 4,
-            ratingComment: 'Quick and efficient delivery',
-            date: '2026-03-08',
-            weight: 18,
-            category: 'Prepared Meals',
-            deliveryTime: '12:15 PM',
-            peopleHelped: 12
-        },
-        {
-            id: 4,
-            title: 'Bulk Rice & Grains',
-            donor: 'Wholesale Foods Co.',
-            donorAddress: '456 Industrial Blvd, Cityville',
-            receiver: 'Regional Food Bank',
-            receiverAddress: '123 Food Bank Way, Cityville',
-            distance: 8.5,
-            rating: 5,
-            ratingComment: 'Handled bulk items with care',
-            date: '2026-03-05',
-            weight: 150,
-            category: 'Non-Perishable',
-            deliveryTime: '2:30 PM',
-            peopleHelped: 50
-        },
-        {
-            id: 5,
-            title: 'Dairy Products',
-            donor: 'Dairy Farm Fresh',
-            donorAddress: '78 Farm Road, Cityville',
-            receiver: 'Family Support Center',
-            receiverAddress: '234 Family Ave, Cityville',
-            distance: 6.2,
-            rating: 3,
-            ratingComment: 'Good but slight delay',
-            date: '2026-03-03',
-            weight: 30,
-            category: 'Refrigerated',
-            deliveryTime: '9:45 AM',
-            peopleHelped: 10
+    const fetchHistory = useCallback(async () => {
+        if (!user?.user_id) return;
+        try {
+            setLoading(true);
+            const res = await axios.get(`${API_BASE}/api/volunteer/history/${user.user_id}`);
+            setDeliveries(res.data.deliveries || []);
+            setStats(res.data.stats || { totalDeliveries: 0, peopleHelped: 0, avgRating: 0, totalDistance: 0 });
+        } catch (err) {
+            console.error('Failed to load history:', err);
+            setErrorMessage(err.response?.data?.error || 'Failed to load delivery history.');
+        } finally {
+            setLoading(false);
         }
-    ]);
+    }, [user?.user_id]);
 
-    // Calculate statistics
-    const stats = {
-        totalDeliveries: deliveries.length,
-        peopleHelped: deliveries.reduce((sum, d) => sum + d.peopleHelped, 0),
-        avgRating: (deliveries.reduce((sum, d) => sum + d.rating, 0) / deliveries.length).toFixed(1),
-        totalDistance: deliveries.reduce((sum, d) => sum + d.distance, 0)
-    };
+    useEffect(() => {
+        if (!user) {
+            navigate('/signin');
+            return;
+        }
+        fetchHistory();
+    }, [fetchHistory, navigate, user]);
 
     const handleLogout = () => {
+        localStorage.removeItem('feedhope_user');
         localStorage.removeItem('volunteer_user');
         navigate('/signin');
     };
@@ -138,21 +99,27 @@ const VolunteerHistory = () => {
 
     // Filter deliveries based on search and rating
     const filteredDeliveries = deliveries.filter(delivery => {
-        const matchesSearch = delivery.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.donor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            delivery.receiver.toLowerCase().includes(searchTerm.toLowerCase());
+        const search = searchTerm.toLowerCase();
+        const matchesSearch =
+            (delivery.food_name || '').toLowerCase().includes(search) ||
+            (delivery.donor_name || '').toLowerCase().includes(search) ||
+            (delivery.receiver_name || '').toLowerCase().includes(search);
 
-        const matchesRating = selectedRating === 'all' || delivery.rating === parseInt(selectedRating);
+        const matchesRating =
+            selectedRating === 'all' ||
+            (selectedRating === 'unrated' && delivery.rating == null) ||
+            (delivery.rating != null && Math.round(delivery.rating) === parseInt(selectedRating, 10));
 
         return matchesSearch && matchesRating;
     });
 
     // Render star rating
     const renderStars = (rating) => {
+        const rounded = rating != null ? Math.round(rating) : 0;
         return (
             <div className="rating-stars">
                 {[1, 2, 3, 4, 5].map(star => (
-                    star <= rating ? (
+                    star <= rounded ? (
                         <StarIcon key={star} className="star-filled" />
                     ) : (
                         <StarBorderIcon key={star} className="star-empty" />
@@ -162,15 +129,9 @@ const VolunteerHistory = () => {
         );
     };
 
-    // Format date
-    const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
-    };
-
     return (
         <div className="vh-layout">
-            <VolunteerSidebar user={{ name: 'John Smith' }} onLogout={handleLogout} activePage="history" />
+            <VolunteerSidebar user={user} onLogout={handleLogout} activePage="history" />
 
             <main className="vh-main">
                 {/* Header Banner */}
@@ -206,7 +167,7 @@ const VolunteerHistory = () => {
                             <StarIcon />
                         </div>
                         <div className="vh-stat-info">
-                            <span className="vh-stat-number">{stats.avgRating}</span>
+                            <span className="vh-stat-number">{stats.avgRating || '—'}</span>
                             <span className="vh-stat-label">Avg Rating</span>
                         </div>
                     </div>
@@ -227,7 +188,7 @@ const VolunteerHistory = () => {
                         <SearchIcon className="vh-search-icon" />
                         <input
                             type="text"
-                            placeholder="Search users, donations, or deliveries..."
+                            placeholder="Search by food, donor, or receiver..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="vh-search-input"
@@ -245,17 +206,34 @@ const VolunteerHistory = () => {
                         <option value="3">3 Stars ★★★☆☆</option>
                         <option value="2">2 Stars ★★☆☆☆</option>
                         <option value="1">1 Star ★☆☆☆☆</option>
+                        <option value="unrated">Not yet rated</option>
                     </select>
                 </div>
 
+                {/* Error */}
+                {errorMessage && (
+                    <div className="vh-empty-state">
+                        <p style={{ color: '#991b1b' }}>{errorMessage}</p>
+                    </div>
+                )}
+
                 {/* Deliveries Table */}
-                {filteredDeliveries.length === 0 ? (
+                {loading ? (
+                    <div className="vh-empty-state">
+                        <p>Loading your delivery history…</p>
+                    </div>
+                ) : filteredDeliveries.length === 0 ? (
                     <div className="vh-empty-state">
                         <CheckCircleIcon className="vh-empty-icon" />
-                        <p>No past deliveries found matching your criteria.</p>
-                        <button onClick={() => { setSearchTerm(''); setSelectedRating('all'); }}>
-                            Clear Filters
-                        </button>
+                        <p>{deliveries.length === 0
+                            ? "You haven't completed any deliveries yet."
+                            : 'No past deliveries match your search.'}
+                        </p>
+                        {deliveries.length > 0 && (
+                            <button onClick={() => { setSearchTerm(''); setSelectedRating('all'); }}>
+                                Clear Filters
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="vh-table-container">
@@ -273,42 +251,58 @@ const VolunteerHistory = () => {
                             </thead>
                             <tbody>
                                 {filteredDeliveries.map(delivery => (
-                                    <tr key={delivery.id}>
+                                    <tr key={delivery.delivery_id}>
                                         <td className="vh-offer-cell">
-                                            <div className="vh-offer-title">{delivery.title}</div>
+                                            <div className="vh-offer-title">{delivery.food_name}</div>
                                             <div className="vh-offer-meta">
-                                                <span><Inventory2Icon style={{ fontSize: 12 }} /> {delivery.weight} KG</span>
-                                                <span><TrendingUpIcon style={{ fontSize: 12 }} /> {delivery.category}</span>
+                                                {delivery.quantity_by_kg && (
+                                                    <span><Inventory2Icon style={{ fontSize: 12 }} /> {delivery.quantity_by_kg} KG</span>
+                                                )}
+                                                {delivery.category && (
+                                                    <span><TrendingUpIcon style={{ fontSize: 12 }} /> {delivery.category}</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td>
                                             <div className="vh-party-info">
-                                                <strong>{delivery.donor}</strong>
-                                                <small>{delivery.donorAddress}</small>
+                                                <strong>{delivery.donor_name}</strong>
+                                                <small>{delivery.donor_address || '—'}</small>
                                             </div>
                                         </td>
                                         <td>
                                             <div className="vh-party-info">
-                                                <strong>{delivery.receiver}</strong>
-                                                <small>{delivery.receiverAddress}</small>
+                                                <strong>{delivery.receiver_name || '—'}</strong>
+                                                <small>{delivery.receiver_address || '—'}</small>
                                             </div>
                                         </td>
-                                        <td className="vh-distance">{delivery.distance} km</td>
+                                        <td className="vh-distance">
+                                            {delivery.distance_km != null ? `${delivery.distance_km} km` : '—'}
+                                        </td>
                                         <td className="vh-rating-cell">
-                                            {renderStars(delivery.rating)}
-                                            <span className="vh-rating-text">{delivery.rating}/5</span>
+                                            {delivery.rating != null ? (
+                                                <>
+                                                    {renderStars(delivery.rating)}
+                                                    <span className="vh-rating-text">{delivery.rating}/5</span>
+                                                </>
+                                            ) : (
+                                                <span className="vh-rating-text" style={{ color: '#94a3b8' }}>
+                                                    Not yet rated
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="vh-date-cell">
                                             <CalendarTodayIcon style={{ fontSize: 14 }} />
-                                            <span>{formatDate(delivery.date)}</span>
-                                            <small>{delivery.deliveryTime}</small>
+                                            <span>{formatDate(delivery.delivery_time)}</span>
+                                            {formatTime(delivery.delivery_time) && (
+                                                <small>{formatTime(delivery.delivery_time)}</small>
+                                            )}
                                         </td>
                                         <td className="vh-actions-cell">
                                             <button
                                                 className="vh-feedback-btn"
                                                 onClick={() => handleViewFeedback(delivery)}
                                             >
-                                                View Feedback
+                                                View Details
                                             </button>
                                         </td>
                                     </tr>
@@ -319,45 +313,85 @@ const VolunteerHistory = () => {
                 )}
 
                 {/* Impact Summary Footer */}
-                {filteredDeliveries.length > 0 && (
+                {!loading && filteredDeliveries.length > 0 && (
                     <div className="vh-impact-summary">
                         <div className="vh-impact-text">
                             <TrendingUpIcon />
-                            <span>Total impact from displayed deliveries: <strong>{filteredDeliveries.reduce((sum, d) => sum + d.peopleHelped, 0)} people helped</strong> with <strong>{filteredDeliveries.reduce((sum, d) => sum + d.weight, 0)} KG</strong> of food delivered</span>
+                            <span>
+                                Total impact from displayed deliveries:{' '}
+                                <strong>
+                                    {filteredDeliveries.reduce((sum, d) => sum + (Number(d.number_of_person) || 0), 0)} people helped
+                                </strong>
+                                {' '}with{' '}
+                                <strong>
+                                    {filteredDeliveries.reduce((sum, d) => sum + (Number(d.quantity_by_kg) || 0), 0)} KG
+                                </strong>
+                                {' '}of food delivered
+                            </span>
                         </div>
                     </div>
                 )}
 
-                {/* Feedback Modal */}
+                {/* Detail / Feedback Modal */}
                 {showFeedbackModal && selectedDelivery && (
                     <div className="vh-modal-overlay" onClick={handleCloseModal}>
                         <div className="vh-modal-content" onClick={(e) => e.stopPropagation()}>
                             <div className="vh-modal-header">
-                                <h3>Delivery Feedback</h3>
+                                <h3>Delivery Details</h3>
                                 <button className="vh-modal-close" onClick={handleCloseModal}>×</button>
                             </div>
                             <div className="vh-modal-body">
                                 <div className="vh-feedback-item">
                                     <label>Offer:</label>
-                                    <p>{selectedDelivery.title}</p>
+                                    <p>{selectedDelivery.food_name}</p>
                                 </div>
                                 <div className="vh-feedback-item">
-                                    <label>Rating:</label>
-                                    <div className="vh-feedback-rating">
-                                        {renderStars(selectedDelivery.rating)}
+                                    <label>From → To:</label>
+                                    <p>{selectedDelivery.donor_name} → {selectedDelivery.receiver_name || '—'}</p>
+                                </div>
+                                <div className="vh-feedback-item">
+                                    <label>Delivered On:</label>
+                                    <p>
+                                        {formatDate(selectedDelivery.delivery_time)}
+                                        {formatTime(selectedDelivery.delivery_time)
+                                            ? ` at ${formatTime(selectedDelivery.delivery_time)}`
+                                            : ''}
+                                    </p>
+                                </div>
+                                {selectedDelivery.number_of_person != null && (
+                                    <div className="vh-feedback-item">
+                                        <label>People Helped:</label>
+                                        <p>{selectedDelivery.number_of_person} individuals/families</p>
                                     </div>
+                                )}
+                                <div className="vh-feedback-item">
+                                    <label>
+                                        <NotesIcon style={{ fontSize: 14, verticalAlign: 'middle', marginRight: 4 }} />
+                                        Your Delivery Notes:
+                                    </label>
+                                    <p className="vh-feedback-comment">
+                                        {selectedDelivery.delivery_notes || 'No notes were left for this delivery.'}
+                                    </p>
                                 </div>
                                 <div className="vh-feedback-item">
-                                    <label>Feedback:</label>
-                                    <p className="vh-feedback-comment">{selectedDelivery.ratingComment || 'No comment provided.'}</p>
-                                </div>
-                                <div className="vh-feedback-item">
-                                    <label>Delivery Date:</label>
-                                    <p>{formatDate(selectedDelivery.date)} at {selectedDelivery.deliveryTime}</p>
-                                </div>
-                                <div className="vh-feedback-item">
-                                    <label>People Helped:</label>
-                                    <p>{selectedDelivery.peopleHelped} individuals/families</p>
+                                    <label>Rating Received:</label>
+                                    {selectedDelivery.rating != null ? (
+                                        <>
+                                            <div className="vh-feedback-rating">
+                                                {renderStars(selectedDelivery.rating)}
+                                                <span className="vh-rating-text" style={{ marginLeft: 8 }}>
+                                                    {selectedDelivery.rating}/5
+                                                </span>
+                                            </div>
+                                            <p className="vh-feedback-comment">
+                                                {selectedDelivery.rating_comment || 'No comment was left.'}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="vh-feedback-comment" style={{ color: '#94a3b8' }}>
+                                            No rating received yet for this delivery.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <div className="vh-modal-footer">

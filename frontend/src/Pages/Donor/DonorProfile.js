@@ -51,7 +51,8 @@ const DonorProfile = () => {
     // Edit modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editForm, setEditForm] = useState({
-        name: '', email: '', phone: '', street: '', city: '', business_type: ''
+        name: '', email: '', phone: '', street: '', city: '', business_type: '',
+        latitude: '', longitude: ''
     });
     const [editSaving, setEditSaving] = useState(false);
     const [editError, setEditError] = useState('');
@@ -98,7 +99,9 @@ const DonorProfile = () => {
                     phone: data.profile.phone_number || '',
                     street: data.profile.street || '',
                     city: data.profile.city || '',
-                    business_type: data.profile.business_type || ''
+                    business_type: data.profile.business_type || '',
+                    latitude: data.profile.latitude != null ? String(data.profile.latitude) : '',
+                    longitude: data.profile.longitude != null ? String(data.profile.longitude) : ''
                 });
             } catch {
                 setError('Could not connect to the server.');
@@ -149,7 +152,23 @@ const DonorProfile = () => {
 
     const triggerFileInput = () => fileInputRef.current.click();
 
-    const handleOpenEdit = () => { setEditError(''); setEditSuccess(''); setShowEditModal(true); };
+    const handleOpenEdit = () => {
+        setEditError('');
+        setEditSuccess('');
+        if (profile) {
+            setEditForm({
+                name: profile.business_name || profile.name || '',
+                email: profile.email || '',
+                phone: profile.phone_number || '',
+                street: profile.street || '',
+                city: profile.city || '',
+                business_type: profile.business_type || '',
+                latitude: profile.latitude != null ? String(profile.latitude) : '',
+                longitude: profile.longitude != null ? String(profile.longitude) : ''
+            });
+        }
+        setShowEditModal(true);
+    };
     const handleCloseEdit = () => setShowEditModal(false);
     const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -170,7 +189,9 @@ const DonorProfile = () => {
                 phone_number: editForm.phone,
                 street: editForm.street,
                 city: editForm.city,
-                business_type: editForm.business_type
+                business_type: editForm.business_type,
+                latitude: editForm.latitude === '' ? null : editForm.latitude,
+                longitude: editForm.longitude === '' ? null : editForm.longitude
             }));
             setEditSuccess('Profile updated successfully!');
             const updatedUser = { ...user, name: editForm.name };
@@ -371,6 +392,8 @@ const DonorProfile = () => {
                             <label className="dcp-form-label">Phone         <input className="dcp-form-input" name="phone" value={editForm.phone} onChange={handleEditChange} type="tel" /></label>
                             <label className="dcp-form-label">Street Address<input className="dcp-form-input" name="street" value={editForm.street} onChange={handleEditChange} /></label>
                             <label className="dcp-form-label">City          <input className="dcp-form-input" name="city" value={editForm.city} onChange={handleEditChange} /></label>
+                            <label className="dcp-form-label">Latitude (X)  <input className="dcp-form-input" name="latitude" type="number" step="any" min="-90" max="90" placeholder="Range: -90 to 90" value={editForm.latitude} onChange={handleEditChange} /></label>
+                            <label className="dcp-form-label">Longitude (Y) <input className="dcp-form-input" name="longitude" type="number" step="any" min="-180" max="180" placeholder="Range: -180 to 180" value={editForm.longitude} onChange={handleEditChange} /></label>
                             <label className="dcp-form-label">Business Type <input className="dcp-form-input" name="business_type" value={editForm.business_type} onChange={handleEditChange} /></label>
                             {editError && <p className="dcp-form-error">{editError}</p>}
                             {editSuccess && <p className="dcp-form-success">{editSuccess}</p>}

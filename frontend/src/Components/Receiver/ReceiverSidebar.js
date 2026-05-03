@@ -56,14 +56,25 @@ const ReceiverSidebar = ({ activePage }) => {  // removed unreadCount from props
         }
     };
 
-    // Listen for notification-read events (dispatched when notifications are marked read or deleted)
+    // Listen for both event names (some pages dispatch 'notifUpdated', others 'notification-read'),
+    // poll every 3s as a safety net, and refetch on navigation so the badge is always live.
     useEffect(() => {
         fetchUnreadCount();
         window.addEventListener('notification-read', fetchUnreadCount);
+        window.addEventListener('notifUpdated', fetchUnreadCount);
+        const interval = setInterval(fetchUnreadCount, 3000);
         return () => {
             window.removeEventListener('notification-read', fetchUnreadCount);
+            window.removeEventListener('notifUpdated', fetchUnreadCount);
+            clearInterval(interval);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
+
+    useEffect(() => {
+        fetchUnreadCount();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname]);
 
     // --- LOGOUT WITH SYSLOG ---
     const handleLogout = async () => {

@@ -101,6 +101,21 @@ const AdminUsers = () => {
     /* Run on mount */
     useEffect(() => { fetchUsers(); }, []);
 
+    // Real-time: silently re-fetch every 3s so new registrations and status
+    // changes appear without a manual refresh.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/admin/users`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setUsers(data.users || []);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     // ── Toast helper ─────────────────────────────────────────
     const showToast = (msg, type = 'success') => {
         setToast({ msg, type });

@@ -98,6 +98,31 @@ const AdminFoodOffers = () => {
         fetchVolunteers();
     }, []);
 
+    // Real-time: silently re-fetch every 3s so new donor offers and status
+    // changes appear without a manual refresh.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const [offRes, volRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/admin/food-offers'),
+                    fetch('http://localhost:5000/api/admin/volunteers')
+                ]);
+                if (offRes.ok) {
+                    const data = await offRes.json();
+                    setOffers(data.offers || []);
+                    setStatuses(data.statuses || []);
+                    setCategories(data.categories || []);
+                }
+                if (volRes.ok) {
+                    const data = await volRes.json();
+                    setVolunteers(data.volunteers || []);
+                }
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Close 3-dot menu on outside click
     useEffect(() => {
         const handler = (e) => {
@@ -389,28 +414,21 @@ const AdminFoodOffers = () => {
                  * "assigned to a volunteer" is represented by the 'in_delivery' status
                  * since that is what the API sets when a volunteer is assigned.
                  */
-                const isAssigned   = offerStatus === 'in_delivery';
-                const isExpired    = offerStatus === 'expired';
-                const isCancelled  = offerStatus === 'cancelled';
-                const isCompleted  = offerStatus === 'completed';
-                const isDelivered  = offerStatus === 'delivered';
+                const isAssigned         = offerStatus === 'in_delivery';
+                const isDeliveryAccepted = offerStatus === 'delivery_accepted'; // a volunteer has self-accepted
+                const isExpired          = offerStatus === 'expired';
+                const isCancelled        = offerStatus === 'cancelled';
+                const isCompleted        = offerStatus === 'completed';
+                const isDelivered        = offerStatus === 'delivered';
 
-                // // Assign is blocked if volunteer already attached, or offer is terminal
-                // const assignDisabled  = isAssigned || isExpired || isCancelled || isCompleted;
-                // // Expire is blocked if already in a terminal or assigned state
-                // const expireDisabled  = isExpired  || isCancelled || isAssigned || isCompleted;
-                // // Cancel is blocked if already cancelled or in a terminal state
-                // const cancelDisabled  = isCancelled || isExpired  || isCompleted;
+                // Assign – also disabled when a volunteer has already accepted the delivery
+                const assignDisabled  = isAssigned || isDeliveryAccepted || isExpired || isCancelled || isCompleted || isDelivered;
 
+                // Expire – also disabled once a volunteer has accepted
+                const expireDisabled  = isExpired || isCancelled || isAssigned || isDeliveryAccepted || isCompleted || isDelivered;
 
-                // Assign – now also disabled for delivered
-                const assignDisabled  = isAssigned || isExpired || isCancelled || isCompleted || isDelivered;
-
-                // Expire – now also disabled for delivered
-                const expireDisabled  = isExpired || isCancelled || isAssigned || isCompleted || isDelivered;
-
-                // Cancel – disabled for cancelled, expired, completed, delivered, AND in_delivery
-                const cancelDisabled  = isCancelled || isExpired || isCompleted || isDelivered || isAssigned;
+                // Cancel – disabled once any volunteer has taken it (delivery_accepted / in_delivery) or terminal
+                const cancelDisabled  = isCancelled || isExpired || isCompleted || isDelivered || isAssigned || isDeliveryAccepted;
 
                 return (
                     <div
@@ -428,7 +446,11 @@ const AdminFoodOffers = () => {
                             onClick={assignDisabled ? undefined : () => handleOpenAssign(openMenu)}
                             disabled={assignDisabled}
                             className={assignDisabled ? 'afo-dropdown-disabled' : ''}
-                            title={assignDisabled ? 'Volunteer already assigned or offer is not assignable' : ''}
+                            title={assignDisabled
+                                ? (isDeliveryAccepted
+                                    ? 'A volunteer has already accepted this delivery'
+                                    : 'Volunteer already assigned or offer is not assignable')
+                                : ''}
                         >
                             <DeliveryDiningIcon sx={{ fontSize: 16 }} /> Assign Volunteer
                         </button>

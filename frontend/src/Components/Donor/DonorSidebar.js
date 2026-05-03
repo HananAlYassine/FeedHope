@@ -57,13 +57,23 @@ const DonorSidebar = () => {
   useEffect(() => {
     fetchUnreadCount();
     window.addEventListener('notifUpdated', fetchUnreadCount);
-    const interval = setInterval(fetchUnreadCount, 30000);
+    window.addEventListener('notification-read', fetchUnreadCount);
+    const interval = setInterval(fetchUnreadCount, 3000);
 
     return () => {
       window.removeEventListener('notifUpdated', fetchUnreadCount);
+      window.removeEventListener('notification-read', fetchUnreadCount);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id]);
+
+  // Refetch on every route change so the badge reflects the latest count
+  // immediately when the user navigates between pages.
+  useEffect(() => {
+    fetchUnreadCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // --- LOGOUT WITH SYSLOG ---
   const handleLogout = async () => {

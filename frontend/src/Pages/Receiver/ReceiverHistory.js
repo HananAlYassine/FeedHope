@@ -61,7 +61,7 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                     <div className="rate-section">
                         <label>Rate Donor: <strong>{donorName}</strong></label>
                         <div className="ram-stars">
-                            {[1,2,3,4,5].map(star => (
+                            {[1, 2, 3, 4, 5].map(star => (
                                 <span key={star} className="ram-star"
                                     onClick={() => setDonorRating(star)}
                                     onMouseEnter={() => setHoverDonor(star)}
@@ -76,7 +76,7 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                     <div className="rate-section">
                         <label>Rate Volunteer: <strong>{volunteerName || 'The volunteer'}</strong></label>
                         <div className="ram-stars">
-                            {[1,2,3,4,5].map(star => (
+                            {[1, 2, 3, 4, 5].map(star => (
                                 <span key={star} className="ram-star"
                                     onClick={() => setVolunteerRating(star)}
                                     onMouseEnter={() => setHoverVolunteer(star)}
@@ -91,8 +91,8 @@ const RateExperienceModal = ({ isOpen, onClose, onSubmit, offerTitle, donorName,
                     <div className="ram-comment">
                         <label>Comment (optional)</label>
                         <textarea rows="3" value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Share your experience..." />
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="Share your experience..." />
                     </div>
                 </div>
                 <div className="ram-modal-footer">

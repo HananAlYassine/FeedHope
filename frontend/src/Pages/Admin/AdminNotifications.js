@@ -180,6 +180,31 @@ const AdminNotifications = () => {
     // Fetch once when the component mounts
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // Silent polling + cross-event refresh: keeps the list in lockstep with the
+    // sidebar badge so the user never sees a stale count or missing item.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/notifications');
+                if (!res.ok) return;
+                const data = await res.json();
+                const hiddenIds = loadHiddenIds();
+                const filtered = Array.isArray(data)
+                    ? data.filter(n => !hiddenIds.includes(n.notification_id))
+                    : [];
+                setNotifications(filtered);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        window.addEventListener('notifUpdated', silentRefresh);
+        window.addEventListener('notification-read', silentRefresh);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notifUpdated', silentRefresh);
+            window.removeEventListener('notification-read', silentRefresh);
+        };
+    }, []);
+
     // ── Logout ─────────────────────────────────────────────────
     const handleLogout = () => {
         localStorage.removeItem('feedhope_user');

@@ -55,6 +55,26 @@ const DonorNotifications = () => {
         fetchNotifications();
     }, [user]);
 
+    // Silent polling + cross-event refresh: keeps the list in lockstep with the
+    // sidebar badge so the user never sees a stale count or missing item.
+    useEffect(() => {
+        if (!user?.user_id) return;
+        const silentRefresh = async () => {
+            try {
+                const res = await axios.get(`http://localhost:5000/api/donor/notifications/all/${user.user_id}`);
+                setNotifications(res.data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        window.addEventListener('notifUpdated', silentRefresh);
+        window.addEventListener('notification-read', silentRefresh);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notifUpdated', silentRefresh);
+            window.removeEventListener('notification-read', silentRefresh);
+        };
+    }, [user?.user_id]);
+
     const triggerSidebarUpdate = () => {
         window.dispatchEvent(new Event('notifUpdated'));
     };

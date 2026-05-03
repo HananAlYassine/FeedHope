@@ -143,6 +143,33 @@ const ReceiverNotifications = () => {
         fetchTotalCount(); // get initial total count
     }, [userId, navigate, fetchNotifications, fetchTotalCount]);
 
+    // Silent polling + cross-event refresh: keeps the list, unread count, and
+    // total count in lockstep with the sidebar badge — no flicker, no delay.
+    useEffect(() => {
+        if (!userId) return;
+        const silentRefresh = async () => {
+            try {
+                const url = `http://localhost:5000/api/receiver/notifications/${userId}?status=${filter}`;
+                const res = await fetch(url);
+                if (res.ok) setNotifications(await res.json());
+                const unreadRes = await fetch(`http://localhost:5000/api/receiver/notifications/${userId}?status=unread`);
+                if (unreadRes.ok) {
+                    const unreadData = await unreadRes.json();
+                    setUnreadCount(unreadData.length);
+                }
+                fetchTotalCount();
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        window.addEventListener('notifUpdated', silentRefresh);
+        window.addEventListener('notification-read', silentRefresh);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notifUpdated', silentRefresh);
+            window.removeEventListener('notification-read', silentRefresh);
+        };
+    }, [userId, filter, fetchTotalCount]);
+
     // Mark single as read
     const markAsRead = async (notificationId) => {
         try {

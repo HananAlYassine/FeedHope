@@ -183,6 +183,22 @@ const ReceiverAcceptedOffers = () => {
         fetchAcceptedOffers();
     }, [userId, navigate, fetchAcceptedOffers]);
 
+    // Real-time: silently re-fetch every 3s so delivery status updates and
+    // newly assigned volunteers reflect here without a manual refresh.
+    useEffect(() => {
+        if (!userId) return;
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/receiver/accepted-offers/${userId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setOffers(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, [userId]);
+
     // function to open confirmation modal instead of window.confirm
     const handleCancelClick = (offerId, offerTitle) => {
         setCancelConfirm({ show: true, offerId, offerTitle });

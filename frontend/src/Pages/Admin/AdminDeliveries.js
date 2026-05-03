@@ -64,6 +64,21 @@ const AdminDeliveries = () => {
     // Run once on mount
     useEffect(() => { fetchDeliveries(); }, []);
 
+    // Real-time: silently re-fetch every 3s so volunteer-driven status
+    // changes appear without a manual refresh.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/deliveries');
+                if (!res.ok) return;
+                const data = await res.json();
+                setDeliveries(data.deliveries || []);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     // ── Toast helper: show a notification for 3 seconds ─────
     const showToast = (msg, type = 'success') => {
         setToast({ msg, type });

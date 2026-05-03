@@ -50,7 +50,8 @@ const ReceiverProfile = () => {
     // Edit modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editForm, setEditForm] = useState({
-        name: '', email: '', phone: '', street: '', org_type: ''
+        name: '', email: '', phone: '', street: '', org_type: '',
+        latitude: '', longitude: ''
     });
     const [editSaving,  setEditSaving]  = useState(false);
     const [editError,   setEditError]   = useState('');
@@ -93,11 +94,13 @@ const ReceiverProfile = () => {
                 setProfile(data.profile);
                 setStats(data.stats);
                 setEditForm({
-                    name:     data.profile.name          || '',
-                    email:    data.profile.email         || '',
-                    phone:    data.profile.phone_number  || '',
-                    street:   data.profile.street        || '',
-                    org_type: data.profile.org_type      || ''
+                    name:      data.profile.name          || '',
+                    email:     data.profile.email         || '',
+                    phone:     data.profile.phone_number  || '',
+                    street:    data.profile.street        || '',
+                    org_type:  data.profile.org_type      || '',
+                    latitude:  data.profile.latitude  != null ? String(data.profile.latitude)  : '',
+                    longitude: data.profile.longitude != null ? String(data.profile.longitude) : ''
                 });
                 if (data.profile.profile_picture && !profilePicture) {
                     setProfilePicture(data.profile.profile_picture);
@@ -163,7 +166,22 @@ const ReceiverProfile = () => {
     };
 
     // Edit handlers
-    const handleOpenEdit  = () => { setEditError(''); setEditSuccess(''); setShowEditModal(true); };
+    const handleOpenEdit  = () => {
+        setEditError('');
+        setEditSuccess('');
+        if (profile) {
+            setEditForm({
+                name:      profile.name          || '',
+                email:     profile.email         || '',
+                phone:     profile.phone_number  || '',
+                street:    profile.street        || '',
+                org_type:  profile.org_type      || '',
+                latitude:  profile.latitude  != null ? String(profile.latitude)  : '',
+                longitude: profile.longitude != null ? String(profile.longitude) : ''
+            });
+        }
+        setShowEditModal(true);
+    };
     const handleCloseEdit = () => { setShowEditModal(false); setEditError(''); setEditSuccess(''); };
     const handleEditChange = (e) => setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -187,7 +205,9 @@ const ReceiverProfile = () => {
                 email:        editForm.email,
                 phone_number: editForm.phone,
                 street:       editForm.street,
-                org_type:     editForm.org_type
+                org_type:     editForm.org_type,
+                latitude:     editForm.latitude  === '' ? null : editForm.latitude,
+                longitude:    editForm.longitude === '' ? null : editForm.longitude
             }));
             setEditSuccess('Profile updated successfully!');
             const updatedUser2 = { ...user, name: editForm.name };
@@ -443,6 +463,14 @@ const ReceiverProfile = () => {
                             <label className="rcp-form-label">
                                 Address
                                 <input className="rcp-form-input" type="text"  name="street"  value={editForm.street}  onChange={handleEditChange} />
+                            </label>
+                            <label className="rcp-form-label">
+                                Latitude (X)
+                                <input className="rcp-form-input" type="number" step="any" min="-90"  max="90"  name="latitude"  value={editForm.latitude}  onChange={handleEditChange} placeholder="Range: -90 to 90" />
+                            </label>
+                            <label className="rcp-form-label">
+                                Longitude (Y)
+                                <input className="rcp-form-input" type="number" step="any" min="-180" max="180" name="longitude" value={editForm.longitude} onChange={handleEditChange} placeholder="Range: -180 to 180" />
                             </label>
                             <label className="rcp-form-label">
                                 Organization Type

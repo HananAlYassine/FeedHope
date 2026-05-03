@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import '../../Styles/Volunteer/VolunteerSidebar.css';
 import BottomNav from '../Shared/BottomNav';
 
@@ -28,15 +29,39 @@ const VolunteerSidebar = () => {
         return () => { document.body.style.overflow = ''; };
     }, [isOpen]);
 
-    // Mock user (replace with actual localStorage data later)
-    const user = { user_id: 1 };
+    // Read user from localStorage (lazy - parsed once)
+    const [user] = useState(() => {
+        const raw = localStorage.getItem('feedhope_user');
+        return raw ? JSON.parse(raw) : null;
+    });
 
-    // Simulate fetching unread notifications count (demo)
+    // Fetch unread notification count for the badge
+    const fetchUnreadCount = useCallback(async () => {
+        if (!user?.user_id) return;
+        try {
+            const res = await axios.get(`http://localhost:5000/api/volunteer/notifications/unread-count/${user.user_id}`);
+            setUnreadCount(res.data.count || 0);
+        } catch (err) {
+            console.error('Volunteer sidebar badge error:', err);
+        }
+    }, [user?.user_id]);
+
     useEffect(() => {
-        // For demo, set a random count or 0
-        setUnreadCount(2);
-        // In real app: fetch from API similar to donor sidebar
-    }, []);
+        fetchUnreadCount();
+        window.addEventListener('notifUpdated', fetchUnreadCount);
+        window.addEventListener('notification-read', fetchUnreadCount);
+        const interval = setInterval(fetchUnreadCount, 3000);
+        return () => {
+            window.removeEventListener('notifUpdated', fetchUnreadCount);
+            window.removeEventListener('notification-read', fetchUnreadCount);
+            clearInterval(interval);
+        };
+    }, [fetchUnreadCount]);
+
+    // Refetch on every route change so the badge stays in sync as the user navigates.
+    useEffect(() => {
+        fetchUnreadCount();
+    }, [location.pathname, fetchUnreadCount]);
 
     const handleLogout = () => {
         // Demo logout - no backend call

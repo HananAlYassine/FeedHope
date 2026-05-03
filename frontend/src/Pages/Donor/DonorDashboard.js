@@ -34,6 +34,23 @@ const DonorDashboard = () => {
             .catch(err => console.error(err));
     }, [navigate]);
 
+    // Real-time: silently re-fetch every 3s so stats and recent activity stay live.
+    useEffect(() => {
+        const savedUser = localStorage.getItem("feedhope_user");
+        if (!savedUser) return;
+        const user = JSON.parse(savedUser);
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/donor/dashboard/${user.user_id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                setData(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     if (loading) return <div className="ddb-layout">Loading...</div>;
 
     return (

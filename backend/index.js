@@ -2,6 +2,15 @@
 //  FeedHope — Omar & Hanan — index.js
 // ========================================
 
+// Silence all console output — only the startup message below should appear
+// in the terminal. Re-enable any of these temporarily if you need to debug.
+const noop = () => {};
+console.log = noop;
+console.error = noop;
+console.warn = noop;
+console.info = noop;
+console.debug = noop;
+
 import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
@@ -12,6 +21,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import cron from 'node-cron';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,7 +107,7 @@ app.post("/api/register/donor", async (req, res) => {
 
         const [a] = await conn.query(
             "INSERT INTO Address (street, city, country, latitude, longitude, user_id) VALUES (?,?,?,?,?,?)",
-            [street, city, country, lat, lng, uid]   
+            [street, city, country, lat, lng, uid]
         );
 
         // Create a Role row for 'Donor' and link it in User_Role
@@ -185,7 +195,7 @@ app.post("/api/register/receiver", async (req, res) => {
 
         const [a] = await conn.query(
             "INSERT INTO Address (street, city, country, latitude, longitude, user_id) VALUES (?,?,?,?,?,?)",
-            [street, city, country, lat, lng, uid]   
+            [street, city, country, lat, lng, uid]
         );
 
 
@@ -969,11 +979,24 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
 // ==============================================================
 app.put("/api/receiver/profile/:userId", async (req, res) => {
     const { userId } = req.params;
-    const { name, email, phone, street, org_type } = req.body;
+    const { name, email, phone, street, org_type, latitude, longitude } = req.body;
 
     // Basic validation — all fields are required
     if (!name || !email || !phone || !street || !org_type) {
         return res.status(400).json({ error: "All profile fields are required." });
+    }
+
+    // Sanitize lat/lon — optional, but validated against valid ranges if provided
+    const lat = (latitude !== '' && latitude !== null && latitude !== undefined && !isNaN(parseFloat(latitude)))
+        ? parseFloat(latitude) : null;
+    const lon = (longitude !== '' && longitude !== null && longitude !== undefined && !isNaN(parseFloat(longitude)))
+        ? parseFloat(longitude) : null;
+
+    if (lat !== null && (lat < -90 || lat > 90)) {
+        return res.status(400).json({ error: "Latitude must be between -90 and 90." });
+    }
+    if (lon !== null && (lon < -180 || lon > 180)) {
+        return res.status(400).json({ error: "Longitude must be between -180 and 180." });
     }
 
     const conn = await pool.getConnection();
@@ -994,8 +1017,8 @@ app.put("/api/receiver/profile/:userId", async (req, res) => {
 
         // ── Update the Address (first address linked to this user) ──
         await conn.query(
-            "UPDATE Address SET street = ? WHERE user_id = ? LIMIT 1",
-            [street, userId]
+            "UPDATE Address SET street = ?, latitude = ?, longitude = ? WHERE user_id = ? LIMIT 1",
+            [street, lat, lon, userId]
         );
 
         // ──── Log the change ────
@@ -1459,8 +1482,10 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
         await conn.beginTransaction();
 
         // 1. Get receiver_id, donor_id, and the completed delivery for this offer
+        //    (Accept both legacy 'accepted'/'completed' and new 'delivered' status values)
         const [[offer]] = await conn.query(
-            `SELECT receiver_id, donor_id FROM Food_offer WHERE offer_id = ? AND status = 'accepted'`,
+            `SELECT receiver_id, donor_id FROM Food_offer
+             WHERE offer_id = ? AND status IN ('accepted', 'delivered')`,
             [offerId]
         );
         if (!offer) {
@@ -1470,7 +1495,8 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
 
         const [[delivery]] = await conn.query(
             `SELECT delivery_id, volunteer_id FROM Delivery
-             WHERE offer_id = ? AND delivery_status = 'completed' LIMIT 1`,
+             WHERE offer_id = ? AND delivery_status IN ('completed', 'delivered')
+             ORDER BY delivery_id DESC LIMIT 1`,
             [offerId]
         );
         if (!delivery) {
@@ -1514,6 +1540,41 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
             ]
         );
 
+        // Notify the rated donor
+        const [[donorTarget]] = await conn.query(
+            `SELECT u.user_id, fo.food_name
+             FROM Donor d
+             JOIN User u ON u.user_id = d.user_id
+             JOIN Food_offer fo ON fo.donor_id = d.donor_id
+             WHERE d.donor_id = ? AND fo.offer_id = ?`,
+            [offer.donor_id, offerId]
+        );
+        if (donorTarget) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['New Feedback Received',
+                    `${receiverName} rated your donation "${donorTarget.food_name}" ${donorRating}/5.`,
+                    'feedback_received', donorTarget.user_id]
+            );
+        }
+
+        // Notify the rated volunteer
+        const [[volTarget]] = await conn.query(
+            `SELECT u.user_id FROM Volunteer v
+             JOIN User u ON u.user_id = v.user_id
+             WHERE v.volunteer_id = ?`,
+            [delivery.volunteer_id]
+        );
+        if (volTarget) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['New Feedback Received',
+                    `${receiverName} rated your delivery ${volunteerRating}/5.`,
+                    'feedback_received', volTarget.user_id]
+            );
+        }
 
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
@@ -1565,6 +1626,7 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
                 del.delivery_id,
                 del.delivery_status,
                 del.delivery_time                AS delivered_date,  -- using delivery_time as completion timestamp
+                u_vol.name                       AS volunteer_name,
                 EXISTS(
                     SELECT 1 FROM Feedback_and_rating fr
                     WHERE fr.delivery_id = del.delivery_id
@@ -1574,8 +1636,10 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
             JOIN Food_offer fo ON fo.offer_id = del.offer_id
             JOIN Donor d       ON d.donor_id  = fo.donor_id
             JOIN User u        ON u.user_id   = d.user_id
+            LEFT JOIN Volunteer vol ON vol.volunteer_id = del.volunteer_id
+            LEFT JOIN User u_vol    ON u_vol.user_id    = vol.user_id
             WHERE fo.receiver_id = ?
-              AND del.delivery_status = 'completed'
+              AND del.delivery_status IN ('completed', 'delivered')
             ORDER BY del.delivery_time DESC
         `, [userId, receiverId]);
 
@@ -1861,7 +1925,9 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
                 d.business_type,
                 a.street,
                 a.city,
-                a.country
+                a.country,
+                a.latitude,
+                a.longitude
             FROM User u
             JOIN Donor d ON d.user_id = u.user_id
             LEFT JOIN Address a ON a.user_id = u.user_id
@@ -1912,10 +1978,23 @@ app.get("/api/donor/profile/:userId", async (req, res) => {
 // ==============================================================
 app.put("/api/donor/profile/:userId", async (req, res) => {
     const { userId } = req.params;
-    const { name, email, phone, street, city, business_type } = req.body;
+    const { name, email, phone, street, city, business_type, latitude, longitude } = req.body;
 
     if (!name || !email || !phone || !street || !city || !business_type) {
         return res.status(400).json({ error: "All fields except country are required." });
+    }
+
+    // Sanitize lat/lon — optional, but validated against valid ranges if provided
+    const lat = (latitude !== '' && latitude !== null && latitude !== undefined && !isNaN(parseFloat(latitude)))
+        ? parseFloat(latitude) : null;
+    const lon = (longitude !== '' && longitude !== null && longitude !== undefined && !isNaN(parseFloat(longitude)))
+        ? parseFloat(longitude) : null;
+
+    if (lat !== null && (lat < -90 || lat > 90)) {
+        return res.status(400).json({ error: "Latitude must be between -90 and 90." });
+    }
+    if (lon !== null && (lon < -180 || lon > 180)) {
+        return res.status(400).json({ error: "Longitude must be between -180 and 180." });
     }
 
     const conn = await pool.getConnection();
@@ -1943,13 +2022,13 @@ app.put("/api/donor/profile/:userId", async (req, res) => {
         if (addr.length === 0) {
             const DEFAULT_COUNTRY = 'Lebanon';
             await conn.query(
-                "INSERT INTO Address (user_id, street, city, country) VALUES (?, ?, ?, ?)",
-                [userId, street, city, DEFAULT_COUNTRY]
+                "INSERT INTO Address (user_id, street, city, country, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)",
+                [userId, street, city, DEFAULT_COUNTRY, lat, lon]
             );
         } else {
             await conn.query(
-                "UPDATE Address SET street = ?, city = ? WHERE user_id = ?",
-                [street, city, userId]
+                "UPDATE Address SET street = ?, city = ?, latitude = ?, longitude = ? WHERE user_id = ?",
+                [street, city, lat, lon, userId]
             );
         }
 
@@ -2311,27 +2390,44 @@ app.put('/api/donor/edit-offer/:offerId', async (req, res) => {
 
 
 // GET Donor Delivered History
-app.get('/api/donor/history/:donorId', async (req, res) => {
-    const { donorId } = req.params;
+// 🛠 Fixed: param is the User.user_id (front-end sends user.user_id);
+//    we look up the donor_id from the Donor table. Status is stored
+//    lowercase ('delivered'), not 'Delivered'. Rating is restricted
+//    to the donor-targeted feedback row only.
+app.get('/api/donor/history/:userId', async (req, res) => {
+    const { userId } = req.params;
 
     try {
+        const [[donorRow]] = await pool.query(
+            'SELECT donor_id FROM Donor WHERE user_id = ?',
+            [userId]
+        );
+        if (!donorRow) {
+            return res.status(200).json([]);
+        }
+        const donorId = donorRow.donor_id;
+
         const query = `
             SELECT
-                fo.offer_id AS id,
-                fo.food_name AS title,
-                COALESCE(u.name, 'Organization') AS receiver,
-                COALESCE(fo.quantity_by_kg, 0) AS quantity,
-                COALESCE(fo.number_of_person, 0) AS people_helped,
-                COALESCE(MAX(fb.rating), 0) AS rating,
-                fo.status
+                fo.offer_id                          AS id,
+                fo.food_name                         AS title,
+                COALESCE(u.name, 'Organization')     AS receiver,
+                COALESCE(fo.quantity_by_kg, 0)       AS quantity,
+                COALESCE(fo.number_of_person, 0)     AS people_helped,
+                COALESCE(MAX(fb.rating), 0)          AS rating,
+                fo.status,
+                MAX(d.delivery_time)                 AS delivered_at
             FROM Food_offer fo
             LEFT JOIN Receiver r ON fo.receiver_id = r.receiver_id
-            LEFT JOIN User u ON r.user_id = u.user_id
-            LEFT JOIN Delivery d ON fo.offer_id = d.offer_id
-            LEFT JOIN Feedback_and_rating fb ON d.delivery_id = fb.delivery_id
-            WHERE fo.donor_id = ? AND fo.status = 'Delivered'
+            LEFT JOIN User u     ON r.user_id      = u.user_id
+            LEFT JOIN Delivery d ON fo.offer_id    = d.offer_id
+            LEFT JOIN Feedback_and_rating fb
+                   ON fb.delivery_id = d.delivery_id
+                  AND fb.donor_id    = fo.donor_id
+            WHERE fo.donor_id = ?
+              AND LOWER(fo.status) = 'delivered'
             GROUP BY fo.offer_id
-            ORDER BY fo.offer_id DESC
+            ORDER BY MAX(d.delivery_time) DESC, fo.offer_id DESC
         `;
 
         const [rows] = await pool.query(query, [donorId]);
@@ -2678,8 +2774,8 @@ app.get('/api/donor/deliveries/:userId', async (req, res) => {
       WHERE fo.donor_id = (SELECT donor_id FROM donor WHERE user_id = ?)
       ORDER BY
         CASE
-          WHEN d.delivery_status = 'in deliver' THEN 1
-          WHEN d.delivery_status = 'accepted by delivery' THEN 2
+          WHEN d.delivery_status = 'in_delivery' THEN 1
+          WHEN d.delivery_status = 'delivery_accepted' THEN 2
           WHEN d.delivery_status = 'delivered' THEN 3
           ELSE 4
         END,
@@ -2812,26 +2908,37 @@ app.delete("/api/donor/notifications/:notificationId", async (req, res) => {
 });
 
 // Fetch all feedback received by a specific donor
+// 🛠 Fixed: was filtering on user_id instead of donor_id and selecting columns
+//    that don't exist on User (first_name/last_name → use u.name).
 app.get("/api/donor/feedback/:userId", async (req, res) => {
     const { userId } = req.params;
 
     try {
-        // We select the feedback where the donor_id matches the logged-in user.
-        // We join the User table to get the name of the receiver who submitted it.
-        // Adjust "u.first_name" and "u.last_name" to match your actual User table columns (e.g., u.name or u.organization_name)
+        const [[donorRow]] = await pool.query(
+            "SELECT donor_id FROM Donor WHERE user_id = ?",
+            [userId]
+        );
+        if (!donorRow) {
+            return res.status(200).json([]);
+        }
+
         const [feedbackList] = await pool.query(
             `SELECT
+                f.feedback_id,
                 f.rating,
                 f.comment,
                 f.feedback_date,
                 f.delivery_id,
-                u.first_name,
-                u.last_name
+                u.name           AS reviewer_name,
+                fo.food_name,
+                fo.quantity_by_kg
              FROM Feedback_and_rating f
-             LEFT JOIN User u ON f.given_by = u.user_id
-             WHERE f.donor_id = ?
-             ORDER BY f.feedback_date DESC`,
-            [userId]
+             LEFT JOIN User u        ON u.user_id        = f.given_by
+             LEFT JOIN Delivery del  ON del.delivery_id  = f.delivery_id
+             LEFT JOIN Food_offer fo ON fo.offer_id      = del.offer_id
+             WHERE f.donor_id = ? AND f.volunteer_id IS NULL
+             ORDER BY f.feedback_date DESC, f.feedback_id DESC`,
+            [donorRow.donor_id]
         );
 
         res.status(200).json(feedbackList);
@@ -3079,6 +3186,1244 @@ app.put('/api/volunteer/change-password/:userId', async (req, res) => {
     }
 });
 
+// ==============================================================
+// ──────────────── Volunteer accepts request ───────────────────
+// ==============================================================
+
+app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) => {
+    const { requestId } = req.params;
+    const { volunteerUserId } = req.body; // for security
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(
+            `SELECT * FROM Volunteer_Assignment_Request
+             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
+            [requestId, volunteerUserId]
+        );
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Request not found or already processed.' });
+        }
+
+        // Update request status
+        await conn.query(
+            `UPDATE Volunteer_Assignment_Request
+             SET status = 'accepted', responded_at = NOW()
+             WHERE request_id = ?`,
+            [requestId]
+        );
+
+        // Look up offer + volunteer (used for delivery row + notifications)
+        const [[offer]] = await conn.query(
+            `SELECT fo.donor_id, fo.food_name, fo.offer_id,
+                    dnr.user_id AS donor_user_id,
+                    rcv.user_id AS receiver_user_id
+             FROM Food_offer fo
+             JOIN Donor dnr      ON dnr.donor_id  = fo.donor_id
+             LEFT JOIN Receiver rcv ON rcv.receiver_id = fo.receiver_id
+             WHERE fo.offer_id = ?`,
+            [request.offer_id]
+        );
+        const [[volunteer]] = await conn.query(
+            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`,
+            [volunteerUserId]
+        );
+
+        // 🛠 Aligned with the manual self-assign flow:
+        //   Delivery.delivery_status = 'delivery_accepted'
+        //   Food_offer.status        = 'delivery_accepted'
+        // so the offer shows up in VolunteerMyDeliveries with the
+        // correct "Start Delivery → Mark Delivered" actions.
+        await conn.query(
+            `INSERT INTO Delivery (delivery_status, volunteer_id, offer_id)
+             VALUES ('delivery_accepted', ?, ?)`,
+            [volunteer.volunteer_id, request.offer_id]
+        );
+
+        await conn.query(
+            `UPDATE Food_offer SET status = 'delivery_accepted' WHERE offer_id = ?`,
+            [request.offer_id]
+        );
+
+        // Notify admin that volunteer accepted
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            ['Assignment Accepted',
+             `Volunteer accepted the request for offer "${offer?.food_name}" (Offer #${request.offer_id}).`,
+             'assignment_response']
+        );
+
+        // Notify the volunteer themselves
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            ['Delivery Accepted',
+             `You accepted the admin's delivery request for "${offer?.food_name}". Find it under "My Deliveries".`,
+             'delivery_update', volunteerUserId]
+        );
+
+        // Notify donor
+        if (offer?.donor_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Volunteer Assigned',
+                 `A volunteer has accepted to deliver your offer "${offer.food_name}".`,
+                 'delivery_update', offer.donor_user_id]
+            );
+        }
+
+        // Notify receiver
+        if (offer?.receiver_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Volunteer Assigned',
+                 `A volunteer has accepted to deliver "${offer.food_name}" to you.`,
+                 'delivery_update', offer.receiver_user_id]
+            );
+        }
+
+        // Remove any expiration alert for this offer (urgency resolved)
+        await conn.query(`DELETE FROM expiration_alert WHERE offer_id = ?`, [request.offer_id]);
+
+        await conn.commit();
+        res.json({ message: 'Request accepted. You are now assigned to this delivery.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to accept request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+
+// ==============================================================
+// ──────────────── Volunteer rejects request ───────────────────
+// ==============================================================
+
+app.put('/api/volunteer/assignment-request/:requestId/reject', async (req, res) => {
+    const { requestId } = req.params;
+    const { volunteerUserId, reason } = req.body;
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[request]] = await conn.query(
+            `SELECT * FROM Volunteer_Assignment_Request
+             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
+            [requestId, volunteerUserId]
+        );
+        if (!request) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Request not found or already processed.' });
+        }
+
+        await conn.query(
+            `UPDATE Volunteer_Assignment_Request
+             SET status = 'rejected', responded_at = NOW(), volunteer_reason = ?
+             WHERE request_id = ?`,
+            [reason || null, requestId]
+        );
+
+        // Notify admin with reason
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            ['Assignment Rejected', `Volunteer rejected the request for offer ID ${request.offer_id}. Reason: ${reason || 'No reason provided.'}`, 'assignment_response', null]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Request rejected.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to reject request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+// ===============================================================================
+// ───── Volunteer fetches pending requests (for their dashboard) ─────
+// ===============================================================================
+
+app.get('/api/volunteer/pending-requests/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [rows] = await pool.query(`
+            SELECT r.request_id, r.offer_id, r.admin_message, r.requested_at,
+                o.food_name, o.expiration_date_and_time
+            FROM Volunteer_Assignment_Request r
+            JOIN Food_offer o ON r.offer_id = o.offer_id
+            WHERE r.volunteer_user_id = ? AND r.status = 'pending'
+            ORDER BY r.requested_at DESC
+        `, [userId]);
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch requests.' });
+    }
+});
+
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #1 — GET /api/volunteer/available-offers/:userId
+// Returns every Food_offer that:
+//    • has status = 'accepted'   (a receiver already claimed it)
+//    • has NO Delivery row yet   (no volunteer has self-assigned)
+// Includes donor + receiver info so the UI can show full pickup
+// and drop-off addresses.
+// ─────────────────────────────────────────────────────────────
+app.get('/api/volunteer/available-offers/:userId', async (req, res) => {
+    try {
+        const [offers] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.description,
+                fo.dietary_information,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                fo.pickup_time,
+                fo.expiration_date_and_time,
+                fo.status,
+                fc.category_name        AS category,
+                -- Donor (pickup) info
+                donor_user.name         AS donor_name,
+                donor_user.phone_number AS donor_phone,
+                donor_addr.street       AS donor_street,
+                donor_addr.city         AS donor_city,
+                donor_addr.country      AS donor_country,
+                donor_addr.latitude     AS donor_lat,
+                donor_addr.longitude    AS donor_lon,
+                -- Receiver (drop-off) info
+                receiver_user.name           AS receiver_name,
+                receiver_user.phone_number   AS receiver_phone,
+                rcv.organization_name        AS receiver_org,
+                receiver_addr.street         AS receiver_street,
+                receiver_addr.city           AS receiver_city,
+                receiver_addr.country        AS receiver_country,
+                receiver_addr.latitude       AS receiver_lat,
+                receiver_addr.longitude      AS receiver_lon
+            FROM Food_offer fo
+            JOIN Donor dnr           ON fo.donor_id = dnr.donor_id
+            JOIN User  donor_user    ON dnr.user_id = donor_user.user_id
+            JOIN Address donor_addr  ON dnr.address_id = donor_addr.address_id
+            LEFT JOIN Food_category fc ON fc.category_id = fo.category_id
+            JOIN Receiver rcv             ON fo.receiver_id = rcv.receiver_id
+            JOIN User receiver_user       ON rcv.user_id = receiver_user.user_id
+            LEFT JOIN Receiver_location rl ON rl.receiver_id = rcv.receiver_id
+            LEFT JOIN Address receiver_addr ON rl.address_id = receiver_addr.address_id
+            WHERE fo.status = 'accepted'
+              AND NOT EXISTS (SELECT 1 FROM Delivery d WHERE d.offer_id = fo.offer_id)
+            ORDER BY fo.offer_id DESC
+        `);
+
+        // Compute distance (km) between donor and receiver for each row
+        const enriched = offers.map(o => {
+            const distance = calculateDistance(o.donor_lat, o.donor_lon, o.receiver_lat, o.receiver_lon);
+            return {
+                offer_id: o.offer_id,
+                food_name: o.food_name,
+                description: o.description,
+                dietary_information: o.dietary_information,
+                quantity_by_kg: o.quantity_by_kg,
+                number_of_person: o.number_of_person,
+                pickup_time: o.pickup_time,
+                expiration_date_and_time: o.expiration_date_and_time,
+                status: o.status,
+                category: o.category,
+                donor_name: o.donor_name,
+                donor_phone: o.donor_phone,
+                donor_address: [o.donor_street, o.donor_city, o.donor_country].filter(Boolean).join(', '),
+                donor_lat: o.donor_lat != null ? Number(o.donor_lat) : null,
+                donor_lon: o.donor_lon != null ? Number(o.donor_lon) : null,
+                receiver_name: o.receiver_org || o.receiver_name,
+                receiver_phone: o.receiver_phone,
+                receiver_address: [o.receiver_street, o.receiver_city, o.receiver_country].filter(Boolean).join(', '),
+                receiver_lat: o.receiver_lat != null ? Number(o.receiver_lat) : null,
+                receiver_lon: o.receiver_lon != null ? Number(o.receiver_lon) : null,
+                distance_km: distance
+            };
+        });
+
+        res.json({ offers: enriched });
+    } catch (err) {
+        console.error('GET /api/volunteer/available-offers error:', err);
+        res.status(500).json({ error: 'Failed to fetch available offers.' });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #2 — POST /api/volunteer/accept-delivery
+// Body: { userId, offerId }
+// The volunteer self-assigns. We:
+//   1. Verify the volunteer profile exists for this userId
+//   2. Verify the offer is still status = 'accepted' and unclaimed
+//   3. INSERT into Delivery (delivery_status = 'delivery_accepted')
+//   4. UPDATE Food_offer.status = 'delivery_accepted'
+//   5. Notify donor + receiver + the volunteer themselves
+// ─────────────────────────────────────────────────────────────
+app.post('/api/volunteer/accept-delivery', async (req, res) => {
+    const { userId, offerId } = req.body;
+    if (!userId || !offerId) {
+        return res.status(400).json({ error: 'userId and offerId are required.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 1. Look up volunteer_id for this user
+        const [[volunteerRow]] = await conn.query(
+            'SELECT volunteer_id FROM Volunteer WHERE user_id = ?',
+            [userId]
+        );
+        if (!volunteerRow) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Volunteer profile not found.' });
+        }
+        const volunteerId = volunteerRow.volunteer_id;
+
+        // 2. Lock-and-check the offer
+        const [[offer]] = await conn.query(
+            `SELECT fo.offer_id, fo.status, fo.food_name,
+                    dnr.user_id AS donor_user_id,
+                    rcv.user_id AS receiver_user_id
+             FROM Food_offer fo
+             JOIN Donor dnr ON fo.donor_id = dnr.donor_id
+             LEFT JOIN Receiver rcv ON fo.receiver_id = rcv.receiver_id
+             WHERE fo.offer_id = ?
+             FOR UPDATE`,
+            [offerId]
+        );
+        if (!offer) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+        if (offer.status !== 'accepted') {
+            await conn.rollback();
+            return res.status(409).json({ error: 'This offer is no longer available for delivery.' });
+        }
+
+        // Make sure no other volunteer has already taken it
+        const [[existing]] = await conn.query(
+            'SELECT delivery_id FROM Delivery WHERE offer_id = ? LIMIT 1',
+            [offerId]
+        );
+        if (existing) {
+            await conn.rollback();
+            return res.status(409).json({ error: 'Another volunteer has already accepted this delivery.' });
+        }
+
+        // 3. Insert Delivery row
+        const [delIns] = await conn.query(
+            `INSERT INTO Delivery (delivery_status, volunteer_id, offer_id)
+             VALUES ('delivery_accepted', ?, ?)`,
+            [volunteerId, offerId]
+        );
+
+        // 4. Update Food_offer status
+        await conn.query(
+            `UPDATE Food_offer SET status = 'delivery_accepted' WHERE offer_id = ?`,
+            [offerId]
+        );
+
+        // 5. Notifications
+        // Volunteer (self)
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            ['Delivery Accepted',
+                `You have accepted the delivery for "${offer.food_name}". Head to the pickup location when ready.`,
+                'delivery_update', userId]
+        );
+        // Donor
+        if (offer.donor_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Volunteer Assigned',
+                    `A volunteer has accepted to deliver your offer "${offer.food_name}".`,
+                    'delivery_update', offer.donor_user_id]
+            );
+        }
+        // Receiver
+        if (offer.receiver_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Volunteer Assigned',
+                    `A volunteer has accepted to deliver "${offer.food_name}" to you.`,
+                    'delivery_update', offer.receiver_user_id]
+            );
+        }
+
+        // Syslog
+        await conn.query(
+            `INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`,
+            ['VOLUNTEER_ACCEPT_DELIVERY',
+                `Volunteer accepted delivery for offer #${offerId}`, userId]
+        );
+
+        await conn.commit();
+        res.status(200).json({
+            message: 'Delivery accepted! You can find it under "My Deliveries".',
+            delivery_id: delIns.insertId
+        });
+    } catch (err) {
+        await conn.rollback();
+        console.error('POST /api/volunteer/accept-delivery error:', err);
+        res.status(500).json({ error: 'Failed to accept delivery.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #3 — GET /api/volunteer/my-deliveries/:userId
+// Returns every Delivery row owned by THIS volunteer, with full
+// donor/receiver/offer info. The frontend splits them into
+// "Active" (delivery_accepted | in_delivery) vs "History" (delivered).
+// ─────────────────────────────────────────────────────────────
+app.get('/api/volunteer/my-deliveries/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[volunteerRow]] = await pool.query(
+            'SELECT volunteer_id FROM Volunteer WHERE user_id = ?',
+            [userId]
+        );
+        if (!volunteerRow) {
+            return res.status(404).json({ error: 'Volunteer profile not found.' });
+        }
+
+        const [rows] = await pool.query(`
+            SELECT
+                d.delivery_id,
+                d.delivery_status,
+                d.delivery_time,
+                d.pickup_time         AS delivery_pickup_time,
+                d.notes,
+                fo.offer_id,
+                fo.food_name,
+                fo.description,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                fo.pickup_time,
+                fo.expiration_date_and_time,
+                fo.status             AS offer_status,
+                fc.category_name      AS category,
+                donor_user.name       AS donor_name,
+                donor_user.phone_number AS donor_phone,
+                donor_addr.street     AS donor_street,
+                donor_addr.city       AS donor_city,
+                donor_addr.country    AS donor_country,
+                donor_addr.latitude   AS donor_lat,
+                donor_addr.longitude  AS donor_lon,
+                receiver_user.name        AS receiver_name,
+                receiver_user.phone_number AS receiver_phone,
+                rcv.organization_name     AS receiver_org,
+                receiver_addr.street      AS receiver_street,
+                receiver_addr.city        AS receiver_city,
+                receiver_addr.country     AS receiver_country,
+                receiver_addr.latitude    AS receiver_lat,
+                receiver_addr.longitude   AS receiver_lon
+            FROM Delivery d
+            JOIN Food_offer fo ON d.offer_id = fo.offer_id
+            JOIN Donor dnr           ON fo.donor_id = dnr.donor_id
+            JOIN User donor_user     ON dnr.user_id = donor_user.user_id
+            JOIN Address donor_addr  ON dnr.address_id = donor_addr.address_id
+            LEFT JOIN Food_category fc ON fc.category_id = fo.category_id
+            LEFT JOIN Receiver rcv             ON fo.receiver_id = rcv.receiver_id
+            LEFT JOIN User receiver_user       ON rcv.user_id = receiver_user.user_id
+            LEFT JOIN Receiver_location rl     ON rl.receiver_id = rcv.receiver_id
+            LEFT JOIN Address receiver_addr    ON rl.address_id = receiver_addr.address_id
+            WHERE d.volunteer_id = ?
+            ORDER BY
+                CASE d.delivery_status
+                    WHEN 'in_delivery'        THEN 1
+                    WHEN 'delivery_accepted'  THEN 2
+                    WHEN 'delivered'          THEN 3
+                    ELSE 4
+                END,
+                d.delivery_id DESC
+        `, [volunteerRow.volunteer_id]);
+
+        const deliveries = rows.map(r => ({
+            delivery_id: r.delivery_id,
+            offer_id: r.offer_id,
+            delivery_status: r.delivery_status,
+            offer_status: r.offer_status,
+            food_name: r.food_name,
+            description: r.description,
+            quantity_by_kg: r.quantity_by_kg,
+            number_of_person: r.number_of_person,
+            category: r.category,
+            pickup_time: r.pickup_time,
+            expiration_date_and_time: r.expiration_date_and_time,
+            delivery_time: r.delivery_time,
+            notes: r.notes,
+            donor_name: r.donor_name,
+            donor_phone: r.donor_phone,
+            donor_address: [r.donor_street, r.donor_city, r.donor_country].filter(Boolean).join(', '),
+            donor_lat: r.donor_lat != null ? Number(r.donor_lat) : null,
+            donor_lon: r.donor_lon != null ? Number(r.donor_lon) : null,
+            receiver_name: r.receiver_org || r.receiver_name,
+            receiver_phone: r.receiver_phone,
+            receiver_address: [r.receiver_street, r.receiver_city, r.receiver_country].filter(Boolean).join(', '),
+            receiver_lat: r.receiver_lat != null ? Number(r.receiver_lat) : null,
+            receiver_lon: r.receiver_lon != null ? Number(r.receiver_lon) : null,
+            distance_km: calculateDistance(r.donor_lat, r.donor_lon, r.receiver_lat, r.receiver_lon)
+        }));
+
+        res.json({ deliveries });
+    } catch (err) {
+        console.error('GET /api/volunteer/my-deliveries error:', err);
+        res.status(500).json({ error: 'Failed to fetch deliveries.' });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #4 — PUT /api/volunteer/deliveries/:deliveryId/start
+// Body: { userId }
+// "I'm on my way to the receiver"
+//   • Delivery.delivery_status   = 'in_delivery'
+//   • Delivery.pickup_time       = NOW()  (volunteer just picked it up)
+//   • Food_offer.status          = 'in_delivery'
+// ─────────────────────────────────────────────────────────────
+app.put('/api/volunteer/deliveries/:deliveryId/start', async (req, res) => {
+    const { deliveryId } = req.params;
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required.' });
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[del]] = await conn.query(`
+            SELECT d.delivery_id, d.delivery_status, d.offer_id, d.volunteer_id,
+                   v.user_id AS volunteer_user_id,
+                   fo.food_name,
+                   dnr.user_id AS donor_user_id,
+                   rcv.user_id AS receiver_user_id
+            FROM Delivery d
+            JOIN Volunteer v ON d.volunteer_id = v.volunteer_id
+            JOIN Food_offer fo ON d.offer_id = fo.offer_id
+            JOIN Donor dnr ON fo.donor_id = dnr.donor_id
+            LEFT JOIN Receiver rcv ON fo.receiver_id = rcv.receiver_id
+            WHERE d.delivery_id = ?
+        `, [deliveryId]);
+
+        if (!del) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Delivery not found.' });
+        }
+        if (Number(del.volunteer_user_id) !== Number(userId)) {
+            await conn.rollback();
+            return res.status(403).json({ error: 'This delivery does not belong to you.' });
+        }
+        if (del.delivery_status !== 'delivery_accepted') {
+            await conn.rollback();
+            return res.status(409).json({ error: `Cannot start delivery from status "${del.delivery_status}".` });
+        }
+
+        await conn.query(
+            `UPDATE Delivery SET delivery_status = 'in_delivery', pickup_time = NOW() WHERE delivery_id = ?`,
+            [deliveryId]
+        );
+        await conn.query(
+            `UPDATE Food_offer SET status = 'in_delivery' WHERE offer_id = ?`,
+            [del.offer_id]
+        );
+
+        // Notify donor + receiver
+        if (del.donor_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Delivery In Progress',
+                    `Your offer "${del.food_name}" has been picked up and is on the way.`,
+                    'delivery_update', del.donor_user_id]
+            );
+        }
+        if (del.receiver_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Delivery On The Way',
+                    `Your delivery "${del.food_name}" is on the way.`,
+                    'delivery_update', del.receiver_user_id]
+            );
+        }
+
+        await conn.query(
+            `INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`,
+            ['VOLUNTEER_START_DELIVERY',
+                `Volunteer started delivery #${deliveryId}`, userId]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Delivery started — status is now In Delivery.' });
+    } catch (err) {
+        await conn.rollback();
+        console.error('PUT /api/volunteer/deliveries/:id/start error:', err);
+        res.status(500).json({ error: 'Failed to start delivery.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #5 — PUT /api/volunteer/deliveries/:deliveryId/complete
+// Body: { userId }
+// "I arrived and handed the offer to the receiver"
+//   • Delivery.delivery_status = 'delivered'
+//   • Delivery.delivery_time   = NOW()
+//   • Food_offer.status        = 'delivered'
+//   • Donation_history row inserted (donor → receiver)
+// ─────────────────────────────────────────────────────────────
+app.put('/api/volunteer/deliveries/:deliveryId/complete', async (req, res) => {
+    const { deliveryId } = req.params;
+    const { userId, notes } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required.' });
+    const trimmedNotes = (typeof notes === 'string' && notes.trim()) ? notes.trim() : null;
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [[del]] = await conn.query(`
+            SELECT d.delivery_id, d.delivery_status, d.offer_id, d.volunteer_id,
+                   v.user_id AS volunteer_user_id,
+                   fo.food_name, fo.donor_id, fo.receiver_id, fo.quantity_by_kg,
+                   dnr.user_id AS donor_user_id,
+                   rcv.user_id AS receiver_user_id
+            FROM Delivery d
+            JOIN Volunteer v ON d.volunteer_id = v.volunteer_id
+            JOIN Food_offer fo ON d.offer_id = fo.offer_id
+            JOIN Donor dnr ON fo.donor_id = dnr.donor_id
+            LEFT JOIN Receiver rcv ON fo.receiver_id = rcv.receiver_id
+            WHERE d.delivery_id = ?
+        `, [deliveryId]);
+
+        if (!del) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Delivery not found.' });
+        }
+        if (Number(del.volunteer_user_id) !== Number(userId)) {
+            await conn.rollback();
+            return res.status(403).json({ error: 'This delivery does not belong to you.' });
+        }
+        if (del.delivery_status !== 'in_delivery') {
+            await conn.rollback();
+            return res.status(409).json({ error: `Cannot mark as delivered from status "${del.delivery_status}". Start the delivery first.` });
+        }
+
+        await conn.query(
+            `UPDATE Delivery
+                SET delivery_status = 'delivered',
+                    delivery_time   = NOW(),
+                    notes           = ?
+              WHERE delivery_id = ?`,
+            [trimmedNotes, deliveryId]
+        );
+        await conn.query(
+            `UPDATE Food_offer SET status = 'delivered' WHERE offer_id = ?`,
+            [del.offer_id]
+        );
+
+        // Donation history (donor → receiver) — only if a receiver exists
+        if (del.receiver_id) {
+            await conn.query(
+                `INSERT INTO Donation_history (donation_date, quantity, receiver_id, donor_id)
+                 VALUES (CURDATE(), ?, ?, ?)`,
+                [del.quantity_by_kg || null, del.receiver_id, del.donor_id]
+            );
+        }
+
+        // Notifications: donor, receiver, volunteer
+        if (del.donor_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Delivery Completed',
+                    `Your offer "${del.food_name}" has been successfully delivered. Thank you!`,
+                    'delivery_completed', del.donor_user_id]
+            );
+        }
+        if (del.receiver_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Delivery Received',
+                    `You have received "${del.food_name}". Thank you for using FeedHope!`,
+                    'delivery_completed', del.receiver_user_id]
+            );
+        }
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            ['Delivery Completed',
+                `Great work! You successfully delivered "${del.food_name}".`,
+                'delivery_completed', userId]
+        );
+
+        await conn.query(
+            `INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)`,
+            ['VOLUNTEER_COMPLETE_DELIVERY',
+                `Volunteer completed delivery #${deliveryId}`, userId]
+        );
+
+        await conn.commit();
+        res.json({ message: 'Delivery marked as delivered. Thank you!' });
+    } catch (err) {
+        await conn.rollback();
+        console.error('PUT /api/volunteer/deliveries/:id/complete error:', err);
+        res.status(500).json({ error: 'Failed to mark as delivered.' });
+    } finally {
+        conn.release();
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #6 — GET /api/volunteer/history/:userId
+// Returns every COMPLETED delivery for this volunteer (status
+// 'delivered' or legacy 'completed'), enriched with donor/receiver
+// info, the volunteer's own completion notes, and any feedback
+// the volunteer received for that delivery (averaged if multiple
+// people rated them — donor + receiver could each leave a rating).
+// Also returns aggregate stats so the UI doesn't have to compute.
+// ─────────────────────────────────────────────────────────────
+app.get('/api/volunteer/history/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[volunteerRow]] = await pool.query(
+            'SELECT volunteer_id FROM Volunteer WHERE user_id = ?',
+            [userId]
+        );
+        if (!volunteerRow) {
+            return res.status(404).json({ error: 'Volunteer profile not found.' });
+        }
+
+        const [rows] = await pool.query(`
+            SELECT
+                d.delivery_id,
+                d.delivery_status,
+                d.delivery_time,
+                d.pickup_time          AS delivery_pickup_time,
+                d.notes                AS delivery_notes,
+                fo.offer_id,
+                fo.food_name,
+                fo.description,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                fc.category_name       AS category,
+                donor_user.name        AS donor_name,
+                donor_addr.street      AS donor_street,
+                donor_addr.city        AS donor_city,
+                donor_addr.country     AS donor_country,
+                donor_addr.latitude    AS donor_lat,
+                donor_addr.longitude   AS donor_lon,
+                receiver_user.name     AS receiver_name,
+                rcv.organization_name  AS receiver_org,
+                receiver_addr.street   AS receiver_street,
+                receiver_addr.city     AS receiver_city,
+                receiver_addr.country  AS receiver_country,
+                receiver_addr.latitude AS receiver_lat,
+                receiver_addr.longitude AS receiver_lon,
+                fb.avg_rating,
+                fb.latest_comment,
+                fb.latest_date
+            FROM Delivery d
+            JOIN Food_offer fo            ON d.offer_id = fo.offer_id
+            JOIN Donor dnr                ON fo.donor_id = dnr.donor_id
+            JOIN User  donor_user         ON dnr.user_id = donor_user.user_id
+            JOIN Address donor_addr       ON dnr.address_id = donor_addr.address_id
+            LEFT JOIN Food_category fc    ON fc.category_id = fo.category_id
+            LEFT JOIN Receiver rcv        ON fo.receiver_id = rcv.receiver_id
+            LEFT JOIN User receiver_user  ON rcv.user_id = receiver_user.user_id
+            LEFT JOIN Receiver_location rl  ON rl.receiver_id = rcv.receiver_id
+            LEFT JOIN Address receiver_addr ON rl.address_id = receiver_addr.address_id
+            LEFT JOIN (
+                SELECT delivery_id, volunteer_id,
+                       ROUND(AVG(rating), 1)        AS avg_rating,
+                       MAX(comment)                 AS latest_comment,
+                       MAX(feedback_date)           AS latest_date
+                FROM Feedback_and_rating
+                WHERE volunteer_id IS NOT NULL AND delivery_id IS NOT NULL
+                GROUP BY delivery_id, volunteer_id
+            ) fb ON fb.delivery_id = d.delivery_id AND fb.volunteer_id = d.volunteer_id
+            WHERE d.volunteer_id = ?
+              AND d.delivery_status IN ('delivered', 'completed')
+            ORDER BY d.delivery_time DESC, d.delivery_id DESC
+        `, [volunteerRow.volunteer_id]);
+
+        const deliveries = rows.map(r => ({
+            delivery_id: r.delivery_id,
+            offer_id: r.offer_id,
+            delivery_status: r.delivery_status,
+            food_name: r.food_name,
+            description: r.description,
+            quantity_by_kg: r.quantity_by_kg,
+            number_of_person: r.number_of_person,
+            category: r.category,
+            pickup_time: r.delivery_pickup_time,
+            delivery_time: r.delivery_time,
+            delivery_notes: r.delivery_notes,
+            donor_name: r.donor_name,
+            donor_address: [r.donor_street, r.donor_city, r.donor_country].filter(Boolean).join(', '),
+            receiver_name: r.receiver_org || r.receiver_name,
+            receiver_address: [r.receiver_street, r.receiver_city, r.receiver_country].filter(Boolean).join(', '),
+            distance_km: calculateDistance(r.donor_lat, r.donor_lon, r.receiver_lat, r.receiver_lon),
+            rating: r.avg_rating != null ? Number(r.avg_rating) : null,
+            rating_comment: r.latest_comment,
+            rating_date: r.latest_date
+        }));
+
+        const totalDeliveries = deliveries.length;
+        const peopleHelped = deliveries.reduce((s, d) => s + (Number(d.number_of_person) || 0), 0);
+        const ratingVals = deliveries.map(d => d.rating).filter(r => r != null);
+        const avgRating = ratingVals.length
+            ? Number((ratingVals.reduce((a, b) => a + b, 0) / ratingVals.length).toFixed(1))
+            : 0;
+        const totalDistance = Number(
+            deliveries.reduce((s, d) => s + (Number(d.distance_km) || 0), 0).toFixed(1)
+        );
+
+        res.json({
+            deliveries,
+            stats: { totalDeliveries, peopleHelped, avgRating, totalDistance }
+        });
+    } catch (err) {
+        console.error('GET /api/volunteer/history error:', err);
+        res.status(500).json({ error: 'Failed to fetch delivery history.' });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #7 — GET /api/volunteer/feedback/:userId
+// All ratings/comments left for THIS volunteer by receivers,
+// joined with the offer + donor + receiver info so the page
+// can show "what was delivered, who said it". Returns the list
+// plus aggregate stats (avg, count, 5-star count).
+// ─────────────────────────────────────────────────────────────
+app.get('/api/volunteer/feedback/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[volunteerRow]] = await pool.query(
+            'SELECT volunteer_id FROM Volunteer WHERE user_id = ?',
+            [userId]
+        );
+        if (!volunteerRow) {
+            return res.status(200).json({
+                feedbacks: [],
+                stats: { totalRatings: 0, averageRating: 0, fiveStarCount: 0 }
+            });
+        }
+
+        const [feedbacks] = await pool.query(`
+            SELECT
+                f.feedback_id,
+                f.rating,
+                f.comment,
+                f.feedback_date,
+                f.delivery_id,
+                u_giver.name           AS reviewer_name,
+                fo.offer_id,
+                fo.food_name,
+                fo.quantity_by_kg,
+                fo.number_of_person,
+                fc.category_name,
+                u_donor.name           AS donor_name,
+                u_recv.name            AS receiver_name,
+                rcv.organization_name  AS receiver_org,
+                del.delivery_time
+            FROM Feedback_and_rating f
+            LEFT JOIN User u_giver       ON u_giver.user_id = f.given_by
+            LEFT JOIN Delivery del       ON del.delivery_id = f.delivery_id
+            LEFT JOIN Food_offer fo      ON fo.offer_id     = del.offer_id
+            LEFT JOIN Food_category fc   ON fc.category_id  = fo.category_id
+            LEFT JOIN Donor dnr          ON dnr.donor_id    = fo.donor_id
+            LEFT JOIN User u_donor       ON u_donor.user_id = dnr.user_id
+            LEFT JOIN Receiver rcv       ON rcv.receiver_id = fo.receiver_id
+            LEFT JOIN User u_recv        ON u_recv.user_id  = rcv.user_id
+            WHERE f.volunteer_id = ? AND f.donor_id IS NULL
+            ORDER BY f.feedback_date DESC, f.feedback_id DESC
+        `, [volunteerRow.volunteer_id]);
+
+        const ratings = feedbacks
+            .map(f => Number(f.rating))
+            .filter(r => !Number.isNaN(r));
+        const totalRatings = ratings.length;
+        const averageRating = totalRatings
+            ? Number((ratings.reduce((a, b) => a + b, 0) / totalRatings).toFixed(1))
+            : 0;
+        const fiveStarCount = ratings.filter(r => r >= 5).length;
+
+        res.json({
+            feedbacks,
+            stats: { totalRatings, averageRating, fiveStarCount }
+        });
+    } catch (err) {
+        console.error('GET /api/volunteer/feedback error:', err);
+        res.status(500).json({ error: 'Failed to fetch feedback.' });
+    }
+});
+
+
+// ==============================================================
+// 🆕 VOLUNTEER: NOTIFICATIONS — full CRUD (mirrors Donor APIs)
+// ==============================================================
+
+// 🆕 NEW API #8 — GET /api/volunteer/notifications/all/:userId
+// All notifications for this volunteer, newest first.
+
+app.get('/api/volunteer/notifications/all/:userId', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT * FROM Notifications WHERE user_id = ? ORDER BY date DESC',
+            [req.params.userId]
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error('GET /api/volunteer/notifications/all error:', err);
+        res.status(500).json({ error: 'Failed to load notifications.' });
+    }
+});
+
+// 🆕 NEW API #9 — GET /api/volunteer/notifications/unread-count/:userId
+// Used by the sidebar badge.
+app.get('/api/volunteer/notifications/unread-count/:userId', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND read_at IS NULL',
+            [req.params.userId]
+        );
+        res.json({ count: rows[0].count });
+    } catch (err) {
+        console.error('GET /api/volunteer/notifications/unread-count error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 🆕 NEW API #10 — POST /api/volunteer/notifications/mark-read/:notifId
+// Mark a single notification as read.
+app.post('/api/volunteer/notifications/mark-read/:notifId', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE Notifications SET read_at = NOW() WHERE notification_id = ? AND read_at IS NULL',
+            [req.params.notifId]
+        );
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('POST /api/volunteer/notifications/mark-read error:', err);
+        res.status(500).json({ error: 'Failed to update notification.' });
+    }
+});
+
+// 🆕 NEW API #11 — POST /api/volunteer/notifications/mark-all-read/:userId
+app.post('/api/volunteer/notifications/mark-all-read/:userId', async (req, res) => {
+    try {
+        const [result] = await pool.query(
+            `UPDATE Notifications SET read_at = NOW()
+             WHERE user_id = ? AND read_at IS NULL`,
+            [req.params.userId]
+        );
+        res.status(200).json({ message: `${result.affectedRows} notification(s) marked as read.` });
+    } catch (err) {
+        console.error('POST /api/volunteer/notifications/mark-all-read error:', err);
+        res.status(500).json({ error: 'Failed to mark notifications as read.' });
+    }
+});
+
+// 🆕 NEW API #12 — DELETE /api/volunteer/notifications/delete-all/:userId
+app.delete('/api/volunteer/notifications/delete-all/:userId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM Notifications WHERE user_id = ?', [req.params.userId]);
+        res.status(200).json({ message: 'History cleared.' });
+    } catch (err) {
+        console.error('DELETE /api/volunteer/notifications/delete-all error:', err);
+        res.status(500).json({ error: 'Failed to delete notifications.' });
+    }
+});
+
+// 🆕 NEW API #13 — DELETE /api/volunteer/notifications/:notificationId
+// Body: { userId } — verifies ownership before deletion.
+app.delete('/api/volunteer/notifications/:notificationId', async (req, res) => {
+    const { notificationId } = req.params;
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required.' });
+    try {
+        const [notif] = await pool.query(
+            'SELECT notification_id FROM Notifications WHERE notification_id = ? AND user_id = ?',
+            [notificationId, userId]
+        );
+        if (notif.length === 0) {
+            return res.status(404).json({ error: 'Notification not found or does not belong to you.' });
+        }
+        await pool.query('DELETE FROM Notifications WHERE notification_id = ?', [notificationId]);
+        res.status(200).json({ message: 'Notification deleted successfully.' });
+    } catch (err) {
+        console.error('DELETE /api/volunteer/notifications/:id error:', err);
+        res.status(500).json({ error: 'Failed to delete notification.' });
+    }
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// 🆕 NEW API #14 — GET /api/volunteer/dashboard/:userId
+// One-shot summary for the volunteer dashboard:
+//   • profile name
+//   • stats: completed/active deliveries, avg rating, people helped
+//   • top 5 available offers (claimed by a receiver, no volunteer yet)
+//   • top 5 active deliveries owned by this volunteer
+//   • recent activities (deliveries + ratings received), newest first
+//   • achievement progress (first_delivery, rising_star, weekend_hero)
+//   • most recent rating received
+// ─────────────────────────────────────────────────────────────
+app.get('/api/volunteer/dashboard/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[userRow]] = await pool.query(
+            `SELECT u.user_id, u.name, v.volunteer_id
+             FROM User u JOIN Volunteer v ON v.user_id = u.user_id
+             WHERE u.user_id = ?`,
+            [userId]
+        );
+        if (!userRow) {
+            return res.status(404).json({ error: 'Volunteer not found.' });
+        }
+        const volunteerId = userRow.volunteer_id;
+
+        // ── Stats ────────────────────────────────────────────────
+        const [[{ completedDeliveries }]] = await pool.query(
+            `SELECT COUNT(*) AS completedDeliveries
+             FROM Delivery
+             WHERE volunteer_id = ? AND delivery_status IN ('delivered', 'completed')`,
+            [volunteerId]
+        );
+        const [[{ activeDeliveries }]] = await pool.query(
+            `SELECT COUNT(*) AS activeDeliveries
+             FROM Delivery
+             WHERE volunteer_id = ? AND delivery_status IN ('delivery_accepted', 'in_delivery')`,
+            [volunteerId]
+        );
+        const [[{ avgRating, ratingCount }]] = await pool.query(
+            `SELECT COALESCE(ROUND(AVG(rating), 1), 0) AS avgRating,
+                    COUNT(*) AS ratingCount
+             FROM Feedback_and_rating
+             WHERE volunteer_id = ? AND donor_id IS NULL`,
+            [volunteerId]
+        );
+        const [[{ peopleHelped }]] = await pool.query(
+            `SELECT COALESCE(SUM(fo.number_of_person), 0) AS peopleHelped
+             FROM Delivery d JOIN Food_offer fo ON fo.offer_id = d.offer_id
+             WHERE d.volunteer_id = ? AND d.delivery_status IN ('delivered', 'completed')`,
+            [volunteerId]
+        );
+
+        // ── Available offers (status='accepted', no Delivery yet) ─
+        const [availRows] = await pool.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.pickup_time,
+                fo.quantity_by_kg,
+                donor_user.name      AS donor_name,
+                donor_addr.street    AS donor_street,
+                donor_addr.city      AS donor_city,
+                donor_addr.latitude  AS donor_lat,
+                donor_addr.longitude AS donor_lon,
+                rcv.organization_name AS receiver_org,
+                receiver_user.name   AS receiver_name,
+                receiver_addr.latitude  AS receiver_lat,
+                receiver_addr.longitude AS receiver_lon
+            FROM Food_offer fo
+            JOIN Donor dnr           ON fo.donor_id = dnr.donor_id
+            JOIN User  donor_user    ON dnr.user_id = donor_user.user_id
+            JOIN Address donor_addr  ON dnr.address_id = donor_addr.address_id
+            JOIN Receiver rcv             ON fo.receiver_id = rcv.receiver_id
+            JOIN User receiver_user       ON rcv.user_id = receiver_user.user_id
+            LEFT JOIN Receiver_location rl ON rl.receiver_id = rcv.receiver_id
+            LEFT JOIN Address receiver_addr ON rl.address_id = receiver_addr.address_id
+            WHERE fo.status = 'accepted'
+              AND NOT EXISTS (SELECT 1 FROM Delivery d WHERE d.offer_id = fo.offer_id)
+            ORDER BY fo.offer_id DESC
+            LIMIT 5
+        `);
+        const availableDeliveries = availRows.map(r => ({
+            offer_id:    r.offer_id,
+            food_name:   r.food_name,
+            donor_name:  r.donor_name,
+            donor_address: [r.donor_street, r.donor_city].filter(Boolean).join(', '),
+            receiver_name: r.receiver_org || r.receiver_name,
+            pickup_time: r.pickup_time,
+            quantity_by_kg: r.quantity_by_kg,
+            distance_km: calculateDistance(r.donor_lat, r.donor_lon, r.receiver_lat, r.receiver_lon)
+        }));
+
+        // ── Active deliveries (this volunteer) ────────────────────
+        const [activeRows] = await pool.query(`
+            SELECT
+                d.delivery_id,
+                d.delivery_status,
+                fo.offer_id,
+                fo.food_name,
+                fo.quantity_by_kg,
+                fo.pickup_time,
+                donor_user.name AS donor_name,
+                rcv.organization_name AS receiver_org,
+                receiver_user.name    AS receiver_name
+            FROM Delivery d
+            JOIN Food_offer fo            ON d.offer_id = fo.offer_id
+            JOIN Donor dnr                ON fo.donor_id = dnr.donor_id
+            JOIN User  donor_user         ON dnr.user_id = donor_user.user_id
+            LEFT JOIN Receiver rcv        ON fo.receiver_id = rcv.receiver_id
+            LEFT JOIN User receiver_user  ON rcv.user_id = receiver_user.user_id
+            WHERE d.volunteer_id = ?
+              AND d.delivery_status IN ('delivery_accepted', 'in_delivery')
+            ORDER BY
+                CASE d.delivery_status WHEN 'in_delivery' THEN 1 ELSE 2 END,
+                d.delivery_id DESC
+            LIMIT 5
+        `, [volunteerId]);
+        const activeDeliveriesList = activeRows.map(r => ({
+            delivery_id: r.delivery_id,
+            delivery_status: r.delivery_status,
+            food_name: r.food_name,
+            quantity_by_kg: r.quantity_by_kg,
+            donor_name: r.donor_name,
+            receiver_name: r.receiver_org || r.receiver_name,
+            pickup_time: r.pickup_time
+        }));
+
+        // ── Recent activities (deliveries + ratings) ──────────────
+        const [deliveryActs] = await pool.query(`
+            SELECT d.delivery_id, d.delivery_status, d.delivery_time, fo.food_name,
+                   COALESCE(rcv.organization_name, recv_user.name) AS receiver_name
+            FROM Delivery d
+            JOIN Food_offer fo ON fo.offer_id = d.offer_id
+            LEFT JOIN Receiver rcv     ON rcv.receiver_id = fo.receiver_id
+            LEFT JOIN User recv_user   ON recv_user.user_id = rcv.user_id
+            WHERE d.volunteer_id = ?
+            ORDER BY d.delivery_id DESC
+            LIMIT 10
+        `, [volunteerId]);
+        const [ratingActs] = await pool.query(`
+            SELECT f.feedback_id, f.rating, f.comment, f.feedback_date, fo.food_name
+            FROM Feedback_and_rating f
+            LEFT JOIN Delivery d  ON d.delivery_id = f.delivery_id
+            LEFT JOIN Food_offer fo ON fo.offer_id = d.offer_id
+            WHERE f.volunteer_id = ? AND f.donor_id IS NULL
+            ORDER BY f.feedback_date DESC, f.feedback_id DESC
+            LIMIT 10
+        `, [volunteerId]);
+
+        const acts = [];
+        for (const d of deliveryActs) {
+            const t = d.delivery_time ? new Date(d.delivery_time).toISOString() : null;
+            if (d.delivery_status === 'delivered' || d.delivery_status === 'completed') {
+                acts.push({ kind: 'completed', time: t,
+                    text: `Delivered "${d.food_name}" to ${d.receiver_name || 'receiver'}` });
+            } else if (d.delivery_status === 'in_delivery') {
+                acts.push({ kind: 'started', time: t,
+                    text: `Started delivery of "${d.food_name}"` });
+            } else if (d.delivery_status === 'delivery_accepted') {
+                acts.push({ kind: 'accepted', time: t,
+                    text: `Accepted "${d.food_name}" delivery` });
+            }
+        }
+        for (const f of ratingActs) {
+            acts.push({
+                kind: 'rating',
+                time: f.feedback_date ? new Date(f.feedback_date).toISOString() : null,
+                text: `Received a ${Number(f.rating).toFixed(0)}-star rating${f.food_name ? ` for "${f.food_name}"` : ''}`
+            });
+        }
+        const recentActivities = acts
+            .filter(a => a.time)
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .slice(0, 5);
+
+        // ── Top Partners (replaces achievements) ──────────────────
+        // Real data: receivers this volunteer has delivered to most often,
+        // with delivery count and total kg.
+        const [topPartners] = await pool.query(`
+            SELECT
+                rcv.receiver_id,
+                COALESCE(rcv.organization_name, u.name) AS receiver_name,
+                COUNT(*) AS delivery_count,
+                COALESCE(SUM(fo.quantity_by_kg), 0) AS total_kg,
+                COALESCE(SUM(fo.number_of_person), 0) AS people_helped
+            FROM Delivery d
+            JOIN Food_offer fo ON fo.offer_id = d.offer_id
+            JOIN Receiver rcv  ON rcv.receiver_id = fo.receiver_id
+            JOIN User u        ON u.user_id = rcv.user_id
+            WHERE d.volunteer_id = ?
+              AND d.delivery_status IN ('delivered', 'completed')
+            GROUP BY rcv.receiver_id
+            ORDER BY delivery_count DESC, total_kg DESC
+            LIMIT 5
+        `, [volunteerId]);
+
+        // ── Top rating (most recent) ──────────────────────────────
+        const [[topRating]] = await pool.query(`
+            SELECT
+                f.rating, f.comment, f.feedback_date,
+                fo.food_name,
+                u_giver.name AS reviewer_name,
+                u_donor.name AS donor_name,
+                COALESCE(rcv.organization_name, u_recv.name) AS receiver_name
+            FROM Feedback_and_rating f
+            LEFT JOIN Delivery d   ON d.delivery_id = f.delivery_id
+            LEFT JOIN Food_offer fo ON fo.offer_id  = d.offer_id
+            LEFT JOIN User u_giver  ON u_giver.user_id = f.given_by
+            LEFT JOIN Donor dnr     ON dnr.donor_id = fo.donor_id
+            LEFT JOIN User u_donor  ON u_donor.user_id = dnr.user_id
+            LEFT JOIN Receiver rcv  ON rcv.receiver_id = fo.receiver_id
+            LEFT JOIN User u_recv   ON u_recv.user_id = rcv.user_id
+            WHERE f.volunteer_id = ? AND f.donor_id IS NULL
+            ORDER BY f.feedback_date DESC, f.feedback_id DESC
+            LIMIT 1
+        `, [volunteerId]);
+
+        res.json({
+            user: { user_id: userRow.user_id, name: userRow.name },
+            stats: {
+                completedDeliveries: Number(completedDeliveries),
+                activeDeliveries:    Number(activeDeliveries),
+                avgRating:           Number(avgRating),
+                ratingCount:         Number(ratingCount),
+                peopleHelped:        Number(peopleHelped)
+            },
+            availableDeliveries,
+            activeDeliveries: activeDeliveriesList,
+            recentActivities,
+            topPartners,
+            topRating: topRating || null
+        });
+    } catch (err) {
+        console.error('GET /api/volunteer/dashboard error:', err);
+        res.status(500).json({ error: 'Failed to load dashboard.' });
+    }
+});
 
 
 
@@ -3185,9 +4530,9 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
         }
         const actualVolunteerId = volunteerRow.volunteer_id;
 
-        // 2. Fetch offer details for notifications
+        // 2. Fetch offer details for notifications + gating check
         const [[offerDetails]] = await conn.query(`
-            SELECT fo.food_name, d.user_id AS donor_user_id
+            SELECT fo.food_name, fo.status, fo.receiver_id, d.user_id AS donor_user_id
             FROM Food_offer fo
             JOIN Donor d ON d.donor_id = fo.donor_id
             WHERE fo.offer_id = ?
@@ -3196,6 +4541,14 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
         if (!offerDetails) {
             await conn.rollback();
             return res.status(404).json({ error: 'Offer not found.' });
+        }
+
+        // 🛠 Gate: only allow assigning a volunteer once a receiver has accepted.
+        if (offerDetails.status !== 'accepted' || !offerDetails.receiver_id) {
+            await conn.rollback();
+            return res.status(409).json({
+                error: 'A volunteer can only be assigned after a receiver has accepted this offer.'
+            });
         }
 
         // 3. Update Food_offer status
@@ -3276,20 +4629,76 @@ app.put('/api/admin/food-offers/:offerId/expire', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
     const { offerId } = req.params;
+    const conn = await pool.getConnection();
     try {
-        const [result] = await pool.query(`
-            UPDATE Food_offer
-            SET status = 'cancelled'
-            WHERE offer_id = ?
+        await conn.beginTransaction();
+
+        // Look up donor (to notify) before mutating
+        const [[offer]] = await conn.query(`
+            SELECT fo.food_name, dnr.user_id AS donor_user_id, fo.receiver_id,
+                   rcv.user_id AS receiver_user_id
+            FROM Food_offer fo
+            JOIN Donor dnr ON dnr.donor_id = fo.donor_id
+            LEFT JOIN Receiver rcv ON rcv.receiver_id = fo.receiver_id
+            WHERE fo.offer_id = ?
         `, [offerId]);
 
-        if (result.affectedRows === 0) {
+        if (!offer) {
+            await conn.rollback();
             return res.status(404).json({ error: 'Offer not found.' });
         }
+
+        const [result] = await conn.query(
+            `UPDATE Food_offer SET status = 'cancelled' WHERE offer_id = ?`,
+            [offerId]
+        );
+        if (result.affectedRows === 0) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+
+        // Notify the donor that admin cancelled their offer
+        if (offer.donor_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Offer Cancelled',
+                 `Your offer "${offer.food_name}" has been cancelled by an administrator.`,
+                 'offer_cancelled', offer.donor_user_id]
+            );
+        }
+
+        // Notify the receiver too if they had already claimed it
+        if (offer.receiver_user_id) {
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                 VALUES (?, ?, ?, ?, NOW())`,
+                ['Offer Cancelled',
+                 `The offer "${offer.food_name}" you accepted has been cancelled by an administrator.`,
+                 'offer_cancelled', offer.receiver_user_id]
+            );
+        }
+
+        // Admin-side notification (user_id NULL = goes to admin inbox)
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            ['Offer Cancelled',
+             `Offer "${offer.food_name}" (#${offerId}) was cancelled.`,
+             'offer_cancelled']
+        );
+
+        // Drop any open expiration alert for this offer — no longer relevant
+        await conn.query(`DELETE FROM expiration_alert WHERE offer_id = ?`, [offerId]);
+
+        await conn.commit();
         res.json({ message: 'Offer cancelled.' });
     } catch (err) {
+        await conn.rollback();
         console.error('PUT /api/admin/food-offers/:offerId/cancel error:', err);
         res.status(500).json({ error: 'Failed to cancel offer.' });
+    } finally {
+        conn.release();
     }
 });
 
@@ -4176,8 +5585,6 @@ app.get('/api/admin/notifications', async (req, res) => {
 });
 
 
-
-
 // ── PUT /api/admin/notifications/mark-all-read ────────────────
 app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
     try {
@@ -4304,10 +5711,10 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     let dist = R * c;
     // If the distance is extremely small (e.g., both points are 0,0), treat as invalid
     if (dist < 0.01) return null;
@@ -4376,7 +5783,7 @@ app.get('/api/admin/deliveries', async (req, res) => {
                 status = 'delivered';
             } else if (row.delivery_status === 'in_delivery') {
                 status = 'in_delivery';
-            }else if (row.delivery_status === 'assigned') {
+            } else if (row.delivery_status === 'assigned') {
                 status = 'pending_pickup';
             } else if (!row.delivery_id && row.offer_status === 'accepted') {
                 status = 'pending_pickup';
@@ -4414,6 +5821,113 @@ app.get('/api/admin/deliveries', async (req, res) => {
     }
 });
 
+// // ──── PUT /api/admin/deliveries/:delivery_id/mark-delivered ─────
+// // Marks a delivery as completed. Updates Delivery table and Food_offer status.
+// app.put('/api/admin/deliveries/:delivery_id/mark-delivered', async (req, res) => {
+//     const { delivery_id } = req.params;
+//     const conn = await pool.getConnection();
+
+//     try {
+//         await conn.beginTransaction();
+
+//         // Get delivery and associated offer & donor/receiver info
+//         const [[delivery]] = await conn.query(`
+//             SELECT d.delivery_id, d.offer_id, d.volunteer_id,
+//                 fo.food_name, fo.donor_id,
+//                 dnr.user_id AS donor_user_id,
+//                 rcvr.user_id AS receiver_user_id
+//             FROM Delivery d
+//             JOIN Food_offer fo ON d.offer_id = fo.offer_id
+//             JOIN Donor dnr ON fo.donor_id = dnr.donor_id
+//             LEFT JOIN Receiver rc ON fo.receiver_id = rc.receiver_id
+//             LEFT JOIN User rcvr ON rc.user_id = rcvr.user_id
+//             WHERE d.delivery_id = ?
+//         `, [delivery_id]);
+
+//         if (!delivery) {
+//             await conn.rollback();
+//             return res.status(404).json({ error: 'Delivery not found.' });
+//         }
+
+//         // Update delivery status and delivery_time
+//         await conn.query(`
+//             UPDATE Delivery
+//             SET delivery_status = 'completed', delivery_time = NOW()
+//             WHERE delivery_id = ?
+//         `, [delivery_id]);
+
+//         // Update food offer status to 'delivered'
+//         await conn.query(`
+//             UPDATE Food_offer
+//             SET status = 'delivered'
+//             WHERE offer_id = ?
+//         `, [delivery.offer_id]);
+
+//         // Notify donor
+//         if (delivery.donor_user_id) {
+//             await conn.query(`
+//                 INSERT INTO Notifications (message_title, message, type, user_id, date)
+//                 VALUES (?, ?, ?, ?, NOW())
+//             `, [
+//                 'Delivery Completed',
+//                 `Your offer "${delivery.food_name}" has been successfully delivered. Thank you for your donation!`,
+//                 'delivery_completed',
+//                 delivery.donor_user_id
+//             ]);
+//         }
+
+//         // Notify receiver if exists
+//         if (delivery.receiver_user_id) {
+//             await conn.query(`
+//                 INSERT INTO Notifications (message_title, message, type, user_id, date)
+//                 VALUES (?, ?, ?, ?, NOW())
+//             `, [
+//                 'Delivery Completed',
+//                 `You have received "${delivery.food_name}". Thank you for using FeedHope!`,
+//                 'delivery_completed',
+//                 delivery.receiver_user_id
+//             ]);
+//         }
+
+//         // Notify volunteer
+//         if (delivery.volunteer_id) {
+//             const [[volUser]] = await conn.query(`
+//                 SELECT user_id FROM Volunteer WHERE volunteer_id = ?
+//             `, [delivery.volunteer_id]);
+//             if (volUser) {
+//                 await conn.query(`
+//                     INSERT INTO Notifications (message_title, message, type, user_id, date)
+//                     VALUES (?, ?, ?, ?, NOW())
+//                 `, [
+//                     'Delivery Completed',
+//                     `You successfully delivered "${delivery.food_name}". Thank you for your service!`,
+//                     'delivery_completed',
+//                     volUser.user_id
+//                 ]);
+//             }
+//         }
+
+//         // Admin notification
+//         await conn.query(`
+//             INSERT INTO Notifications (message_title, message, type, user_id, date)
+//             VALUES (?, ?, ?, NULL, NOW())
+//         `, [
+//             'Delivery Marked as Completed',
+//             `Admin marked delivery #${delivery_id} (${delivery.food_name}) as delivered.`,
+//             'delivery_completed'
+//         ]);
+
+//         await conn.commit();
+//         res.json({ message: 'Delivery marked as delivered successfully.' });
+//     } catch (err) {
+//         await conn.rollback();
+//         console.error('PUT /api/admin/deliveries/:delivery_id/mark-delivered error:', err);
+//         res.status(500).json({ error: 'Failed to mark delivery as delivered.' });
+//     } finally {
+//         conn.release();
+//     }
+// });
+
 
 
 
@@ -4435,20 +5949,20 @@ app.get('/api/admin/dashboard/stats', async (req, res) => {
         const [[{ total_donations_kg }]] = await pool.query(`
             SELECT COALESCE(SUM(fo.quantity_by_kg), 0) AS total_donations_kg
             FROM Food_offer fo
-            WHERE fo.status IN ('accepted', 'completed', 'delivered', 'in_delivery', 'pending_pickup')
+            WHERE fo.status IN ('accepted', 'in_delivery', 'delivered')
         `);
 
         const [[{ active_volunteers }]] = await pool.query(`
             SELECT COUNT(DISTINCT v.volunteer_id) AS active_volunteers
             FROM Volunteer v
             JOIN Delivery d ON d.volunteer_id = v.volunteer_id
-            WHERE d.delivery_status IN ('pending_pickup', 'in_delivery')
+            WHERE d.delivery_status IN ('delivery_accepted', 'in_delivery')
         `);
 
         const [[{ pending_requests }]] = await pool.query(`
             SELECT COUNT(*) AS pending_requests
             FROM Food_offer
-            WHERE status = 'pending'
+            WHERE status = 'available'
         `);
 
         const [[{ meals_delivered }]] = await pool.query(`
@@ -4489,9 +6003,9 @@ app.get('/api/admin/dashboard/stats', async (req, res) => {
             AND (
                 (r.role_name = 'Donor' AND sl.action IN ('Create Offer', 'Donation', 'Registration', 'EmailVerified'))
                 OR
-                (r.role_name = 'Volunteer' AND sl.action IN ('Registration', 'EmailVerified'))   -- no 'accept_delivery' exists yet
+                (r.role_name = 'Volunteer' AND sl.action IN ('Registration', 'EmailVerified', 'VOLUNTEER_ACCEPT_DELIVERY', 'VOLUNTEER_START_DELIVERY', 'VOLUNTEER_COMPLETE_DELIVERY'))
                 OR
-                (r.role_name = 'Receiver' AND sl.action IN ('Registration', 'EmailVerified','Cancel Offer', 'Accept Offer' , 'Feedback'))     
+                (r.role_name = 'Receiver' AND sl.action IN ('Registration', 'EmailVerified','Cancel Offer', 'Accept Offer' , 'Feedback'))
             )
             ORDER BY sl.timestamp DESC
             LIMIT 15
@@ -4509,9 +6023,9 @@ app.get('/api/admin/dashboard/stats', async (req, res) => {
         res.json({
             stats: {
                 total_donations_kg: Number(total_donations_kg).toFixed(2),
-                active_volunteers:  Number(active_volunteers),
-                pending_requests:   Number(pending_requests),
-                meals_delivered:    Number(meals_delivered),
+                active_volunteers: Number(active_volunteers),
+                pending_requests: Number(pending_requests),
+                meals_delivered: Number(meals_delivered),
             },
             userDistribution,
             recentActivity,
@@ -4545,7 +6059,7 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
                     COALESCE(SUM(quantity_by_kg), 0)          AS value
                 FROM Food_offer
                 WHERE DATE(created_at) = CURDATE()
-                AND status = 'delivered'
+                AND status IN ('accepted', 'in_delivery', 'delivered')
                 GROUP BY period
                 ORDER BY period ASC
             `);
@@ -4566,7 +6080,7 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
                 FROM Food_offer
                 WHERE YEAR(created_at)  = YEAR(NOW())
                 AND MONTH(created_at) = MONTH(NOW())
-                AND status = 'delivered'
+                AND status IN ('accepted', 'in_delivery', 'delivered')
                 GROUP BY period
                 ORDER BY period ASC
             `);
@@ -4582,14 +6096,14 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
 
         } else if (filter === 'This Year') {
             // Group by month Jan–Dec
-            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             [rows] = await pool.query(`
                 SELECT
                     MONTH(created_at)                        AS period,
                     COALESCE(SUM(quantity_by_kg), 0)         AS value
                 FROM Food_offer
                 WHERE YEAR(created_at) = YEAR(NOW())
-                AND status = 'delivered'
+                AND status IN ('accepted', 'in_delivery', 'delivered')
                 GROUP BY period
                 ORDER BY period ASC
             `);
@@ -4599,14 +6113,14 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
 
         } else if (filter === 'Last Year') {
             // Group by month for the previous calendar year
-            const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             [rows] = await pool.query(`
                 SELECT
                     MONTH(created_at)                        AS period,
                     COALESCE(SUM(quantity_by_kg), 0)         AS value
                 FROM Food_offer
                 WHERE YEAR(created_at) = YEAR(NOW()) - 1
-                AND status = 'delivered'
+                AND status IN ('accepted', 'in_delivery', 'delivered')
                 GROUP BY period
                 ORDER BY period ASC
             `);
@@ -4623,349 +6137,6 @@ app.get('/api/admin/dashboard/trends', async (req, res) => {
         res.status(500).json({ error: 'Failed to load trend data.' });
     }
 });
-
-
-
-// ==============================================================
-// ──────────────── EXPIRATION ALERTS ──────────────────────────
-// ==============================================================
-
-import cron from 'node-cron';
-
-// ─── Helper: check for offers about to expire ─────────────────
-async function checkExpiringOffers() {
-    console.log('[CRON] Checking expiring food offers...');
-    const conn = await pool.getConnection();
-    try {
-        // Find offers that:
-        //   - status is 'available' or 'accepted' (assigned to receiver but no volunteer yet)
-        //   - no active delivery (i.e. no volunteer assigned at all)
-        //   - expiration date is within next 24 hours, but not already expired
-        //   - no recent alert for this offer (last 24h)
-        const [offersToAlert] = await conn.query(`
-            SELECT
-                fo.offer_id,
-                fo.food_name,
-                fo.expiration_date_and_time,
-                fo.donor_id
-            FROM Food_offer fo
-            WHERE fo.status IN ('available', 'accepted')
-              AND NOT EXISTS (
-                  SELECT 1 FROM Delivery d
-                  WHERE d.offer_id = fo.offer_id
-                    AND d.delivery_status IN ('in_delivery', 'completed')
-              )
-              AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 24 HOUR)
-              AND fo.expiration_date_and_time > NOW()
-              AND NOT EXISTS (
-                  SELECT 1 FROM expiration_alert ea
-                  WHERE ea.offer_id = fo.offer_id
-                    AND ea.alert_time > NOW() - INTERVAL 24 HOUR
-              )
-        `);
-
-        if (offersToAlert.length === 0) {
-            console.log('[CRON] No new expiring offers found.');
-            return;
-        }
-
-        for (const offer of offersToAlert) {
-            const message = `Food offer "${offer.food_name}" (ID: ${offer.offer_id}) is about to expire on ${new Date(offer.expiration_date_and_time).toLocaleString()}. No volunteer has been assigned yet. Please take action.`;
-
-            // Get any existing admin ID (e.g., the first admin in the table)
-            const [[adminRow]] = await conn.query(
-                "SELECT admin_id FROM Admin LIMIT 1"
-            );
-            const adminId = adminRow ? adminRow.admin_id : 1; // fallback to 1 if no admin found
-
-            // 1. Insert into expiration_alert table 
-            await conn.query(
-                `INSERT INTO expiration_alert (alert_time, message, admin_id, offer_id)
-                VALUES (NOW(), ?, ?, ?)`,
-                [message, adminId, offer.offer_id]
-            );
-
-             // 2. Insert into Notifications table (admin notification, user_id = NULL)
-            await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                VALUES (?, ?, ?, NULL, NOW())`,
-                ['Expiration Alert⚠️', message, 'expiration_alert']
-            );
-
-
-            console.log(`[CRON] Alert created for offer ID ${offer.offer_id}`);
-        }
-    } catch (err) {
-        console.error('[CRON] Error checking expiring offers:', err);
-    } finally {
-        conn.release();
-    }
-}
-
-// Run every 30 minutes (you can adjust the schedule)
-cron.schedule('*/30 * * * *', checkExpiringOffers);
-
-// Also run immediately on server start
-checkExpiringOffers();
-
-
-// ─── GET /api/admin/expiration-alerts ─────────────────────────
-app.get('/api/admin/expiration-alerts', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT
-                ea.alert_id,
-                ea.alert_time,
-                ea.message,
-                ea.offer_id,
-                fo.food_name,
-                fo.expiration_date_and_time AS expiration_date
-            FROM expiration_alert ea
-            JOIN Food_offer fo ON ea.offer_id = fo.offer_id
-            ORDER BY ea.alert_time DESC
-        `);
-        res.json({ alerts: rows });
-    } catch (err) {
-        console.error('GET /api/admin/expiration-alerts error:', err);
-        res.status(500).json({ error: 'Failed to fetch expiration alerts.' });
-    }
-});
-
-// ─── DELETE /api/admin/expiration-alerts/:alertId ─────────────
-app.delete('/api/admin/expiration-alerts/:alertId', async (req, res) => {
-    const { alertId } = req.params;
-    try {
-        const [result] = await pool.query(
-            'DELETE FROM expiration_alert WHERE alert_id = ?',
-            [alertId]
-        );
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Alert not found.' });
-        }
-        res.json({ message: 'Alert dismissed successfully.' });
-    } catch (err) {
-        console.error('DELETE /api/admin/expiration-alerts error:', err);
-        res.status(500).json({ error: 'Failed to dismiss alert.' });
-    }
-});
-
-
-// ==============================================================
-// ──────────────── Admin → Request a volunteer ─────────────────
-// ==============================================================
-
-// Admin requests a volunteer for an expiring offer
-app.post('/api/admin/request-volunteer', async (req, res) => {
-    const { offerId, volunteerUserId, message, adminId } = req.body;
-    if (!offerId || !volunteerUserId) {
-        return res.status(400).json({ error: 'Offer ID and Volunteer ID required.' });
-    }
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        // Check that offer is still available/accepted and no volunteer assigned
-        const [[offer]] = await conn.query(
-            `SELECT status, food_name FROM Food_offer WHERE offer_id = ?`,
-            [offerId]
-        );
-        if (!offer || !['available','accepted'].includes(offer.status)) {
-            await conn.rollback();
-            return res.status(400).json({ error: 'Offer is not available for assignment.' });
-        }
-
-        // Insert request
-        const [result] = await conn.query(
-            `INSERT INTO Volunteer_Assignment_Request
-             (offer_id, volunteer_user_id, admin_message, status, admin_id, requested_at)
-             VALUES (?, ?, ?, 'pending', ?, NOW())`,
-            [offerId, volunteerUserId, message || null, adminId || null]
-        );
-
-        // Notify the volunteer
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
-            [
-                'New Assignment Request',
-                `Admin needs you to deliver "${offer.food_name}". Message: ${message || 'Please accept or reject this request.'}`,
-                'assignment_request',
-                volunteerUserId
-            ]
-        );
-
-        // Notify admin (user_id = NULL) – fixed string syntax
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, NULL, NOW())`,
-            [
-                'Request Sent',
-                `Request sent to volunteer (ID ${volunteerUserId}) for offer "${offer.food_name}".`,
-                'assignment_request'
-            ]
-        );
-
-        await conn.commit();
-        res.status(201).json({ message: 'Request sent to volunteer.', requestId: result.insertId });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: 'Failed to send request.' });
-    } finally {
-        conn.release();
-    }
-});
-
-
-
-// ==============================================================
-// ──────────────── Volunteer accepts request ───────────────────
-// ==============================================================
-
-app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) => {
-    const { requestId } = req.params;
-    const { volunteerUserId } = req.body; // for security
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [[request]] = await conn.query(
-            `SELECT * FROM Volunteer_Assignment_Request
-             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
-            [requestId, volunteerUserId]
-        );
-        if (!request) {
-            await conn.rollback();
-            return res.status(404).json({ error: 'Request not found or already processed.' });
-        }
-
-        // Update request status
-        await conn.query(
-            `UPDATE Volunteer_Assignment_Request
-             SET status = 'accepted', responded_at = NOW()
-             WHERE request_id = ?`,
-            [requestId]
-        );
-
-        // Create Delivery record and update Food_offer status
-        const [[offer]] = await conn.query(
-            `SELECT donor_id FROM Food_offer WHERE offer_id = ?`,
-            [request.offer_id]
-        );
-        const [[volunteer]] = await conn.query(
-            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`,
-            [volunteerUserId]
-        );
-
-        await conn.query(
-            `INSERT INTO Delivery (delivery_status, volunteer_id, offer_id, pickup_time)
-             VALUES ('pending_pickup', ?, ?, NOW())`,
-            [volunteer.volunteer_id, request.offer_id]
-        );
-
-        await conn.query(
-            `UPDATE Food_offer SET status = 'in_delivery' WHERE offer_id = ?`,
-            [request.offer_id]
-        );
-
-        // Notify admin that volunteer accepted
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, NULL, NOW())`,
-            ['Assignment Accepted', `Volunteer accepted the request for offer ID ${request.offer_id}.`, 'assignment_response', null]
-        );
-
-        // Remove any expiration alert for this offer
-        await conn.query(`DELETE FROM expiration_alert WHERE offer_id = ?`, [request.offer_id]);
-
-        await conn.commit();
-        res.json({ message: 'Request accepted. You are now assigned to this delivery.' });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: 'Failed to accept request.' });
-    } finally {
-        conn.release();
-    }
-});
-
-
-
-
-// ==============================================================
-// ──────────────── Volunteer rejects request ───────────────────
-// ==============================================================
-
-app.put('/api/volunteer/assignment-request/:requestId/reject', async (req, res) => {
-    const { requestId } = req.params;
-    const { volunteerUserId, reason } = req.body;
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [[request]] = await conn.query(
-            `SELECT * FROM Volunteer_Assignment_Request
-             WHERE request_id = ? AND volunteer_user_id = ? AND status = 'pending'`,
-            [requestId, volunteerUserId]
-        );
-        if (!request) {
-            await conn.rollback();
-            return res.status(404).json({ error: 'Request not found or already processed.' });
-        }
-
-        await conn.query(
-            `UPDATE Volunteer_Assignment_Request
-             SET status = 'rejected', responded_at = NOW(), volunteer_reason = ?
-             WHERE request_id = ?`,
-            [reason || null, requestId]
-        );
-
-        // Notify admin with reason
-        await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, NULL, NOW())`,
-            ['Assignment Rejected', `Volunteer rejected the request for offer ID ${request.offer_id}. Reason: ${reason || 'No reason provided.'}`, 'assignment_response', null]
-        );
-
-        await conn.commit();
-        res.json({ message: 'Request rejected.' });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        res.status(500).json({ error: 'Failed to reject request.' });
-    } finally {
-        conn.release();
-    }
-});
-
-
-
-// ===============================================================================
-// ───── Volunteer fetches pending requests (for their dashboard) ─────
-// ===============================================================================
-
-app.get('/api/volunteer/pending-requests/:userId', async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const [rows] = await pool.query(`
-            SELECT r.request_id, r.offer_id, r.admin_message, r.requested_at,
-                o.food_name, o.expiration_date_and_time
-            FROM Volunteer_Assignment_Request r
-            JOIN Food_offer o ON r.offer_id = o.offer_id
-            WHERE r.volunteer_user_id = ? AND r.status = 'pending'
-            ORDER BY r.requested_at DESC
-        `, [userId]);
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch requests.' });
-    }
-});
-
-
 
 
 // ────────────────────────────── NEWWWW ──────────────────────────────────
@@ -4994,9 +6165,9 @@ app.post("/api/donor/request-money", async (req, res) => {
 
         // Generate reference number: MR-20260423-00001
         const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
         const [[{ lastId }]] = await conn.query("SELECT COALESCE(MAX(request_id),0) AS lastId FROM money_request");
-        const refNumber = `MR-${datePart}-${String(Number(lastId)+1).padStart(5,'0')}`;
+        const refNumber = `MR-${datePart}-${String(Number(lastId) + 1).padStart(5, '0')}`;
 
         await conn.query(
             `INSERT INTO money_request (amount, reason, status, request_date, reference_number, donor_id)
@@ -5016,7 +6187,7 @@ app.post("/api/donor/request-money", async (req, res) => {
             VALUES (?, ?, ?, NULL, NOW())`,
             [
                 'New Money Request',
-                `Donor "${donorName}" requested $${amount} for: ${reason.substring(0,100)}`,
+                `Donor "${donorName}" requested $${amount} for: ${reason.substring(0, 100)}`,
                 'money_request'
             ]
         );
@@ -5151,9 +6322,9 @@ app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
 
         // 2. Create completed distribution (no donor approval)
         const today = new Date();
-        const datePart = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const datePart = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
         const [[{ lastDistId }]] = await conn.query("SELECT COALESCE(MAX(distribution_id),0) AS lastDistId FROM Fund_Distribution");
-        const distRef = `FD-${datePart}-${String(Number(lastDistId)+1).padStart(5,'0')}`;
+        const distRef = `FD-${datePart}-${String(Number(lastDistId) + 1).padStart(5, '0')}`;
 
         let resolvedAdminId = null;
         if (adminId) {
@@ -5182,7 +6353,7 @@ app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
             request.donor_user_id
         ]);
 
-       // Notify the admin that they approved the request
+        // Notify the admin that they approved the request
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL , NOW())`,
@@ -5250,7 +6421,7 @@ app.put("/api/admin/money-requests/:id/reject", async (req, res) => {
         ]);
 
 
-       // Notify the admin that they rejected the request
+        // Notify the admin that they rejected the request
         await conn.query(
             `INSERT INTO Notifications (message_title, message, type, user_id, date)
             VALUES (?, ?, ?, NULL, NOW())`,
@@ -5275,7 +6446,213 @@ app.put("/api/admin/money-requests/:id/reject", async (req, res) => {
 
 
 
+
+// ==============================================================
+// ──────────────── EXPIRATION ALERTS ──────────────────────────
+// ==============================================================
+// ─── Helper: check for offers about to expire ─────────────────
+async function checkExpiringOffers() {
+    const conn = await pool.getConnection();
+    try {
+        // Find offers that:
+        //   - status is 'available' or 'accepted' (assigned to receiver but no volunteer yet)
+        //   - no active delivery (i.e. no volunteer assigned at all)
+        //   - expiration date is within next 24 hours, but not already expired
+        //   - no recent alert for this offer (last 24h)
+        const [offersToAlert] = await conn.query(`
+            SELECT
+                fo.offer_id,
+                fo.food_name,
+                fo.expiration_date_and_time,
+                fo.donor_id
+            FROM Food_offer fo
+            WHERE fo.status IN ('available', 'accepted')
+              AND NOT EXISTS (
+                  SELECT 1 FROM Delivery d
+                  WHERE d.offer_id = fo.offer_id
+                    AND d.delivery_status IN ('in_delivery', 'completed')
+              )
+              AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 24 HOUR)
+              AND fo.expiration_date_and_time > NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM expiration_alert ea
+                  WHERE ea.offer_id = fo.offer_id
+                    AND ea.alert_time > NOW() - INTERVAL 24 HOUR
+              )
+        `);
+
+        if (offersToAlert.length === 0) {
+            return;
+        }
+
+        for (const offer of offersToAlert) {
+            const message = `Food offer "${offer.food_name}" (ID: ${offer.offer_id}) is about to expire on ${new Date(offer.expiration_date_and_time).toLocaleString()}. No volunteer has been assigned yet. Please take action.`;
+
+            // Get any existing admin ID (e.g., the first admin in the table)
+            const [[adminRow]] = await conn.query(
+                "SELECT admin_id FROM Admin LIMIT 1"
+            );
+            const adminId = adminRow ? adminRow.admin_id : 1; // fallback to 1 if no admin found
+
+            // 1. Insert into expiration_alert table 
+            await conn.query(
+                `INSERT INTO expiration_alert (alert_time, message, admin_id, offer_id)
+                VALUES (NOW(), ?, ?, ?)`,
+                [message, adminId, offer.offer_id]
+            );
+
+             // 2. Insert into Notifications table (admin notification, user_id = NULL)
+            await conn.query(
+                `INSERT INTO Notifications (message_title, message, type, user_id, date)
+                VALUES (?, ?, ?, NULL, NOW())`,
+                ['Expiration Alert⚠️', message, 'expiration_alert']
+            );
+
+
+        }
+    } catch (err) {
+        console.error('[CRON] Error checking expiring offers:', err);
+    } finally {
+        conn.release();
+    }
+}
+
+// Run every 30 minutes (you can adjust the schedule)
+cron.schedule('*/30 * * * *', checkExpiringOffers);
+
+// Also run immediately on server start
+checkExpiringOffers();
+
+
+// ─── GET /api/admin/expiration-alerts ─────────────────────────
+app.get('/api/admin/expiration-alerts', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                ea.alert_id,
+                ea.alert_time,
+                ea.message,
+                ea.offer_id,
+                fo.food_name,
+                fo.expiration_date_and_time AS expiration_date,
+                fo.status                   AS offer_status,
+                fo.receiver_id
+            FROM expiration_alert ea
+            JOIN Food_offer fo ON ea.offer_id = fo.offer_id
+            ORDER BY ea.alert_time DESC
+        `);
+        res.json({ alerts: rows });
+    } catch (err) {
+        console.error('GET /api/admin/expiration-alerts error:', err);
+        res.status(500).json({ error: 'Failed to fetch expiration alerts.' });
+    }
+});
+
+// ─── DELETE /api/admin/expiration-alerts/:alertId ─────────────
+app.delete('/api/admin/expiration-alerts/:alertId', async (req, res) => {
+    const { alertId } = req.params;
+    try {
+        const [result] = await pool.query(
+            'DELETE FROM expiration_alert WHERE alert_id = ?',
+            [alertId]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Alert not found.' });
+        }
+        res.json({ message: 'Alert dismissed successfully.' });
+    } catch (err) {
+        console.error('DELETE /api/admin/expiration-alerts error:', err);
+        res.status(500).json({ error: 'Failed to dismiss alert.' });
+    }
+});
+
+
+
+// ==============================================================
+// ──────────────── Admin → Request a volunteer ─────────────────
+// ==============================================================
+
+// Admin requests a volunteer for an expiring offer
+app.post('/api/admin/request-volunteer', async (req, res) => {
+    const { offerId, volunteerUserId, message, adminId } = req.body;
+    if (!offerId || !volunteerUserId) {
+        return res.status(400).json({ error: 'Offer ID and Volunteer ID required.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Check that offer is ALREADY accepted by a receiver and no volunteer assigned.
+        // 🛠 Fixed: previously also accepted status='available', which let admins
+        //    dispatch a volunteer to an offer no receiver had claimed yet.
+        const [[offer]] = await conn.query(
+            `SELECT status, food_name, receiver_id FROM Food_offer WHERE offer_id = ?`,
+            [offerId]
+        );
+        if (!offer) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'Offer not found.' });
+        }
+        if (offer.status !== 'accepted' || !offer.receiver_id) {
+            await conn.rollback();
+            return res.status(409).json({
+                error: 'A volunteer can only be assigned after a receiver has accepted this offer.'
+            });
+        }
+
+        // Insert request
+        const [result] = await conn.query(
+            `INSERT INTO Volunteer_Assignment_Request
+             (offer_id, volunteer_user_id, admin_message, status, admin_id, requested_at)
+             VALUES (?, ?, ?, 'pending', ?, NOW())`,
+            [offerId, volunteerUserId, message || null, adminId || null]
+        );
+
+        // Notify the volunteer
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, ?, NOW())`,
+            [
+                'New Assignment Request',
+                `Admin needs you to deliver "${offer.food_name}". Message: ${message || 'Please accept or reject this request.'}`,
+                'assignment_request',
+                volunteerUserId
+            ]
+        );
+
+        // Notify admin (user_id = NULL) – fixed string syntax
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Request Sent',
+                `Request sent to volunteer (ID ${volunteerUserId}) for offer "${offer.food_name}".`,
+                'assignment_request'
+            ]
+        );
+
+        await conn.commit();
+        res.status(201).json({ message: 'Request sent to volunteer.', requestId: result.insertId });
+    } catch (err) {
+        await conn.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Failed to send request.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+
+
+
+
+
 // ==============================================================
 // ──────────────── START SERVER ────────────────────────────────
 // ==============================================================
-app.listen(5000, () => console.log("O&H - FeedHope"));
+app.listen(5000, () => process.stdout.write("O&H - FeedHope"));
+
+
+

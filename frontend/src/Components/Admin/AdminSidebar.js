@@ -96,8 +96,20 @@ const AdminSidebar = ({ onLogout, activePage }) => {
         fetchUnreadCount();
         const handleRead = () => fetchUnreadCount();
         window.addEventListener('notification-read', handleRead);
-        return () => window.removeEventListener('notification-read', handleRead);
+        window.addEventListener('notifUpdated', handleRead);
+        const interval = setInterval(handleRead, 3000);
+        return () => {
+            window.removeEventListener('notification-read', handleRead);
+            window.removeEventListener('notifUpdated', handleRead);
+            clearInterval(interval);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [adminUserId]);
+
+    useEffect(() => {
+        fetchUnreadCount();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname]);
 
     return (
         <>

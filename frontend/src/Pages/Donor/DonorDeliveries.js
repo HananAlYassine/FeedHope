@@ -57,9 +57,25 @@ const DonorDeliveries = () => {
         fetchDeliveries();
     }, [user]);
 
+    // Real-time: silently re-fetch every 3s so delivery status updates from
+    // volunteers reflect here without a manual refresh.
+    useEffect(() => {
+        if (!user?.user_id) return;
+        const silentRefresh = async () => {
+            try {
+                const response = await fetch(`http://localhost:5000/api/donor/deliveries/${user.user_id}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                setDeliveries(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, [user?.user_id]);
+
     // Calculate stats
-    const acceptedCount = deliveries.filter(d => d.delivery_status === 'accepted by delivery').length;
-    const inDeliverCount = deliveries.filter(d => d.delivery_status === 'in deliver').length;
+    const acceptedCount = deliveries.filter(d => d.delivery_status === 'delivery_accepted').length;
+    const inDeliverCount = deliveries.filter(d => d.delivery_status === 'in_delivery').length;
     const deliveredCount = deliveries.filter(d => d.delivery_status === 'delivered').length;
 
     // Filter deliveries based on search & status
@@ -68,8 +84,8 @@ const DonorDeliveries = () => {
 
         if (statusFilter !== 'All') {
             const statusMap = {
-                'Accepted': 'accepted by delivery',
-                'In Deliver': 'in deliver',
+                'Accepted': 'delivery_accepted',
+                'In Deliver': 'in_delivery',
                 'Delivered': 'delivered'
             };
             filtered = filtered.filter(d => d.delivery_status === statusMap[statusFilter]);
@@ -94,16 +110,16 @@ const DonorDeliveries = () => {
     const getStatusClass = (status) => {
         switch (status) {
             case 'delivered': return 'status-delivered';
-            case 'in deliver': return 'status-transit';
-            case 'accepted by delivery': return 'status-accepted';
+            case 'in_delivery': return 'status-transit';
+            case 'delivery_accepted': return 'status-accepted';
             default: return 'status-accepted';
         }
     };
 
     const getStatusText = (status) => {
         switch (status) {
-            case 'accepted by delivery': return 'Accepted by Delivery';
-            case 'in deliver': return 'In Deliver';
+            case 'delivery_accepted': return 'Accepted by Delivery';
+            case 'in_delivery': return 'In Deliver';
             case 'delivered': return 'Delivered';
             default: return status;
         }
@@ -229,9 +245,13 @@ const DonorDeliveries = () => {
                                         <th>Food Item</th>
                                         <th>Volunteer</th>
                                         <th>Status</th>
-                                        <th>Pickup Time</th>
-                                        <th>Delivery Time</th>
-                                        <th>Notes</th>
+                                        {statusFilter !== 'Accepted' && <th>Pickup Time</th>}
+                                        {statusFilter !== 'Accepted' && statusFilter !== 'In Deliver' && (
+                                            <>
+                                                <th>Delivery Time</th>
+                                                <th>Notes</th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -244,9 +264,13 @@ const DonorDeliveries = () => {
                                                     {getStatusText(delivery.delivery_status)}
                                                 </span>
                                             </td>
-                                            <td>{formatTime(delivery.pickup_time)}</td>
-                                            <td>{formatTime(delivery.delivery_time)}</td>
-                                            <td className="ddel-notes">{delivery.notes || '—'}</td>
+                                            {statusFilter !== 'Accepted' && <td>{formatTime(delivery.pickup_time)}</td>}
+                                            {statusFilter !== 'Accepted' && statusFilter !== 'In Deliver' && (
+                                                <>
+                                                    <td>{formatTime(delivery.delivery_time)}</td>
+                                                    <td className="ddel-notes">{delivery.notes || '—'}</td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

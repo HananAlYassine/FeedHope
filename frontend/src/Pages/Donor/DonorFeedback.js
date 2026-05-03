@@ -105,19 +105,29 @@ const DonorFeedback = () => {
                                 <h3 className="dn-category-title">RECEIVER REVIEWS</h3>
                             </div>
                             <div className="dn-category-items">
-                                {feedbacks.map((item, index) => (
-                                    <div key={index} className="dn-notification-item" style={{ cursor: 'default', flexDirection: 'column', gap: '10px' }}>
+                                {feedbacks.map((item) => (
+                                    <div key={item.feedback_id} className="dn-notification-item" style={{ cursor: 'default', flexDirection: 'column', gap: '10px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                                             <div style={{ fontWeight: 'bold', fontSize: '1.05rem' }}>
-                                                {item.first_name} {item.last_name}
+                                                {item.reviewer_name || 'Anonymous Receiver'}
                                             </div>
                                             <div className="dn-notification-date">
-                                                {new Date(item.feedback_date).toLocaleDateString()}
+                                                {item.feedback_date ? new Date(item.feedback_date).toLocaleDateString() : '—'}
                                             </div>
                                         </div>
 
-                                        <div style={{ display: 'flex', gap: '2px' }}>
+                                        {item.food_name && (
+                                            <div style={{ fontSize: '0.9rem', color: '#475569' }}>
+                                                On donation: <strong>{item.food_name}</strong>
+                                                {item.quantity_by_kg ? ` (${item.quantity_by_kg} KG)` : ''}
+                                            </div>
+                                        )}
+
+                                        <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                                             {renderStars(item.rating)}
+                                            <span style={{ marginLeft: 8, fontSize: '0.9rem', color: '#666' }}>
+                                                {item.rating}/5
+                                            </span>
                                         </div>
 
                                         {item.comment && (

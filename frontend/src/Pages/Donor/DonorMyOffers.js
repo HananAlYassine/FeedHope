@@ -22,6 +22,14 @@ const DIETARY_OPTIONS = [
 
 const STATUS_FILTERS = ['All', 'Available', 'Accepted', 'In_delivery', 'Delivered', 'Expired'];
 
+// Same helper as DonorNewOffer.js — returns the current local time
+// formatted for an <input type="datetime-local"> element.
+const getCurrentDatetimeLocal = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+};
+
 const DonorMyOffers = () => {
     const navigate = useNavigate();
 
@@ -41,6 +49,9 @@ const DonorMyOffers = () => {
     const [activeActionMenu, setActiveActionMenu] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isLoadingOffer, setIsLoadingOffer] = useState(false);
+    // Snapshot of pickup/expiry as loaded — used to skip the past-date check
+    // when the donor didn't actually change the dates.
+    const [originalDates, setOriginalDates] = useState({ pickup: '', expiry: '' });
     const [editFormData, setEditFormData] = useState({
         offer_id: '',
         food_name: '',
@@ -156,6 +167,9 @@ const DonorMyOffers = () => {
                         return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                     };
 
+                    const formattedPickup = formatDateForInput(offerData.pickup_time);
+                    const formattedExpiry = formatDateForInput(offerData.expiration_date_and_time);
+
                     setEditFormData({
                         offer_id: offerData.offer_id,
                         food_name: offerData.food_name || '',
@@ -163,10 +177,13 @@ const DonorMyOffers = () => {
                         dietary_information: offerData.dietary_information || 'No specific dietary flags',
                         quantity_by_kg: offerData.quantity_by_kg || '',
                         number_of_person: offerData.number_of_person || '',
-                        expiration_date_and_time: formatDateForInput(offerData.expiration_date_and_time),
-                        pickup_time: formatDateForInput(offerData.pickup_time),
+                        expiration_date_and_time: formattedExpiry,
+                        pickup_time: formattedPickup,
                         category_id: offerData.category_id || ''
                     });
+                    // Remember what was loaded so the submit-time validator
+                    // only blocks past dates when the donor actually edits them.
+                    setOriginalDates({ pickup: formattedPickup, expiry: formattedExpiry });
                 }
             } else {
                 alert("Failed to load offer details");
@@ -192,6 +209,30 @@ const DonorMyOffers = () => {
         }
         if (!editFormData.category_id) {
             alert("Please select a category");
+            return;
+        }
+
+        // ── Date validation (mirrors DonorNewOffer): block past dates,
+        //    require expiry > pickup. Past-check only fires when the
+        //    donor actually changed the date from the loaded value.
+        const now            = new Date();
+        const pickupStr      = editFormData.pickup_time;
+        const expiryStr      = editFormData.expiration_date_and_time;
+        const pickup         = pickupStr ? new Date(pickupStr) : null;
+        const expiry         = expiryStr ? new Date(expiryStr) : null;
+        const pickupChanged  = pickupStr !== originalDates.pickup;
+        const expiryChanged  = expiryStr !== originalDates.expiry;
+
+        if (pickupChanged && pickup && pickup < now) {
+            alert('Pickup time cannot be in the past.');
+            return;
+        }
+        if (expiryChanged && expiry && expiry < now) {
+            alert('Expiration date cannot be in the past.');
+            return;
+        }
+        if (pickup && expiry && expiry <= pickup) {
+            alert('Expiration time must be after pickup time.');
             return;
         }
 
@@ -246,6 +287,24 @@ const DonorMyOffers = () => {
         };
         fetchOffers();
     }, [statusFilter, user, navigate]);
+
+    // Real-time: silently re-fetch every 3s so status changes (accepted /
+    // in_delivery / delivered / expired) appear without a manual refresh.
+    useEffect(() => {
+        if (!user?.user_id) return;
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch(
+                    `http://localhost:5000/api/donor/my-offers/${user.user_id}?status=${statusFilter}`
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                setOffers(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, [user?.user_id, statusFilter]);
 
     // Filter offers based on search term
     const displayedOffers = useMemo(() => {
@@ -590,6 +649,7 @@ const DonorMyOffers = () => {
                                                 <input
                                                     type="datetime-local"
                                                     value={editFormData.expiration_date_and_time}
+                                                    min={getCurrentDatetimeLocal()}
                                                     onChange={(e) => setEditFormData({ ...editFormData, expiration_date_and_time: e.target.value })}
                                                 />
                                             </div>
@@ -598,6 +658,7 @@ const DonorMyOffers = () => {
                                                 <input
                                                     type="datetime-local"
                                                     value={editFormData.pickup_time}
+                                                    min={getCurrentDatetimeLocal()}
                                                     onChange={(e) => setEditFormData({ ...editFormData, pickup_time: e.target.value })}
                                                 />
                                             </div>

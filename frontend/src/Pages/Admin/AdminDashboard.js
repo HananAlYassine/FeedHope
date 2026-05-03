@@ -243,6 +243,41 @@ const AdminDashboard = () => {
         fetchTrend(trendFilter);
     }, [trendFilter]);
 
+    // Real-time: silently re-fetch stats / volunteers / alerts / trend every 3s
+    // (no loading flicker — bypasses the loading-toggling fetch helpers above).
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const [statsRes, volRes, alertsRes, trendRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/admin/dashboard/stats'),
+                    fetch('http://localhost:5000/api/admin/volunteers'),
+                    fetch('http://localhost:5000/api/admin/expiration-alerts'),
+                    fetch(`http://localhost:5000/api/admin/dashboard/trends?filter=${encodeURIComponent(trendFilter)}`)
+                ]);
+                if (statsRes.ok) {
+                    const data = await statsRes.json();
+                    setStats(data.stats);
+                    setPieData(data.userDistribution || []);
+                    setActivity(data.recentActivity || []);
+                }
+                if (volRes.ok) {
+                    const data = await volRes.json();
+                    setVolunteers(data.volunteers || []);
+                }
+                if (alertsRes.ok) {
+                    const data = await alertsRes.json();
+                    setExpirationAlerts(data.alerts || []);
+                }
+                if (trendRes.ok) {
+                    const data = await trendRes.json();
+                    setTrendData(data.trends || []);
+                }
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, [trendFilter]);
+
     const totalDonationsKg = stats?.total_donations_kg   ?? 0;
     const activeVolunteers = stats?.active_volunteers     ?? 0;
     const pendingRequests  = stats?.pending_requests      ?? 0;
@@ -276,8 +311,11 @@ const AdminDashboard = () => {
 
                     {/* Expiration Alerts Modal */}
                     {showAlertModal && expirationAlerts.length > 0 && (
-                        <div className="adsh-modal-overlay">
-                            <div className="adsh-modal adsh-modal--danger">
+                        <div className="adsh-modal-overlay" onClick={() => setShowAlertModal(false)}>
+                            <div
+                                className="adsh-modal adsh-modal--danger"
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 <div className="adsh-modal-header">
                                     <h3>⚠️ Expiration Alerts</h3>
                                     <button className="adsh-modal-close" onClick={() => setShowAlertModal(false)}>×</button>
@@ -285,30 +323,44 @@ const AdminDashboard = () => {
                                 <div className="adsh-modal-body">
                                     <p>The following food offers are about to expire and still have no volunteer assigned:</p>
                                     <ul>
-                                        {expirationAlerts.map(alert => (
-                                            <li key={alert.alert_id}>
-                                                {alert.message}
-                                                <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                                                    <button
-                                                        className="adsh-dismiss-btn"
-                                                        onClick={() => dismissAlert(alert.alert_id)}
-                                                    >
-                                                        Dismiss
-                                                    </button>
-                                                    <button
-                                                        className="adsh-assign-btn"
-                                                        onClick={() => handleAssignClick(
-                                                            alert.offer_id,
-                                                            alert.alert_id,
-                                                            alert.food_name,
-                                                            alert.expiration_date
-                                                        )}
-                                                    >
-                                                        Assign to Volunteer
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        ))}
+                                        {expirationAlerts.map(alert => {
+                                            const acceptedByReceiver =
+                                                alert.offer_status === 'accepted' && !!alert.receiver_id;
+                                            return (
+                                                <li key={alert.alert_id}>
+                                                    {alert.message}
+                                                    {!acceptedByReceiver && (
+                                                        <div style={{ marginTop: 6, fontSize: 12, color: '#b91c1c', fontStyle: 'italic' }}>
+                                                            Waiting for a receiver to accept — a volunteer can be assigned only after that.
+                                                        </div>
+                                                    )}
+                                                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                                                        <button
+                                                            className="adsh-dismiss-btn"
+                                                            onClick={() => dismissAlert(alert.alert_id)}
+                                                        >
+                                                            Dismiss
+                                                        </button>
+                                                        <button
+                                                            className="adsh-assign-btn"
+                                                            disabled={!acceptedByReceiver}
+                                                            title={acceptedByReceiver
+                                                                ? 'Send a request to a volunteer'
+                                                                : 'A receiver must accept this offer first'}
+                                                            style={!acceptedByReceiver ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                                                            onClick={() => acceptedByReceiver && handleAssignClick(
+                                                                alert.offer_id,
+                                                                alert.alert_id,
+                                                                alert.food_name,
+                                                                alert.expiration_date
+                                                            )}
+                                                        >
+                                                            Assign to Volunteer
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                                 <div className="adsh-modal-footer">
@@ -327,24 +379,38 @@ const AdminDashboard = () => {
                             <div className="adsh-alert-content">
                                 <strong>🚨 Expiration Alerts ({expirationAlerts.length})</strong>
                                 <div className="adsh-alert-messages">
-                                    {expirationAlerts.map(alert => (
-                                        <div key={alert.alert_id} className="adsh-alert-item">
-                                            {alert.message}
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <button onClick={() => dismissAlert(alert.alert_id)}>✖</button>
-                                                <button
-                                                    onClick={() => handleAssignClick(
-                                                        alert.offer_id,
-                                                        alert.alert_id,
-                                                        alert.food_name,
-                                                        alert.expiration_date
-                                                    )}
-                                                >
-                                                    Assign
-                                                </button>
+                                    {expirationAlerts.map(alert => {
+                                        const acceptedByReceiver =
+                                            alert.offer_status === 'accepted' && !!alert.receiver_id;
+                                        return (
+                                            <div key={alert.alert_id} className="adsh-alert-item">
+                                                {alert.message}
+                                                {!acceptedByReceiver && (
+                                                    <span style={{ marginLeft: 8, fontStyle: 'italic', fontSize: 12 }}>
+                                                        (waiting for receiver acceptance)
+                                                    </span>
+                                                )}
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button onClick={() => dismissAlert(alert.alert_id)}>✖</button>
+                                                    <button
+                                                        disabled={!acceptedByReceiver}
+                                                        title={acceptedByReceiver
+                                                            ? 'Send a request to a volunteer'
+                                                            : 'A receiver must accept this offer first'}
+                                                        style={!acceptedByReceiver ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                                                        onClick={() => acceptedByReceiver && handleAssignClick(
+                                                            alert.offer_id,
+                                                            alert.alert_id,
+                                                            alert.food_name,
+                                                            alert.expiration_date
+                                                        )}
+                                                    >
+                                                        Assign
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                                 <button className="adsh-alert-dismiss-all" onClick={dismissAllAlerts}>
                                     Dismiss All

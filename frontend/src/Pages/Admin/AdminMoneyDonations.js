@@ -48,6 +48,21 @@ const AdminMoneyDonations = () => {
     // so stats always stay accurate regardless of which tab is active
     useEffect(() => { fetchAllDonations(); }, []);
 
+    // Real-time: silently re-fetch every 3s so new donor money donations
+    // appear without a manual refresh.
+    useEffect(() => {
+        const silentRefresh = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/money-donations');
+                if (!res.ok) return;
+                const data = await res.json();
+                setAllDonations(data);
+            } catch {}
+        };
+        const interval = setInterval(silentRefresh, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     const fetchAllDonations = async () => {
         try {
             setLoading(true);

@@ -19,8 +19,8 @@ const LandingPage = () => {
     };
 
     const handleSocialClick = (url) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-};
+        window.open(url, "_blank", "noopener,noreferrer");
+    };
     return (
         <div className="hero-wrapper" style={wrapperStyle}>
             <header>
