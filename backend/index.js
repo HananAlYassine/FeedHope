@@ -6307,6 +6307,22 @@ app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
             return res.status(404).json({ error: "Request not found or already processed." });
         }
 
+
+        // --- Balance check before approving ---
+        const [[{ totalCollected }]] = await conn.query(
+            `SELECT COALESCE(SUM(amount), 0) AS totalCollected FROM Money_donation WHERE status = 'approved'`
+        );
+        const [[{ totalDistributed }]] = await conn.query(
+            `SELECT COALESCE(SUM(amount), 0) AS totalDistributed FROM Fund_Distribution WHERE status IN ('pending', 'completed')`
+        );
+        const availableBalance = Number(totalCollected) - Number(totalDistributed);
+        if (Number(request.amount) > availableBalance) {
+            await conn.rollback();
+            return res.status(400).json({
+                error: `Insufficient balance. Requested: $${Number(request.amount).toFixed(2)}, Available: $${availableBalance.toFixed(2)}`
+            });
+        }
+
         // Fetch donor name for better notification message
         const [[donorInfo]] = await conn.query(
             "SELECT name FROM User WHERE user_id = ?",

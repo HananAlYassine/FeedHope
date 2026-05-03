@@ -62,6 +62,15 @@ const AdminFundDistribution = () => {
         open: false, request: null, reason: ''
     });
 
+    // ── Modal for Balance=0 or Balnace less than the Donor Requirement ──
+    // Insufficient balance modal (error)
+    const [insufficientModal, setInsufficientModal] = useState({
+        open: false,
+        message: '',
+        requestAmount: 0,
+        balance: 0
+    });
+
     useEffect(() => { fetchAll(); }, []);
 
     // Real-time: silently re-fetch every 3s so new requests / distributions
@@ -123,13 +132,39 @@ const AdminFundDistribution = () => {
 
     // ── Open Approve Modal ──
     const openApproveModal = (request) => {
+        const balance = Number(stats.balance);
+        const amount = Number(request.amount);
+
+        // Balance check
+        if (balance === 0) {
+            setInsufficientModal({
+                open: true,
+                message: 'Cannot distribute funds: Available balance is $0. No funds are available. Please collect donations first.',
+                requestAmount: amount,
+                balance: balance
+            });
+            return;
+        }
+        if (balance < amount) {
+            setInsufficientModal({
+                open: true,
+                message: `Cannot approve: Requested amount ($${amount.toFixed(2)}) exceeds available balance ($${balance.toFixed(2)}). Please wait for more donations to be collected.`,
+                requestAmount: amount,
+                balance: balance
+            });
+            return;
+        }
+
+        // Balance is sufficient → proceed to regular approve modal
         setApproveModal({
             open: true,
             request,
             paymentMethod: '',
             notes: ''
         });
-    };
+};
+
+
 
     // ── Confirm Approval ──
     const handleApproveConfirm = async () => {
@@ -484,6 +519,33 @@ const AdminFundDistribution = () => {
                                     disabled={actionLoading}
                                 >
                                     <CancelIcon sx={{ fontSize: 16 }} /> Confirm Rejection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {/* Insufficient Balance Modal */}
+            {insufficientModal.open && (
+                <div className="afd-modal-overlay" onClick={() => setInsufficientModal(prev => ({ ...prev, open: false }))}>
+                    <div className="afd-modal afd-modal--insufficient" onClick={(e) => e.stopPropagation()}>
+                        <div className="afd-modal-header">
+                            <h3>Insufficient Balance</h3>
+                            <button className="afd-modal-close" onClick={() => setInsufficientModal(prev => ({ ...prev, open: false }))}>
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="afd-modal-body">
+                            <p>{insufficientModal.message}</p>
+                            <div className="afd-insufficient-details">
+                                <span>Requested: ${insufficientModal.requestAmount.toFixed(2)}</span>
+                                <span>Available: ${insufficientModal.balance.toFixed(2)}</span>
+                            </div>
+                            <div className="afd-modal-actions">
+                                <button className="afd-modal-ok-btn" onClick={() => setInsufficientModal(prev => ({ ...prev, open: false }))}>
+                                    OK
                                 </button>
                             </div>
                         </div>

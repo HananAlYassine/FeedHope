@@ -936,6 +936,73 @@ body {
     cursor: not-allowed;
 }
 
+/* Insufficient balance modal (red theme like reject) */
+.afd-modal--insufficient {
+    width: 420px;
+    max-width: 90%;
+}
+
+.afd-modal--insufficient .afd-modal-header {
+    background: linear-gradient(135deg, #c62828 0%, #e53935 100%);
+    border-bottom: none;
+    padding: 20px 24px 16px;
+}
+
+.afd-modal--insufficient .afd-modal-header h3 {
+    color: #fff;
+    font-size: 18px;
+}
+
+.afd-modal--insufficient .afd-modal-close {
+    color: #fff;
+}
+
+.afd-modal--insufficient .afd-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.afd-modal--insufficient .afd-modal-body {
+    text-align: center;
+    padding: 24px;
+}
+
+.afd-modal--insufficient .afd-modal-body p {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--afd-text-main);
+    margin: 0 0 16px;
+}
+
+.afd-insufficient-details {
+    background: #fff5f5;
+    border-radius: var(--afd-radius-sm);
+    padding: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.afd-modal-ok-btn {
+    padding: 10px 28px;
+    border-radius: var(--afd-radius-sm);
+    background: #c62828;
+    color: #fff;
+    border: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.afd-modal-ok-btn:hover {
+    background: #b71c1c;
+}
+
+
 /* ════════════════════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════════════════════ */
