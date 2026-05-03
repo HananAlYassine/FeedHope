@@ -5557,8 +5557,9 @@ app.delete('/api/admin/delete-profile-picture/:userId', async (req, res) => {
 
 // ── GET /api/admin/notifications ──────────────────────────────
 app.get('/api/admin/notifications', async (req, res) => {
+    const { userId } = req.query;   // frontend will send admin's user_id
     try {
-        const [rows] = await pool.query(`
+        let query = `
             SELECT
                 n.notification_id,
                 n.message_title,
@@ -5572,11 +5573,20 @@ app.get('/api/admin/notifications', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected', 'expiration_alert' , 'assignment_request'
+                'contact_message', 'offer_expired', 'offer_cancelled', 
+                'money_request', 'profile_update', 'money_request_approved', 
+                'money_request_rejected', 'expiration_alert', 'assignment_request'
             )
-            AND n.user_id IS NULL
-            ORDER BY n.date DESC
-        `);
+        `;
+        const params = [];
+        if (userId) {
+            query += ` AND (n.user_id IS NULL OR n.user_id = ?)`;
+            params.push(userId);
+        } else {
+            query += ` AND n.user_id IS NULL`;
+        }
+        query += ` ORDER BY n.date DESC`;
+        const [rows] = await pool.query(query, params);
         res.json(rows);
     } catch (err) {
         console.error('GET /api/admin/notifications error:', err);
@@ -5585,27 +5595,28 @@ app.get('/api/admin/notifications', async (req, res) => {
 });
 
 
+
 // ── PUT /api/admin/notifications/mark-all-read ────────────────
 app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
+    const { userId } = req.body;   // send admin's userId in the body
+    if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+    }
     try {
         await pool.query(`
             UPDATE Notifications
             SET read_at = NOW()
-            WHERE user_id IS NULL
-                AND read_at  IS NULL
-                AND type IN (
-                'new_registration', 'new_offer', 'offer_accepted',
-                'money_donation', 'fund_distribution',
-                'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 'money_request', 'profile_update', 'money_donation', 'money_request_approved', 'money_request_rejected', 'expiration_alert' , 'assignment_request'
-                )
-        `);
+            WHERE (user_id IS NULL OR user_id = ?)
+            AND read_at IS NULL
+        `, [userId]);
         res.json({ message: 'All notifications marked as read.' });
     } catch (err) {
         console.error('PUT /api/admin/notifications/mark-all-read error:', err);
         res.status(500).json({ error: 'Failed to mark notifications as read.' });
     }
 });
+
+
 
 
 // ── PUT /api/admin/notifications/:id/read ─────────────────────
@@ -5666,20 +5677,20 @@ app.delete("/api/admin/notifications/:notificationId", async (req, res) => {
 // ── GET /api/admin/notifications/unread-count/:userId ─────────
 // Returns the count of unread admin-level notifications.
 app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
+    const { userId } = req.params;
     try {
         const [[row]] = await pool.query(`
             SELECT COUNT(*) AS count
             FROM Notifications
-            WHERE user_id IS NULL
-            AND read_at IS NULL
-        `);
+            WHERE (user_id IS NULL OR user_id = ?)
+              AND read_at IS NULL
+        `, [userId]);
         res.json({ count: row.count });
     } catch (err) {
         console.error('GET /api/admin/notifications/unread-count/:userId error:', err);
         res.json({ count: 0 });
     }
 });
-
 
 
 
@@ -5820,113 +5831,6 @@ app.get('/api/admin/deliveries', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch deliveries.' });
     }
 });
-
-// // ──── PUT /api/admin/deliveries/:delivery_id/mark-delivered ─────
-// // Marks a delivery as completed. Updates Delivery table and Food_offer status.
-// app.put('/api/admin/deliveries/:delivery_id/mark-delivered', async (req, res) => {
-//     const { delivery_id } = req.params;
-//     const conn = await pool.getConnection();
-
-//     try {
-//         await conn.beginTransaction();
-
-//         // Get delivery and associated offer & donor/receiver info
-//         const [[delivery]] = await conn.query(`
-//             SELECT d.delivery_id, d.offer_id, d.volunteer_id,
-//                 fo.food_name, fo.donor_id,
-//                 dnr.user_id AS donor_user_id,
-//                 rcvr.user_id AS receiver_user_id
-//             FROM Delivery d
-//             JOIN Food_offer fo ON d.offer_id = fo.offer_id
-//             JOIN Donor dnr ON fo.donor_id = dnr.donor_id
-//             LEFT JOIN Receiver rc ON fo.receiver_id = rc.receiver_id
-//             LEFT JOIN User rcvr ON rc.user_id = rcvr.user_id
-//             WHERE d.delivery_id = ?
-//         `, [delivery_id]);
-
-//         if (!delivery) {
-//             await conn.rollback();
-//             return res.status(404).json({ error: 'Delivery not found.' });
-//         }
-
-//         // Update delivery status and delivery_time
-//         await conn.query(`
-//             UPDATE Delivery
-//             SET delivery_status = 'completed', delivery_time = NOW()
-//             WHERE delivery_id = ?
-//         `, [delivery_id]);
-
-//         // Update food offer status to 'delivered'
-//         await conn.query(`
-//             UPDATE Food_offer
-//             SET status = 'delivered'
-//             WHERE offer_id = ?
-//         `, [delivery.offer_id]);
-
-//         // Notify donor
-//         if (delivery.donor_user_id) {
-//             await conn.query(`
-//                 INSERT INTO Notifications (message_title, message, type, user_id, date)
-//                 VALUES (?, ?, ?, ?, NOW())
-//             `, [
-//                 'Delivery Completed',
-//                 `Your offer "${delivery.food_name}" has been successfully delivered. Thank you for your donation!`,
-//                 'delivery_completed',
-//                 delivery.donor_user_id
-//             ]);
-//         }
-
-//         // Notify receiver if exists
-//         if (delivery.receiver_user_id) {
-//             await conn.query(`
-//                 INSERT INTO Notifications (message_title, message, type, user_id, date)
-//                 VALUES (?, ?, ?, ?, NOW())
-//             `, [
-//                 'Delivery Completed',
-//                 `You have received "${delivery.food_name}". Thank you for using FeedHope!`,
-//                 'delivery_completed',
-//                 delivery.receiver_user_id
-//             ]);
-//         }
-
-//         // Notify volunteer
-//         if (delivery.volunteer_id) {
-//             const [[volUser]] = await conn.query(`
-//                 SELECT user_id FROM Volunteer WHERE volunteer_id = ?
-//             `, [delivery.volunteer_id]);
-//             if (volUser) {
-//                 await conn.query(`
-//                     INSERT INTO Notifications (message_title, message, type, user_id, date)
-//                     VALUES (?, ?, ?, ?, NOW())
-//                 `, [
-//                     'Delivery Completed',
-//                     `You successfully delivered "${delivery.food_name}". Thank you for your service!`,
-//                     'delivery_completed',
-//                     volUser.user_id
-//                 ]);
-//             }
-//         }
-
-//         // Admin notification
-//         await conn.query(`
-//             INSERT INTO Notifications (message_title, message, type, user_id, date)
-//             VALUES (?, ?, ?, NULL, NOW())
-//         `, [
-//             'Delivery Marked as Completed',
-//             `Admin marked delivery #${delivery_id} (${delivery.food_name}) as delivered.`,
-//             'delivery_completed'
-//         ]);
-
-//         await conn.commit();
-//         res.json({ message: 'Delivery marked as delivered successfully.' });
-//     } catch (err) {
-//         await conn.rollback();
-//         console.error('PUT /api/admin/deliveries/:delivery_id/mark-delivered error:', err);
-//         res.status(500).json({ error: 'Failed to mark delivery as delivered.' });
-//     } finally {
-//         conn.release();
-//     }
-// });
 
 
 

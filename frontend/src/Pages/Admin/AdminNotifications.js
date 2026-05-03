@@ -149,6 +149,11 @@ const AdminNotifications = () => {
         setTimeout(() => setToast(null), 3000);
     };
 
+
+    const storedUser = JSON.parse(localStorage.getItem('feedhope_user') || '{}');
+    const adminUserId = storedUser.user_id;   // get the admin's user_id
+
+
     // ── Fetch admin notifications from the backend ─────────────
     // GET /api/admin/notifications returns only the five important
     // types: new_registration, new_offer, offer_accepted,
@@ -157,25 +162,25 @@ const AdminNotifications = () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('http://localhost:5000/api/admin/notifications');
+            const res = await fetch(`http://localhost:5000/api/admin/notifications?userId=${adminUserId}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to load notifications.');
 
-            // Get hidden IDs from localStorage
-            const hiddenIds = loadHiddenIds();
+                // Get hidden IDs from localStorage
+                const hiddenIds = loadHiddenIds();
 
-            // Filter out notifications that the admin has "deleted"
-            const filtered = Array.isArray(data)
-                ? data.filter(n => !hiddenIds.includes(n.notification_id))
-                : [];
+                // Filter out notifications that the admin has "deleted"
+                const filtered = Array.isArray(data)
+                    ? data.filter(n => !hiddenIds.includes(n.notification_id))
+                    : [];
 
-            setNotifications(filtered);
-        } catch (err) {
-            setError(err.message || 'Could not connect to the server.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+                setNotifications(filtered);
+            } catch (err) {
+                setError(err.message || 'Could not connect to the server.');
+            } finally {
+                setLoading(false);
+            }
+    }, [adminUserId]);
 
     // Fetch once when the component mounts
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -185,7 +190,7 @@ const AdminNotifications = () => {
     useEffect(() => {
         const silentRefresh = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/admin/notifications');
+                const res = await fetch(`http://localhost:5000/api/admin/notifications?userId=${adminUserId}`);
                 if (!res.ok) return;
                 const data = await res.json();
                 const hiddenIds = loadHiddenIds();
@@ -203,7 +208,7 @@ const AdminNotifications = () => {
             window.removeEventListener('notifUpdated', silentRefresh);
             window.removeEventListener('notification-read', silentRefresh);
         };
-    }, []);
+}, [adminUserId]); // add adminUserId as dependency
 
     // ── Logout ─────────────────────────────────────────────────
     const handleLogout = () => {
@@ -213,12 +218,16 @@ const AdminNotifications = () => {
 
     // ── Mark ALL unread notifications as read ──────────────────
     const handleMarkAllRead = async () => {
-        try {
-            const res = await fetch(
-                'http://localhost:5000/api/admin/notifications/mark-all-read',
-                { method: 'PUT' }
-            );
-            if (!res.ok) throw new Error();
+    try {
+        const res = await fetch(
+            'http://localhost:5000/api/admin/notifications/mark-all-read',
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: adminUserId })
+            }
+        );
+        if (!res.ok) throw new Error();
             // Optimistically flip every notification to read in local state
             setNotifications(prev =>
                 prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
@@ -230,6 +239,9 @@ const AdminNotifications = () => {
             showToast('Failed to mark notifications as read.', 'error');
         }
     };
+
+
+
 
     // ── Open the "Delete All" styled modal ────────────────────
     // Replaces the old window.confirm('Delete ALL notifications?…') call.

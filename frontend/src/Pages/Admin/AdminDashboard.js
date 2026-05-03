@@ -274,7 +274,7 @@ const AdminDashboard = () => {
                 }
             } catch {}
         };
-        const interval = setInterval(silentRefresh, 3000);
+        const interval = setInterval(silentRefresh, 30000);
         return () => clearInterval(interval);
     }, [trendFilter]);
 
