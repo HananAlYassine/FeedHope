@@ -1,0 +1,169 @@
+/* DonorHistory.css */
+
+/* Banner adjustment (optional) */
+.dh-banner {
+    margin-bottom: 1.5rem;
+}
+
+/* Metrics row */
+.dh-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.dh-metric-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dh-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dh-metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.dh-metric-icon.food {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.dh-metric-icon.families {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.dh-metric-icon.rating {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.dh-metric-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.dh-metric-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.dh-metric-label {
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+/* Table container */
+.dh-table-container {
+    overflow: hidden;
+    padding: 0;
+}
+
+.dh-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+    background: #fefefe;
+}
+
+.dh-delivered-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+}
+
+.dh-table-responsive {
+    overflow-x: auto;
+}
+
+.dh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.dh-table th {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dh-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+.dh-table tbody tr:hover {
+    background: #fafcff;
+}
+
+.dh-title {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.dh-status {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.dh-status.delivered {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+/* Empty & loading states */
+.dh-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+}
+
+.dh-empty-sub {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.dh-loading,
+.dh-error {
+    text-align: center;
+    padding: 3rem;
+    color: #475569;
+}

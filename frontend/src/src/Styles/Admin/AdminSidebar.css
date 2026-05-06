@@ -1,0 +1,280 @@
+/* ============================================================
+    FeedHope — Styles/Admin/AdminSidebar.css
+    Gray-themed sidebar for the Admin section.
+============================================================ */
+
+/* ── Variables ───────────────────────────────────────────── */
+:root {
+    --asb-accent:        #37474f;
+    --asb-accent-dark:   #263238;
+    --asb-accent-light:  #eceff1;
+    --asb-accent-mid:    #546e7a;
+    --asb-text-main:     #1a1a1a;
+    --asb-text-sub:      #555555;
+    --asb-text-muted:    #888888;
+    --asb-border:        #e0e0e0;
+    --asb-bg:            #ffffff;
+    --asb-sidebar-w:     248px;
+    --asb-radius-sm:     6px;
+    --asb-radius-md:     10px;
+}
+
+/* ── Sidebar container ───────────────────────────────────── */
+.asb-sidebar {
+    width:          var(--asb-sidebar-w);
+    min-height:     100vh;
+    background:     var(--asb-bg);
+    border-right:   1px solid var(--asb-border);
+    display:        flex;
+    flex-direction: column;
+    position:       fixed;
+    top:    0;
+    left:   0;
+    bottom: 0;
+    padding-bottom: 16px;
+    z-index: 100;
+    transition: transform 0.3s ease;
+}
+
+/* Mobile hamburger toggle */
+.asb-mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 105;
+    width: 40px;
+    height: 40px;
+    background: var(--asb-bg);
+    border: 1px solid var(--asb-border);
+    border-radius: 8px;
+    color: var(--asb-accent-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.asb-mobile-close {
+    display: none;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--asb-text-sub);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.asb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.asb-overlay.is-open {
+    display: block;
+    opacity: 1;
+}
+
+/* ── Logo row ────────────────────────────────────────────── */
+.asb-logo {
+    display:        flex;
+    align-items:    center;
+    gap:            10px;
+    padding:        20px 20px 18px;
+    border-bottom:  1px solid var(--asb-border);
+}
+.asb-logo-circle {
+    width:           38px;
+    height:          38px;
+    border-radius:   8px;
+    overflow:        hidden;
+    flex-shrink:     0;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    background:      var(--asb-accent-light);
+}
+.asb-logo-img {
+    width:      100%;
+    height:     100%;
+    object-fit: contain;
+}
+.asb-logo-text {
+    font-size:   19px;
+    font-weight: 800;
+    color:       var(--asb-accent-dark);
+    letter-spacing: -0.3px;
+}
+
+/* ── Admin role badge row ────────────────────────────────── */
+.asb-role-row {
+    display:        flex;
+    align-items:    center;
+    gap:            8px;
+    margin:         14px 16px;
+    padding:        8px 12px;
+    border:         1px solid var(--asb-border);
+    border-radius:  var(--asb-radius-sm);
+    font-size:      13px;
+    font-weight:    500;
+    color:          var(--asb-text-sub);
+    background:     #fafafa;
+}
+.asb-role-avatar {
+    width:           28px;
+    height:          28px;
+    background:      var(--asb-accent-light);
+    border-radius:   50%;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    color:           var(--asb-accent);
+    flex-shrink:     0;
+}
+.asb-role-label { flex: 1; font-weight: 600; color: var(--asb-accent-dark); }
+
+/* ── Navigation ──────────────────────────────────────────── */
+.asb-nav {
+    flex:       1;
+    padding:    4px 12px;
+    overflow-y: auto;
+}
+.asb-nav-label {
+    font-size:      10.5px;
+    font-weight:    600;
+    letter-spacing: 0.07em;
+    color:          #aaa;
+    padding:        14px 8px 6px;
+    text-transform: uppercase;
+    display:        block;
+}
+.asb-nav-item {
+    display:       flex;
+    align-items:   center;
+    gap:           10px;
+    padding:       9px 10px;
+    border-radius: var(--asb-radius-sm);
+    font-size:     14px;
+    font-weight:   500;
+    color:         var(--asb-text-sub);
+    background:    none;
+    border:        none;
+    cursor:        pointer;
+    width:         100%;
+    text-align:    left;
+    transition:    background 0.15s, color 0.15s;
+    position:      relative;
+}
+.asb-nav-item:hover {
+    background: var(--asb-accent-light);
+    color:      var(--asb-accent-dark);
+}
+.asb-nav-item--active {
+    background: var(--asb-accent) !important;
+    color:      #fff !important;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(55, 71, 79, 0.25);
+}
+
+.asb-nav-item--active::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 22px;
+    background: var(--asb-accent);
+    border-radius: 0 4px 4px 0;
+}
+
+/* notification badge */
+.asb-badge {
+    margin-left:     auto;
+    background:      #e53935;
+    color:           #fff;
+    font-size:       10px;
+    font-weight:     700;
+    min-width:       18px;
+    height:          18px;
+    border-radius:   50%;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    padding:         0 4px;
+}
+
+/* ── Logout button ───────────────────────────────────────── */
+.asb-logout {
+    display:       flex;
+    align-items:   center;
+    gap:           10px;
+    margin:        0 12px;
+    padding:       11px 10px;
+    border-radius: var(--asb-radius-sm);
+    font-size:     13.5px;
+    font-weight:   600;
+    color:         #b71c1c;
+    background:    #ffcdd2;
+    border:        none;
+    cursor:        pointer;
+    width:         calc(100% - 24px);
+    text-align:    left;
+    transition:    background 0.2s ease, color 0.2s ease;
+}
+.asb-logout:hover  { background: #ef9a9a; }
+.asb-logout:active { background: #c62828 !important; color: #fff !important; transform: scale(0.98); }
+
+/* ── Mobile drawer with hamburger toggle ─────────────────── */
+@media (max-width: 992px) {
+    .asb-mobile-toggle {
+        display: flex;
+    }
+
+    .asb-mobile-close {
+        display: inline-flex;
+    }
+
+    .asb-sidebar {
+        transform: translateX(-100%);
+        width: 268px;
+        max-width: 80vw;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 120;
+    }
+
+    .asb-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .asb-logo,
+    .asb-role-row,
+    .asb-logout {
+        flex-shrink: 0;
+    }
+
+    .asb-nav {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    /* Reset main-content offsets for all admin pages on mobile */
+    .aum-main,
+    .afd-main,
+    .afo-main,
+    .ap-main,
+    .an-main,
+    .amd-main,
+    .adb-main {
+        margin-left: 0 !important;
+        max-width: 100vw !important;
+        padding-top: 64px !important;
+        padding-bottom: 80px !important;
+    }
+}

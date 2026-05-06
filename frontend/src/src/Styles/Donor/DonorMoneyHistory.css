@@ -1,0 +1,290 @@
+/* ============================================================
+    FeedHope — DonorMoneyHistory.css
+    Styled to match DonorMoneyDonation.css (orange theme)
+============================================================ */
+
+:root {
+    --dmh-orange: #f57c00;
+    --dmh-orange-light: #fff3e0;
+    --dmh-text-main: #1a1a1a;
+    --dmh-text-sub: #555555;
+    --dmh-text-muted: #888888;
+    --dmh-border: #e0e0e0;
+    --dmh-bg-card: #ffffff;
+    --dmh-radius-sm: 6px;
+    --dmh-radius-md: 10px;
+    --dmh-radius-lg: 14px;
+    --dmh-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+}
+
+/* ── Banner — same orange gradient as DonorMoneyDonation ─────── */
+.dmh-banner {
+    background: linear-gradient(135deg, #ff9800 0%, #f57c00 60%, #e65100 100%);
+    border-radius: var(--dmh-radius-lg);
+    padding: 32px 36px;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 170px;
+}
+
+.dmh-banner::before {
+    content: '';
+    position: absolute;
+    right: 200px;
+    top: -60px;
+    width: 260px;
+    height: 260px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.dmh-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    bottom: -60px;
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* ── Stats Grid — same card style as dmd-form-card ──────────── */
+.dmh-stats-grid {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.dmh-stat-card {
+    flex: 1;
+    background: var(--dmh-bg-card);
+    border-radius: var(--dmh-radius-md);
+    border: 1px solid var(--dmh-border);
+    box-shadow: var(--dmh-shadow);
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dmh-stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--dmh-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.dmh-stat-icon.total {
+    background: var(--dmh-orange);
+}
+
+.dmh-stat-icon.completed {
+    background: #37474f;
+}
+
+.dmh-stat-icon.pending {
+    background: #f59e0b;
+}
+
+.dmh-stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dmh-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--dmh-text-main);
+    line-height: 1.2;
+}
+
+.dmh-stat-label {
+    font-size: 11px;
+    color: var(--dmh-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Table Card — same as dmd-form-card ─────────────────────── */
+.dmh-table-container {
+    background: var(--dmh-bg-card);
+    border-radius: var(--dmh-radius-md);
+    border: 1px solid var(--dmh-border);
+    box-shadow: var(--dmh-shadow);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.dmh-table-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--dmh-border);
+    background: var(--dmh-bg-card);
+}
+
+/* ── Table ──────────────────────────────────────────────────── */
+.dmh-table-responsive {
+    overflow-x: auto;
+}
+
+.dmh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.dmh-table thead tr {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--dmh-border);
+}
+
+.dmh-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dmh-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.dmh-table tbody tr {
+    border-bottom: 1px solid #f8fafc;
+    transition: background 0.12s;
+}
+
+.dmh-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.dmh-table tbody tr:hover {
+    background: #fafafa;
+}
+
+.dmh-row--rejected {
+    background: #fff5f5;
+}
+
+.dmh-row--rejected:hover {
+    background: #fff1f1;
+}
+
+.dmh-table td {
+    padding: 14px 16px;
+    color: var(--dmh-text-main);
+    vertical-align: middle;
+}
+
+/* ── Column styles ──────────────────────────────────────────── */
+.dmh-ref-cell {
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    color: var(--dmh-text-sub);
+    white-space: nowrap;
+}
+
+.dmh-amount-cell {
+    font-weight: 700;
+    color: var(--dmh-orange);
+    white-space: nowrap;
+}
+
+.dmh-method-cell {
+    color: var(--dmh-text-sub);
+    font-weight: 500;
+}
+
+.dmh-note-cell {
+    max-width: 200px;
+    font-size: 12.5px;
+    color: var(--dmh-text-sub);
+}
+
+.dmh-note-text {
+    font-style: italic;
+}
+
+.dmh-rejection-text {
+    color: #dc2626;
+    font-size: 12.5px;
+}
+
+.dmh-date {
+    color: var(--dmh-text-muted);
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+/* ── Status Badges — same style as dmd-payment-tile.selected ── */
+.dmh-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dmh-badge--pending {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+}
+
+.dmh-badge--approved {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #15803d;
+}
+
+.dmh-badge--rejected {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+/* ── Loading / Empty ────────────────────────────────────────── */
+.dmh-loading,
+.dmh-empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--dmh-text-muted);
+    font-size: 14px;
+}
+
+/* ── Pending Hint — same alert style as dmd-alert ───────────── */
+.dmh-pending-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 1rem;
+    background: var(--dmh-orange-light);
+    border: 1px solid #ffcc80;
+    border-radius: var(--dmh-radius-sm);
+    font-size: 13.5px;
+    color: #e65100;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .dmh-banner {
+        padding: 24px 20px;
+    }
+
+    .dmh-stats-grid {
+        flex-direction: column;
+    }
+}

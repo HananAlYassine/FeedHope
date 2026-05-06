@@ -1,0 +1,111 @@
+.fh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--fh-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--fh-radius-md);
+    font-family: var(--fh-font-sans);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--fh-transition-fast),
+        border-color var(--fh-transition-fast),
+        color var(--fh-transition-fast),
+        transform var(--fh-transition-fast),
+        box-shadow var(--fh-transition-fast);
+    white-space: nowrap;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.fh-btn:focus-visible {
+    outline: 2px solid var(--fh-brand);
+    outline-offset: 2px;
+}
+
+.fh-btn:disabled,
+.fh-btn--loading {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Sizes */
+.fh-btn--sm {
+    padding: 6px 12px;
+    font-size: var(--fh-text-sm);
+}
+
+.fh-btn--md {
+    padding: 10px 18px;
+    font-size: var(--fh-text-base);
+}
+
+.fh-btn--lg {
+    padding: 14px 24px;
+    font-size: var(--fh-text-md);
+}
+
+.fh-btn--full {
+    width: 100%;
+}
+
+/* Variants */
+.fh-btn--primary {
+    background: var(--fh-brand);
+    color: #fff;
+}
+.fh-btn--primary:hover:not(:disabled) {
+    background: var(--fh-brand-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--fh-shadow-md);
+}
+
+.fh-btn--secondary {
+    background: var(--fh-gray-100);
+    color: var(--fh-gray-800);
+    border-color: var(--fh-gray-200);
+}
+.fh-btn--secondary:hover:not(:disabled) {
+    background: var(--fh-gray-200);
+}
+
+.fh-btn--outline {
+    background: transparent;
+    color: var(--fh-gray-700);
+    border-color: var(--fh-gray-300);
+}
+.fh-btn--outline:hover:not(:disabled) {
+    background: var(--fh-gray-50);
+    border-color: var(--fh-gray-400);
+}
+
+.fh-btn--ghost {
+    background: transparent;
+    color: var(--fh-gray-700);
+}
+.fh-btn--ghost:hover:not(:disabled) {
+    background: var(--fh-gray-100);
+}
+
+.fh-btn--danger {
+    background: var(--fh-danger);
+    color: #fff;
+}
+.fh-btn--danger:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: var(--fh-shadow-md);
+}
+
+.fh-btn--danger-soft {
+    background: var(--fh-danger-light);
+    color: var(--fh-danger);
+}
+.fh-btn--danger-soft:hover:not(:disabled) {
+    background: #fecaca;
+}
+
+.fh-btn-icon {
+    display: inline-flex;
+    align-items: center;
+}

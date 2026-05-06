@@ -11,10 +11,12 @@ console.warn = noop;
 console.info = noop;
 console.debug = noop;
 
+import 'dotenv/config'; // loads GEMINI_API_KEY (and any other vars) from .env
 import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
 import bcrypt from "bcryptjs";  // for password hashing
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // All of them are for the Profile Picture (Add/delete/change)
 import multer from "multer";
@@ -326,6 +328,142 @@ app.post("/api/register/volunteer", async (req, res) => {
 
 
 // ==============================================================
+// ──────────────── ROLE SWITCH / DUAL ROLE  ────────────────────
+// ==============================================================
+
+// ──── GET /api/user/roles/:userId ────
+// Returns all roles for a user. Used by the role-switch UI to refresh after
+// a "Become a Volunteer" upgrade or to verify state on demand.
+app.get('/api/user/roles/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const [[adminRow]] = await pool.query(
+            "SELECT admin_id FROM Admin WHERE user_id = ?",
+            [userId]
+        );
+        if (adminRow) {
+            return res.json({ roles: ['Admin'] });
+        }
+        const [rows] = await pool.query(
+            "SELECT DISTINCT role_name FROM Role WHERE user_id = ?",
+            [userId]
+        );
+        res.json({ roles: rows.map(r => r.role_name) });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch roles.' });
+    }
+});
+
+// ──── POST /api/become-volunteer/:userId ────
+// Adds Volunteer to an existing Donor or Receiver. Admins can't switch
+// (rejected with 403). Idempotent: returns 409 if user already has Volunteer.
+//
+// Body: { vehicleType, plateNumber, birthdate, gender }
+app.post('/api/become-volunteer/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { vehicleType, plateNumber, birthdate, gender } = req.body || {};
+
+    if (!vehicleType || !plateNumber || !birthdate || !gender) {
+        return res.status(400).json({
+            error: 'vehicleType, plateNumber, birthdate, and gender are all required.'
+        });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // Verify user exists and is active
+        const [[user]] = await conn.query(
+            "SELECT user_id, name, email, status FROM User WHERE user_id = ?",
+            [userId]
+        );
+        if (!user) {
+            await conn.rollback();
+            return res.status(404).json({ error: 'User not found.' });
+        }
+        if (user.status !== 'active') {
+            await conn.rollback();
+            return res.status(403).json({ error: 'Account is not active.' });
+        }
+
+        // Admins can't add roles
+        const [[adminRow]] = await conn.query(
+            "SELECT admin_id FROM Admin WHERE user_id = ?",
+            [userId]
+        );
+        if (adminRow) {
+            await conn.rollback();
+            return res.status(403).json({ error: 'Admins cannot switch roles.' });
+        }
+
+        // Must already be a Donor or Receiver to upgrade
+        const [existing] = await conn.query(
+            "SELECT role_name FROM Role WHERE user_id = ?",
+            [userId]
+        );
+        const existingRoles = existing.map(r => r.role_name);
+        if (existingRoles.includes('Volunteer')) {
+            await conn.rollback();
+            return res.status(409).json({ error: 'User is already a volunteer.' });
+        }
+        if (!existingRoles.includes('Donor') && !existingRoles.includes('Receiver')) {
+            await conn.rollback();
+            return res.status(400).json({
+                error: 'Only existing Donors or Receivers can upgrade to Volunteer.'
+            });
+        }
+
+        // 1. Volunteer table entry
+        await conn.query(
+            "INSERT INTO Volunteer (vehicle_type, plate_number, birthdate, gender, user_id) VALUES (?,?,?,?,?)",
+            [vehicleType, plateNumber, birthdate, gender, userId]
+        );
+
+        // 2. Role + User_Role link
+        const [r] = await conn.query(
+            "INSERT INTO Role (role_name, user_id) VALUES ('Volunteer', ?)",
+            [userId]
+        );
+        await conn.query(
+            "INSERT INTO User_Role (user_id, role_id) VALUES (?,?)",
+            [userId, r.insertId]
+        );
+
+        // 3. Audit log
+        await conn.query(
+            "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
+            ['RoleAdded', 'User upgraded their account by adding the Volunteer role', userId]
+        );
+
+        // 4. Admin notification
+        await conn.query(
+            `INSERT INTO Notifications (message_title, message, type, user_id, date)
+             VALUES (?, ?, ?, NULL, NOW())`,
+            [
+                'Volunteer Upgrade',
+                `${user.name} (${user.email}) added the Volunteer role to their existing account.`,
+                'new_registration'
+            ]
+        );
+
+        await conn.commit();
+
+        const updatedRoles = [...existingRoles, 'Volunteer'];
+        res.status(201).json({
+            message: 'Volunteer role added successfully.',
+            roles: updatedRoles
+        });
+    } catch (err) {
+        await conn.rollback();
+        res.status(500).json({ error: err.message || 'Failed to add Volunteer role.' });
+    } finally {
+        conn.release();
+    }
+});
+
+
+// ==============================================================
 // ──────────────── EMAIL VERIFICATION ──────────────────────────
 // ==============================================================
 
@@ -418,25 +556,32 @@ app.post("/api/signin", async (req, res) => {
         );
         const isAdmin = !!adminRow; // true if a matching row exists
 
-        // 5. Determine role: Admin takes priority, otherwise fetch from Role table
-        let role = null;
+        // 5. Determine ALL roles this user holds. Admin is single-role; everyone
+        //    else may have one or two roles drawn from {Donor, Receiver, Volunteer}.
+        let roles = [];
         if (isAdmin) {
-            role = "Admin";
+            roles = ['Admin'];
         } else {
-            const [roles] = await conn.query(
-                "SELECT role_name FROM Role WHERE user_id = ?",
+            const [rows] = await conn.query(
+                "SELECT DISTINCT role_name FROM Role WHERE user_id = ?",
                 [user.user_id]
             );
-            role = roles.length > 0 ? roles[0].role_name : null;
+            roles = rows.map(r => r.role_name);
         }
+
+        // Default current role: prefer the non-Volunteer role (since Volunteer
+        // is the optional add-on). Falls back to the first role if only one.
+        const current_role =
+            roles.find(r => r !== 'Volunteer') || roles[0] || null;
 
         // 6. Write a syslog entry
         await conn.query(
             "INSERT INTO Syslog (action, description, user_id) VALUES (?, ?, ?)",
-            ['Login', `User logged in successfully as ${role || 'User'}`, user.user_id]
+            ['Login', `User logged in successfully as ${current_role || 'User'}`, user.user_id]
         );
 
-        // 7. Return the user object — same shape as before, plus admin_id if applicable
+        // 7. Return the user object — backwards-compatible `role` field plus
+        //    new `roles` array and `current_role` used by the role-switch UI.
         res.status(200).json({
             message: "Sign in successful!",
             user: {
@@ -444,8 +589,10 @@ app.post("/api/signin", async (req, res) => {
                 name: user.name,
                 email: user.email,
                 phone_number: user.phone_number,
-                role: role,
-                ...(isAdmin && { admin_id: adminRow.admin_id }) // only included for admins
+                role: current_role,         // legacy field
+                roles,                       // ['Donor', 'Volunteer'] etc.
+                current_role,                // role the UI is using right now
+                ...(isAdmin && { admin_id: adminRow.admin_id })
             }
         });
     } catch (err) {
@@ -670,23 +817,31 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
         `, [receiver.receiver_id]);
 
         // ── Step 4: Count incoming deliveries for this receiver ──
-        // Incoming = Delivery rows linked to this receiver's accepted offers
+        // Incoming = active deliveries (volunteer has accepted, or is on the way).
+        // Real delivery_status values are 'delivery_accepted' and 'in_delivery'
+        // — the previous 'assigned' / 'in_transit' values are never written.
         const [[{ incomingCount }]] = await pool.query(`
             SELECT COUNT(*) AS incomingCount
             FROM Delivery d
             JOIN Food_offer fo ON fo.offer_id = d.offer_id
             WHERE fo.receiver_id = ?
-            AND d.delivery_status IN ('assigned', 'in_transit')
+              AND d.delivery_status IN ('delivery_accepted', 'in_delivery')
         `, [receiver.receiver_id]);
 
-        // ── Step 5: Count total meals received (from Donation_history) ──
+        // ── Step 5: Count total meals received ──
+        // Sum number_of_person across offers that have been delivered to this
+        // receiver. Computed from Food_offer (always populated) rather than the
+        // Donation_history table (which holds kg, not meals/portions).
         const [[{ mealsReceived }]] = await pool.query(`
-            SELECT COALESCE(SUM(quantity), 0) AS mealsReceived
-            FROM Donation_history
+            SELECT COALESCE(SUM(number_of_person), 0) AS mealsReceived
+            FROM Food_offer
             WHERE receiver_id = ?
+              AND status IN ('delivered', 'completed')
         `, [receiver.receiver_id]);
 
         // ── Step 6: Get the latest available food offers (max 5 for the dashboard) ──
+        // Offers expiring within the next 48 hours are surfaced first
+        // (soonest-to-expire on top), then everything else by newest.
         const [offers] = await pool.query(`
             SELECT
                 fo.offer_id,
@@ -694,6 +849,7 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
                 fo.description,
                 fo.number_of_person  AS portions,
                 fo.pickup_time,
+                fo.expiration_date_and_time,
                 fo.status,
                 u.name               AS donor_name,
                 a.street             AS donor_street,
@@ -703,7 +859,20 @@ app.get("/api/receiver/dashboard/:userId", async (req, res) => {
             JOIN User u    ON u.user_id   = d.user_id
             JOIN Address a ON a.address_id = d.address_id
             WHERE fo.status = 'available'
-            ORDER BY fo.offer_id DESC
+              AND (fo.expiration_date_and_time IS NULL
+                   OR fo.expiration_date_and_time > NOW())
+            ORDER BY
+                CASE
+                    WHEN fo.expiration_date_and_time IS NOT NULL
+                     AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 48 HOUR)
+                    THEN 0 ELSE 1
+                END,
+                CASE
+                    WHEN fo.expiration_date_and_time IS NOT NULL
+                     AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 48 HOUR)
+                    THEN fo.expiration_date_and_time
+                END ASC,
+                fo.offer_id DESC
             LIMIT 5
         `);
 
@@ -841,8 +1010,8 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
 
         // 4 - Notify the receiver that they successfully accepted the offer
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id)
-            VALUES ('Offer Accepted', ?, 'offer_accepted', ?)`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role)
+            VALUES ('Offer Accepted', ?, 'offer_accepted', ?, 'Receiver')`,
             [`You have successfully accepted the offer: "${offer.food_name}"`, userId]
         );
 
@@ -882,6 +1051,10 @@ app.post("/api/receiver/accept-offer", async (req, res) => {
     }
 });
 
+
+// ==============================================================
+// ──────────────── RECEIVER Profile API ────────────────────────
+// ==============================================================
 
 // ==============================================================
 // ──────────────── RECEIVER Profile API ────────────────────────
@@ -930,7 +1103,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
         const [[{ totalReceived }]] = await pool.query(`
             SELECT COUNT(*) AS totalReceived
             FROM Food_offer
-            WHERE receiver_id = ? AND status IN ('accepted', 'completed')
+            WHERE receiver_id = ? AND status IN ('accepted', 'completed', 'delivered')
         `, [profile.receiver_id]);
 
         // ── Step 3: Deliveries Received ──
@@ -940,7 +1113,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             FROM Delivery d
             JOIN Food_offer fo ON fo.offer_id = d.offer_id
             WHERE fo.receiver_id = ?
-            AND d.delivery_status = 'completed'
+            AND d.delivery_status IN ('completed', 'delivered')
         `, [profile.receiver_id]);
 
 
@@ -951,7 +1124,7 @@ app.get("/api/receiver/profile/:userId", async (req, res) => {
             SELECT COALESCE(SUM(fo.number_of_person), 0) AS peopleServed
             FROM Food_offer fo
             WHERE fo.receiver_id = ?
-            AND fo.status IN ('accepted', 'completed')
+            AND fo.status IN ('accepted', 'completed', 'delivered')
         `, [profile.receiver_id]);
 
         // ──── Return everything ────
@@ -1216,7 +1389,25 @@ app.get("/api/offers", async (req, res) => {
             JOIN Address a ON a.address_id = d.address_id
             JOIN Food_category fc ON fc.category_id = fo.category_id
             WHERE fo.status = 'available'
-            ORDER BY fo.offer_id DESC
+              -- Hide offers whose expiration has already passed even if a cron
+              -- run hasn't flipped them to 'expired' yet.
+              AND (fo.expiration_date_and_time IS NULL
+                   OR fo.expiration_date_and_time > NOW())
+            ORDER BY
+                -- Urgency bucket: 0 = expires within 48h, 1 = everyone else
+                CASE
+                    WHEN fo.expiration_date_and_time IS NOT NULL
+                     AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 48 HOUR)
+                    THEN 0 ELSE 1
+                END,
+                -- Within the urgent bucket: soonest expiry first.
+                -- Non-urgent rows return NULL here and fall through to offer_id.
+                CASE
+                    WHEN fo.expiration_date_and_time IS NOT NULL
+                     AND fo.expiration_date_and_time <= DATE_ADD(NOW(), INTERVAL 48 HOUR)
+                    THEN fo.expiration_date_and_time
+                END ASC,
+                fo.offer_id DESC
         `);
 
         res.status(200).json(offers);
@@ -1411,8 +1602,8 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
 
         // Notify the donor
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id)
-            SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role)
+            SELECT 'Offer Cancelled', CONCAT('The receiver has cancelled the offer: ', ?, '. It is now available again.'), 'cancellation', u.user_id, 'Donor'
             FROM Food_offer fo
             JOIN Donor d ON d.donor_id = fo.donor_id
             JOIN User u ON u.user_id = d.user_id
@@ -1422,8 +1613,8 @@ app.post("/api/receiver/cancel-offer", async (req, res) => {
 
         // Notify the receiver
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id)
-            VALUES ('Offer Cancelled', 'You have cancelled an offer. The donor has been notified, and the offer is now available for others.', 'cancellation', ?)`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role)
+            VALUES ('Offer Cancelled', 'You have cancelled an offer. The donor has been notified, and the offer is now available for others.', 'cancellation', ?, 'Receiver')`,
             [userId]
         );
 
@@ -1551,8 +1742,8 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
         );
         if (donorTarget) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['New Feedback Received',
                     `${receiverName} rated your donation "${donorTarget.food_name}" ${donorRating}/5.`,
                     'feedback_received', donorTarget.user_id]
@@ -1568,8 +1759,8 @@ app.post("/api/receiver/feedback-offer", async (req, res) => {
         );
         if (volTarget) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Volunteer', NOW())`,
                 ['New Feedback Received',
                     `${receiverName} rated your delivery ${volunteerRating}/5.`,
                     'feedback_received', volTarget.user_id]
@@ -1615,6 +1806,9 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
         }
         const receiverId = receiver.receiver_id;
 
+        // History now includes any offer that has progressed past receiver-acceptance
+        // (i.e. a volunteer has taken it), so that as soon as a volunteer accepts
+        // the offer it disappears from "My Accepted" and shows up here.
         const [history] = await pool.query(`
             SELECT
                 fo.offer_id,
@@ -1625,7 +1819,8 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
                 d.donor_id,
                 del.delivery_id,
                 del.delivery_status,
-                del.delivery_time                AS delivered_date,  -- using delivery_time as completion timestamp
+                del.delivery_time                AS delivered_date,
+                del.pickup_time                  AS pickup_time,
                 u_vol.name                       AS volunteer_name,
                 EXISTS(
                     SELECT 1 FROM Feedback_and_rating fr
@@ -1639,8 +1834,17 @@ app.get("/api/receiver/history/:userId", async (req, res) => {
             LEFT JOIN Volunteer vol ON vol.volunteer_id = del.volunteer_id
             LEFT JOIN User u_vol    ON u_vol.user_id    = vol.user_id
             WHERE fo.receiver_id = ?
-              AND del.delivery_status IN ('completed', 'delivered')
-            ORDER BY del.delivery_time DESC
+              AND del.delivery_status IN ('delivery_accepted', 'in_delivery', 'delivered', 'completed')
+            ORDER BY
+                CASE del.delivery_status
+                    WHEN 'delivery_accepted' THEN 1
+                    WHEN 'in_delivery'       THEN 2
+                    WHEN 'delivered'         THEN 3
+                    WHEN 'completed'         THEN 4
+                    ELSE 5
+                END,
+                COALESCE(del.delivery_time, del.pickup_time) DESC,
+                del.delivery_id DESC
         `, [userId, receiverId]);
 
         const formattedHistory = history.map(row => ({
@@ -1670,6 +1874,7 @@ app.get("/api/receiver/notifications/:userId", async (req, res) => {
     const { status } = req.query; // 'all' (default) or 'unread'
 
     try {
+        // Filter so dual-role users only see their Receiver-side stream.
         let query = `
             SELECT
                 notification_id,
@@ -1680,6 +1885,7 @@ app.get("/api/receiver/notifications/:userId", async (req, res) => {
                 date
             FROM Notifications
             WHERE user_id = ?
+              AND (recipient_role IS NULL OR recipient_role = 'Receiver')
         `;
         const params = [userId];
 
@@ -1826,7 +2032,10 @@ app.get("/api/receiver/notifications/unread-count/:userId", async (req, res) => 
     const { userId } = req.params;
     try {
         const [[{ count }]] = await pool.query(
-            "SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND read_at IS NULL",
+            `SELECT COUNT(*) AS count FROM Notifications
+             WHERE user_id = ?
+               AND read_at IS NULL
+               AND (recipient_role IS NULL OR recipient_role = 'Receiver')`,
             [userId]
         );
         res.json({ count });
@@ -2682,7 +2891,7 @@ app.post("/api/donor/donate-money", async (req, res) => {
 
         // Notify the donor - pending confirmation
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date) VALUES (?, ?, ?, ?, 'Donor', NOW())`,
             [
                 'Donation Submitted',
                 `Your $${amount} donation via ${payment_method} has been submitted and is pending admin approval. Reference: ${refNumber}.`,
@@ -2812,8 +3021,14 @@ app.get('/api/donor/deliveries/:userId', async (req, res) => {
 // 1. Fetch all notifications for the Donor page
 app.get("/api/donor/notifications/all/:userId", async (req, res) => {
     try {
+        // Filter so a dual-role (Donor + Volunteer) user only sees the
+        // notifications that target their Donor side. Legacy rows with NULL
+        // recipient_role are shown to all roles for back-compat.
         const [rows] = await pool.query(
-            "SELECT * FROM Notifications WHERE user_id = ? ORDER BY date DESC",
+            `SELECT * FROM Notifications
+             WHERE user_id = ?
+               AND (recipient_role IS NULL OR recipient_role = 'Donor')
+             ORDER BY date DESC`,
             [req.params.userId]
         );
         res.json(rows);
@@ -2826,7 +3041,10 @@ app.get("/api/donor/notifications/all/:userId", async (req, res) => {
 app.get("/api/donor/notifications/unread-count/:userId", async (req, res) => {
     try {
         const [rows] = await pool.query(
-            "SELECT COUNT(*) as count FROM Notifications WHERE user_id = ? AND read_at IS NULL",
+            `SELECT COUNT(*) AS count FROM Notifications
+             WHERE user_id = ?
+               AND read_at IS NULL
+               AND (recipient_role IS NULL OR recipient_role = 'Donor')`,
             [req.params.userId]
         );
         res.json({ count: rows[0].count });
@@ -3259,8 +3477,8 @@ app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) 
 
         // Notify the volunteer themselves
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+             VALUES (?, ?, ?, ?, 'Volunteer', NOW())`,
             ['Delivery Accepted',
              `You accepted the admin's delivery request for "${offer?.food_name}". Find it under "My Deliveries".`,
              'delivery_update', volunteerUserId]
@@ -3269,8 +3487,8 @@ app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) 
         // Notify donor
         if (offer?.donor_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['Volunteer Assigned',
                  `A volunteer has accepted to deliver your offer "${offer.food_name}".`,
                  'delivery_update', offer.donor_user_id]
@@ -3280,8 +3498,8 @@ app.put('/api/volunteer/assignment-request/:requestId/accept', async (req, res) 
         // Notify receiver
         if (offer?.receiver_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Receiver', NOW())`,
                 ['Volunteer Assigned',
                  `A volunteer has accepted to deliver "${offer.food_name}" to you.`,
                  'delivery_update', offer.receiver_user_id]
@@ -3545,8 +3763,8 @@ app.post('/api/volunteer/accept-delivery', async (req, res) => {
         // 5. Notifications
         // Volunteer (self)
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+             VALUES (?, ?, ?, ?, 'Volunteer', NOW())`,
             ['Delivery Accepted',
                 `You have accepted the delivery for "${offer.food_name}". Head to the pickup location when ready.`,
                 'delivery_update', userId]
@@ -3554,8 +3772,8 @@ app.post('/api/volunteer/accept-delivery', async (req, res) => {
         // Donor
         if (offer.donor_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['Volunteer Assigned',
                     `A volunteer has accepted to deliver your offer "${offer.food_name}".`,
                     'delivery_update', offer.donor_user_id]
@@ -3564,8 +3782,8 @@ app.post('/api/volunteer/accept-delivery', async (req, res) => {
         // Receiver
         if (offer.receiver_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Receiver', NOW())`,
                 ['Volunteer Assigned',
                     `A volunteer has accepted to deliver "${offer.food_name}" to you.`,
                     'delivery_update', offer.receiver_user_id]
@@ -3754,8 +3972,8 @@ app.put('/api/volunteer/deliveries/:deliveryId/start', async (req, res) => {
         // Notify donor + receiver
         if (del.donor_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['Delivery In Progress',
                     `Your offer "${del.food_name}" has been picked up and is on the way.`,
                     'delivery_update', del.donor_user_id]
@@ -3763,8 +3981,8 @@ app.put('/api/volunteer/deliveries/:deliveryId/start', async (req, res) => {
         }
         if (del.receiver_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Receiver', NOW())`,
                 ['Delivery On The Way',
                     `Your delivery "${del.food_name}" is on the way.`,
                     'delivery_update', del.receiver_user_id]
@@ -3860,8 +4078,8 @@ app.put('/api/volunteer/deliveries/:deliveryId/complete', async (req, res) => {
         // Notifications: donor, receiver, volunteer
         if (del.donor_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['Delivery Completed',
                     `Your offer "${del.food_name}" has been successfully delivered. Thank you!`,
                     'delivery_completed', del.donor_user_id]
@@ -3869,16 +4087,16 @@ app.put('/api/volunteer/deliveries/:deliveryId/complete', async (req, res) => {
         }
         if (del.receiver_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Receiver', NOW())`,
                 ['Delivery Received',
                     `You have received "${del.food_name}". Thank you for using FeedHope!`,
                     'delivery_completed', del.receiver_user_id]
             );
         }
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+             VALUES (?, ?, ?, ?, 'Volunteer', NOW())`,
             ['Delivery Completed',
                 `Great work! You successfully delivered "${del.food_name}".`,
                 'delivery_completed', userId]
@@ -4097,8 +4315,13 @@ app.get('/api/volunteer/feedback/:userId', async (req, res) => {
 
 app.get('/api/volunteer/notifications/all/:userId', async (req, res) => {
     try {
+        // Volunteer-side notifications only — dual-role users won't see their
+        // Donor / Receiver notifications mixed in here.
         const [rows] = await pool.query(
-            'SELECT * FROM Notifications WHERE user_id = ? ORDER BY date DESC',
+            `SELECT * FROM Notifications
+             WHERE user_id = ?
+               AND (recipient_role IS NULL OR recipient_role = 'Volunteer')
+             ORDER BY date DESC`,
             [req.params.userId]
         );
         res.json(rows);
@@ -4113,7 +4336,10 @@ app.get('/api/volunteer/notifications/all/:userId', async (req, res) => {
 app.get('/api/volunteer/notifications/unread-count/:userId', async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT COUNT(*) AS count FROM Notifications WHERE user_id = ? AND read_at IS NULL',
+            `SELECT COUNT(*) AS count FROM Notifications
+             WHERE user_id = ?
+               AND read_at IS NULL
+               AND (recipient_role IS NULL OR recipient_role = 'Volunteer')`,
             [req.params.userId]
         );
         res.json({ count: rows[0].count });
@@ -4582,8 +4808,8 @@ app.put('/api/admin/food-offers/assign-volunteer', async (req, res) => {
 
         // 6. Notify donor
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+            VALUES (?, ?, ?, ?, 'Donor', NOW())`,
             ['Delivery Assigned', `A volunteer has been assigned to deliver your offer "${offerDetails.food_name}" and is now on the way.`, 'delivery_update', offerDetails.donor_user_id]
         );
 
@@ -4660,8 +4886,8 @@ app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
         // Notify the donor that admin cancelled their offer
         if (offer.donor_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Donor', NOW())`,
                 ['Offer Cancelled',
                  `Your offer "${offer.food_name}" has been cancelled by an administrator.`,
                  'offer_cancelled', offer.donor_user_id]
@@ -4671,8 +4897,8 @@ app.put('/api/admin/food-offers/:offerId/cancel', async (req, res) => {
         // Notify the receiver too if they had already claimed it
         if (offer.receiver_user_id) {
             await conn.query(
-                `INSERT INTO Notifications (message_title, message, type, user_id, date)
-                 VALUES (?, ?, ?, ?, NOW())`,
+                `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+                 VALUES (?, ?, ?, ?, 'Receiver', NOW())`,
                 ['Offer Cancelled',
                  `The offer "${offer.food_name}" you accepted has been cancelled by an administrator.`,
                  'offer_cancelled', offer.receiver_user_id]
@@ -4771,7 +4997,7 @@ app.put('/api/admin/money-donations/:id/approve', async (req, res) => {
         );
 
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date) VALUES (?, ?, ?, ?, 'Donor', NOW())`,
             [
                 'Donation Approved',
                 `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) has been approved. Thank you!`,
@@ -4829,7 +5055,7 @@ app.put('/api/admin/money-donations/:id/reject', async (req, res) => {
         );
 
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date) VALUES (?, ?, ?, ?, 'Donor', NOW())`,
             [
                 'Donation Rejected',
                 `Your $${Number(donation.amount).toFixed(2)} donation via ${donation.payment_method} (Ref: ${donation.reference_number}) was rejected. Reason: ${reason.trim()}.`,
@@ -5361,7 +5587,7 @@ app.post('/api/admin/fund-distribution', async (req, res) => {
 
         // Notify the donor - they need to confirm
         await pool.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date) VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date) VALUES (?, ?, ?, ?, 'Donor', NOW())`,
             [
                 'Fund Distribution Pending Your Approval',
                 `The admin has initiated a fund distribution of $${Number(amount).toFixed(2)} to you via ${paymentMethod.trim()}. Reference: ${refNumber}. Please review and confirm or reject it in your Fund Distributions page.`,
@@ -5573,9 +5799,10 @@ app.get('/api/admin/notifications', async (req, res) => {
                 'new_registration', 'new_offer', 'offer_accepted',
                 'money_donation', 'fund_distribution',
                 'volunteer_assigned', 'delivery_completed', 'feedback_submitted',
-                'contact_message', 'offer_expired', 'offer_cancelled', 
-                'money_request', 'profile_update', 'money_request_approved', 
-                'money_request_rejected', 'expiration_alert', 'assignment_request'
+                'contact_message', 'offer_expired', 'offer_cancelled',
+                'money_request', 'profile_update', 'money_request_approved',
+                'money_request_rejected', 'expiration_alert',
+                'assignment_request', 'assignment_response'
             )
         `;
         const params = [];
@@ -5593,7 +5820,6 @@ app.get('/api/admin/notifications', async (req, res) => {
         res.status(500).json({ error: 'Failed to load notifications.' });
     }
 });
-
 
 
 // ── PUT /api/admin/notifications/mark-all-read ────────────────
@@ -5617,8 +5843,6 @@ app.put('/api/admin/notifications/mark-all-read', async (req, res) => {
 });
 
 
-
-
 // ── PUT /api/admin/notifications/:id/read ─────────────────────
 // Marks a single notification as read (used when the admin clicks one item).
 app.put('/api/admin/notifications/:id/read', async (req, res) => {
@@ -5636,7 +5860,6 @@ app.put('/api/admin/notifications/:id/read', async (req, res) => {
     }
 });
 
-
 // ── DELETE /api/admin/notifications/delete-all ────────────────
 // Permanently deletes ALL notification records from the table.
 // The admin is shown a confirmation dialog on the frontend before this fires.
@@ -5649,7 +5872,6 @@ app.delete('/api/admin/notifications/delete-all', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete notifications.' });
     }
 });
-
 
 // ── DELETE /api/admin/notifications/:notificationId ───────────
 // Permanently deletes a single notification by its ID.
@@ -5673,7 +5895,6 @@ app.delete("/api/admin/notifications/:notificationId", async (req, res) => {
     }
 });
 
-
 // ── GET /api/admin/notifications/unread-count/:userId ─────────
 // Returns the count of unread admin-level notifications.
 app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
@@ -5691,8 +5912,6 @@ app.get('/api/admin/notifications/unread-count/:userId', async (req, res) => {
         res.json({ count: 0 });
     }
 });
-
-
 
 // ==============================================================
 // ──────────────── ADMIN DELIVERIES API ─────────────────────────
@@ -5831,8 +6050,6 @@ app.get('/api/admin/deliveries', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch deliveries.' });
     }
 });
-
-
 
 
 // ==============================================================
@@ -6264,8 +6481,8 @@ app.put("/api/admin/money-requests/:id/approve", async (req, res) => {
 
         // 3. Notify donor
         await conn.query(`
-            INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, ?, NOW())
+            INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+            VALUES (?, ?, ?, ?, 'Donor', NOW())
         `, [
             'Money Request Approved',
             `Your request for $${request.amount} (${request.reason}) has been approved. Funds have been sent. Reference: ${distRef}`,
@@ -6331,8 +6548,8 @@ app.put("/api/admin/money-requests/:id/reject", async (req, res) => {
         `, [reason.trim(), id]);
 
         await conn.query(`
-            INSERT INTO Notifications (message_title, message, type, user_id, date)
-            VALUES (?, ?, ?, ?, NOW())
+            INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+            VALUES (?, ?, ?, ?, 'Donor', NOW())
         `, [
             'Money Request Rejected',
             `Your request was rejected. Reason: ${reason}`,
@@ -6531,8 +6748,8 @@ app.post('/api/admin/request-volunteer', async (req, res) => {
 
         // Notify the volunteer
         await conn.query(
-            `INSERT INTO Notifications (message_title, message, type, user_id, date)
-             VALUES (?, ?, ?, ?, NOW())`,
+            `INSERT INTO Notifications (message_title, message, type, user_id, recipient_role, date)
+             VALUES (?, ?, ?, ?, 'Volunteer', NOW())`,
             [
                 'New Assignment Request',
                 `Admin needs you to deliver "${offer.food_name}". Message: ${message || 'Please accept or reject this request.'}`,
@@ -6572,7 +6789,282 @@ app.post('/api/admin/request-volunteer', async (req, res) => {
 // ==============================================================
 // ──────────────── START SERVER ────────────────────────────────
 // ==============================================================
-app.listen(5000, () => process.stdout.write("O&H - FeedHope"));
+// ==============================================================
+// ──────────────── ADMIN AI SUMMARY (Gemini 2.0 Flash) ─────────
+// ==============================================================
+
+// Lazy-init the Gemini client only when an API key is present —
+// the rest of the app keeps running fine without it. Gemini's free
+// tier (1500 requests/day on Flash) is plenty for this feature.
+// gemini-2.5-flash is the current stable Flash model with a free
+// tier (10 req/min, 250 req/day). gemini-1.5-flash is retired.
+// We try flash first; on 503 (server overloaded), fall back to
+// flash-lite which sees less traffic and is usually available.
+const geminiClient = process.env.GEMINI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : null;
+
+// flash-lite has the most generous free-tier daily quota (~1000 RPD)
+// and lower contention, so we hit it first and keep flash as fallback.
+const GEMINI_PRIMARY_MODEL  = 'gemini-2.5-flash-lite';
+const GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash';
+
+const geminiModel = geminiClient?.getGenerativeModel({ model: GEMINI_PRIMARY_MODEL }) || null;
+const geminiFallbackModel = geminiClient?.getGenerativeModel({ model: GEMINI_FALLBACK_MODEL }) || null;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Call Gemini with retry on transient 5xx errors. Tries up to 3 times
+// against the primary model with exponential backoff, then once
+// against the fallback model.
+async function callGeminiWithRetry(payload) {
+    const tryOnce = async (model, label) => {
+        try {
+            return { ok: true, result: await model.generateContent(payload), label };
+        } catch (err) {
+            return { ok: false, err, label };
+        }
+    };
+
+    const isTransient = err => {
+        const msg = err?.message || String(err);
+        return /\b503\b|UNAVAILABLE|overloaded|high demand|\b502\b|\b504\b/i.test(msg);
+    };
+
+    let lastErr;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        const r = await tryOnce(geminiModel, GEMINI_PRIMARY_MODEL);
+        if (r.ok) return r;
+        lastErr = r.err;
+        if (!isTransient(r.err)) throw r.err;
+        if (attempt < 3) await sleep(500 * attempt); // 500ms, 1000ms
+    }
+
+    process.stdout.write(`[ai/summary] Primary model overloaded, falling back to ${GEMINI_FALLBACK_MODEL}\n`);
+    const fb = await tryOnce(geminiFallbackModel, GEMINI_FALLBACK_MODEL);
+    if (fb.ok) return fb;
+    throw lastErr;
+}
+
+const ADMIN_SUMMARY_SYSTEM_PROMPT = `You are an analyst for FeedHope, a food donation platform serving Lebanon. Donors post surplus food, receivers (charities, shelters, families) accept it, and volunteers deliver it.
+
+Your job: write a concise summary of platform activity from the structured JSON the user provides.
+
+Strict rules:
+1. Write 1-2 short paragraphs in plain English. Total ~120 words.
+2. Use ONLY the numbers in the JSON. Never invent statistics.
+3. When a "previous" period is given, compute the percent change vs "current" and call out notable shifts (>20% up or down).
+4. If a value is 0 or null, say so naturally — don't hide it.
+5. Mention the most active donor and the most popular category if their counts are above zero.
+6. Tone: factual, neutral, conversational. No exclamation marks. No emojis.
+7. Reference the period explicitly ("today", "this week", etc.).
+8. End with one observation or risk if applicable (e.g. offers expiring without volunteers, low donation volume, deliveries lagging acceptance).
+
+Output: just the paragraphs. No headings, no bullet lists, no markdown formatting.`;
+
+// Compute MySQL-formatted date ranges for the current period and the
+// comparable previous period (same window 7 days earlier).
+function computeAdminPeriod(range) {
+    const now = new Date();
+    let from, to;
+
+    if (range === 'this_week') {
+        from = new Date(now); from.setDate(now.getDate() - 7);
+        to = new Date(now);
+    } else if (range === 'this_month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = new Date(now);
+    } else { // 'today' (default)
+        from = new Date(now); from.setHours(0, 0, 0, 0);
+        to = new Date(now);
+    }
+
+    const periodMs = to.getTime() - from.getTime();
+    const previousFrom = new Date(from.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const previousTo = new Date(previousFrom.getTime() + periodMs);
+
+    // MySQL DATETIME columns are naive (no timezone) and stored in
+    // server-local time. toISOString() returns UTC, which would shift
+    // the window by your offset (e.g. 3h in Beirut) and miss today's
+    // rows. Format in local time to match how rows were inserted.
+    const pad = n => String(n).padStart(2, '0');
+    const fmt = d =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return {
+        label: range || 'today',
+        current: { from: fmt(from), to: fmt(to) },
+        previous: { from: fmt(previousFrom), to: fmt(previousTo) }
+    };
+}
+
+async function aggregateAdminStats({ from, to }) {
+    const [[offers]] = await pool.query(`
+        SELECT
+            COUNT(*)                                                                AS created,
+            SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END)                      AS accepted,
+            SUM(CASE WHEN status IN ('in_delivery','delivery_accepted') THEN 1 ELSE 0 END) AS in_progress,
+            SUM(CASE WHEN status='delivered' THEN 1 ELSE 0 END)                     AS delivered,
+            SUM(CASE WHEN status='expired' THEN 1 ELSE 0 END)                       AS expired,
+            SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END)                     AS cancelled,
+            COALESCE(SUM(quantity_by_kg), 0)                                        AS total_kg,
+            COALESCE(SUM(number_of_person), 0)                                      AS people_fed
+        FROM Food_offer
+        WHERE created_at >= ? AND created_at < ?
+    `, [from, to]);
+
+    const [topDonors] = await pool.query(`
+        SELECT u.name AS donor, COUNT(*) AS offers,
+               COALESCE(SUM(fo.quantity_by_kg), 0) AS kg
+        FROM Food_offer fo
+        JOIN Donor d ON d.donor_id = fo.donor_id
+        JOIN User  u ON u.user_id  = d.user_id
+        WHERE fo.created_at >= ? AND fo.created_at < ?
+        GROUP BY u.user_id, u.name
+        ORDER BY offers DESC, kg DESC
+        LIMIT 3
+    `, [from, to]);
+
+    const [byCategory] = await pool.query(`
+        SELECT fc.category_name AS category, COUNT(*) AS count
+        FROM Food_offer fo
+        JOIN Food_category fc ON fc.category_id = fo.category_id
+        WHERE fo.created_at >= ? AND fo.created_at < ?
+        GROUP BY fc.category_name
+        ORDER BY count DESC
+        LIMIT 5
+    `, [from, to]);
+
+    const [[deliveries]] = await pool.query(`
+        SELECT COUNT(*) AS completed
+        FROM Delivery
+        WHERE delivery_time >= ? AND delivery_time < ?
+          AND delivery_status IN ('delivered', 'completed')
+    `, [from, to]);
+
+    const [[regs]] = await pool.query(`
+        SELECT COUNT(*) AS new_users
+        FROM User
+        WHERE created_at >= ? AND created_at < ?
+    `, [from, to]);
+
+    return {
+        offers: {
+            created:     Number(offers.created     || 0),
+            accepted:    Number(offers.accepted    || 0),
+            in_progress: Number(offers.in_progress || 0),
+            delivered:   Number(offers.delivered   || 0),
+            expired:     Number(offers.expired     || 0),
+            cancelled:   Number(offers.cancelled   || 0),
+        },
+        kilograms:            Number(offers.total_kg   || 0),
+        people_fed:           Number(offers.people_fed || 0),
+        deliveries_completed: Number(deliveries.completed || 0),
+        new_users:            Number(regs.new_users || 0),
+        top_donors:           topDonors.map(r => ({
+            donor:  r.donor,
+            offers: Number(r.offers),
+            kg:     Number(r.kg),
+        })),
+        top_categories: byCategory.map(r => ({
+            category: r.category,
+            count:    Number(r.count),
+        })),
+    };
+}
+
+// POST /api/admin/ai/summary
+// Body: { range?: 'today' | 'this_week' | 'this_month' }
+// Returns: { summary: string, period: {...}, generated_at: ISO string, usage: {...} }
+app.post('/api/admin/ai/summary', async (req, res) => {
+    if (!geminiModel) {
+        return res.status(503).json({
+            error: 'AI summary is not configured. Set GEMINI_API_KEY in backend/.env and restart the server.'
+        });
+    }
+
+    try {
+        const range = req.body?.range || 'today';
+        const period = computeAdminPeriod(range);
+
+        const [current, previous] = await Promise.all([
+            aggregateAdminStats(period.current),
+            aggregateAdminStats(period.previous),
+        ]);
+
+        const payload = { period, current, previous };
+
+        const { result, label: modelUsed } = await callGeminiWithRetry({
+            systemInstruction: { role: 'system', parts: [{ text: ADMIN_SUMMARY_SYSTEM_PROMPT }] },
+            contents: [
+                {
+                    role: 'user',
+                    parts: [{
+                        text: `Period: ${range}\n\nData:\n${JSON.stringify(payload, null, 2)}`
+                    }],
+                },
+            ],
+            generationConfig: {
+                temperature: 0.4,
+                maxOutputTokens: 1024,
+            },
+        });
+
+        const summary = (result.response.text() || '').trim();
+        const usage = result.response.usageMetadata || {};
+
+        res.json({
+            summary,
+            period,
+            generated_at: new Date().toISOString(),
+            model: modelUsed,
+            usage: {
+                input_tokens:  usage.promptTokenCount     || 0,
+                output_tokens: usage.candidatesTokenCount || 0,
+                total_tokens:  usage.totalTokenCount      || 0,
+            },
+        });
+    } catch (err) {
+        // Surface the real reason so the dashboard shows something useful.
+        const raw = err?.message || String(err);
+        const status = err?.status || err?.statusCode
+            || (/\b429\b|quota|rate/i.test(raw) ? 429
+              : /\b401\b|API key not valid|invalid API key/i.test(raw) ? 401
+              : /\b403\b|permission|disabled/i.test(raw) ? 403
+              : /\b503\b|UNAVAILABLE|overloaded|high demand/i.test(raw) ? 503
+              : 500);
+
+        process.stdout.write(`[ai/summary] Gemini error ${status}: ${raw}\n`);
+
+        if (status === 401 || status === 403) {
+            return res.status(401).json({
+                error: 'Invalid GEMINI_API_KEY. Check backend/.env.',
+            });
+        }
+        if (status === 429) {
+            // Distinguish per-day vs per-minute limit from the real Gemini error.
+            const isDaily = /per day|RPD|requests_per_day/i.test(raw);
+            const isMinute = /per minute|RPM|requests_per_minute/i.test(raw);
+            let msg;
+            if (isDaily) {
+                msg = 'Daily Gemini quota exhausted on the free tier. It resets at midnight Pacific time. Try again tomorrow, or use a different API key.';
+            } else if (isMinute) {
+                msg = 'Per-minute Gemini limit hit. Wait ~60 seconds and try again.';
+            } else {
+                msg = 'Gemini quota hit. If you have been testing a lot today, the daily free-tier cap is the likely cause — try again tomorrow.';
+            }
+            return res.status(429).json({ error: msg });
+        }
+        if (status === 503) {
+            return res.status(503).json({
+                error: 'Gemini servers are temporarily overloaded (Google-side, not your project). Please try again in 15-30 seconds.',
+            });
+        }
+        return res.status(500).json({ error: raw });
+    }
+});
+
+app.listen(5000, () => process.stdout.write("O&H - FeedHope\n"));
 
 
 

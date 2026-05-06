@@ -1,0 +1,91 @@
+.fh-toast-stack {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: var(--fh-z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: calc(100vw - 40px);
+}
+
+.fh-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--fh-surface);
+    border: 1px solid var(--fh-border);
+    border-radius: var(--fh-radius-md);
+    box-shadow: var(--fh-shadow-lg);
+    padding: 12px 16px;
+    min-width: 280px;
+    max-width: 420px;
+    pointer-events: auto;
+    animation: fh-toast-in 220ms ease-out;
+    border-left-width: 4px;
+}
+
+@keyframes fh-toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.fh-toast-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.fh-toast-msg {
+    flex: 1;
+    font-size: var(--fh-text-base);
+    color: var(--fh-text);
+    line-height: 1.4;
+}
+
+.fh-toast-close {
+    background: none;
+    border: none;
+    color: var(--fh-text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background var(--fh-transition-fast);
+}
+
+.fh-toast-close:hover { background: var(--fh-gray-100); }
+
+.fh-toast--success { border-left-color: var(--fh-success); }
+.fh-toast--success .fh-toast-dot { background: var(--fh-success); }
+
+.fh-toast--error { border-left-color: var(--fh-danger); }
+.fh-toast--error .fh-toast-dot { background: var(--fh-danger); }
+
+.fh-toast--warning { border-left-color: var(--fh-warning); }
+.fh-toast--warning .fh-toast-dot { background: var(--fh-warning); }
+
+.fh-toast--info { border-left-color: var(--fh-info); }
+.fh-toast--info .fh-toast-dot { background: var(--fh-info); }
+
+@media (max-width: 600px) {
+    .fh-toast-stack {
+        top: auto;
+        bottom: 20px;
+        right: 12px;
+        left: 12px;
+        max-width: none;
+    }
+    .fh-toast {
+        min-width: 0;
+        max-width: none;
+    }
+}

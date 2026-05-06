@@ -1,0 +1,630 @@
+/* ============================================================
+   VolunteerDashboard.css — Blue volunteer theme
+   ============================================================ */
+
+/* ── Root tokens ──────────────────────────────────────────── */
+:root {
+    --vdb-blue: #1976d2;
+    --vdb-blue-dark: #0d47a1;
+    --vdb-blue-mid: #1e88e5;
+    --vdb-blue-light: #e3f2fd;
+    --vdb-blue-xlight: #f0f7ff;
+    --vdb-green: #2e7d32;
+    --vdb-green-light: #e8f5e9;
+    --vdb-amber: #f9a825;
+    --vdb-amber-light: #fffde7;
+    --vdb-orange: #f57c00;
+    --vdb-orange-light: #fff3e0;
+    --vdb-purple: #6a1b9a;
+    --vdb-purple-light: #f3e5f5;
+    --vdb-text-main: #1a1a1a;
+    --vdb-text-sub: #555555;
+    --vdb-text-muted: #888888;
+    --vdb-border: #e0e0e0;
+    --vdb-bg-page: #f4f6f8;
+    --vdb-bg-card: #ffffff;
+    --vdb-sidebar-w: 260px;
+    --vdb-radius-sm: 6px;
+    --vdb-radius-md: 10px;
+    --vdb-radius-lg: 14px;
+    --vdb-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+body {
+    background-color: var(--vdb-bg-page) !important;
+    color: var(--vdb-text-main) !important;
+}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.vdb-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--vdb-bg-page);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        'Helvetica Neue', Arial, sans-serif;
+}
+
+.vdb-main {
+    margin-left: var(--vdb-sidebar-w);
+    flex: 1;
+    padding: 24px 28px;
+    min-height: 100vh;
+    /* clamp width so nothing overflows the viewport */
+    max-width: calc(100vw - var(--vdb-sidebar-w));
+    box-sizing: border-box;
+}
+
+/* ── Banner ───────────────────────────────────────────────── */
+.vdb-banner {
+    background: linear-gradient(135deg, #1565c0 0%, #1976d2 55%, #0d47a1 100%);
+    border-radius: var(--vdb-radius-lg);
+    padding: 32px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    min-height: 160px;
+}
+
+.vdb-banner::before {
+    content: '';
+    position: absolute;
+    right: 180px;
+    top: -55px;
+    width: 230px;
+    height: 230px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.vdb-banner::after {
+    content: '';
+    position: absolute;
+    right: -28px;
+    bottom: -55px;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.vdb-banner-text {
+    flex: 1;
+    z-index: 1;
+}
+
+.vdb-greeting {
+    font-size: 12.5px;
+    opacity: 0.82;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.vdb-banner-text h1 {
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    line-height: 1.2;
+}
+
+.vdb-message {
+    font-size: 13.5px;
+    opacity: 0.88;
+    margin: 0;
+    max-width: 420px;
+    line-height: 1.5;
+}
+
+/* Stat pills — FIX: removed backdrop-filter (causes rendering glitch) */
+.vdb-banner-stats {
+    display: flex;
+    gap: 12px;
+    z-index: 1;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.vdb-stat-pill {
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 40px;
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* ── Stats row (if used on other pages) ───────────────────── */
+.vdb-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-bottom: 22px;
+    background: var(--vdb-bg-card);
+    border-radius: var(--vdb-radius-md);
+    border: 1px solid var(--vdb-border);
+    box-shadow: var(--vdb-shadow);
+    overflow: hidden;
+}
+
+.vdb-stat-card {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-right: 1px solid var(--vdb-border);
+    background: var(--vdb-bg-card);
+    transition: background 0.15s;
+}
+
+.vdb-stat-card:last-child {
+    border-right: none;
+}
+
+.vdb-stat-card:hover {
+    background: var(--vdb-blue-xlight);
+}
+
+.vdb-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--vdb-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--vdb-blue-light);
+    color: var(--vdb-blue);
+}
+
+.vdb-stat-info .number {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--vdb-text-main);
+}
+
+.vdb-stat-info .label {
+    font-size: 12.5px;
+    color: var(--vdb-text-muted);
+    margin-top: 3px;
+}
+
+/* ── Two-column grid ──────────────────────────────────────── */
+.vdb-two-columns {
+    display: grid;
+    /* FIX: minmax(0,1fr) prevents columns from overflowing the container */
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    align-items: start;
+}
+
+.vdb-left,
+.vdb-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+/* ── Cards ────────────────────────────────────────────────── */
+.vdb-card {
+    background: var(--vdb-bg-card);
+    border-radius: var(--vdb-radius-md);
+    border: 1px solid var(--vdb-border);
+    box-shadow: var(--vdb-shadow);
+    overflow: hidden;
+}
+
+.vdb-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--vdb-border);
+}
+
+.vdb-card-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--vdb-text-main);
+    margin: 0;
+}
+
+.vdb-view-all {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 13px;
+    color: var(--vdb-text-muted);
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.15s;
+    padding: 0;
+}
+
+.vdb-view-all:hover {
+    color: var(--vdb-blue);
+}
+
+/* ── Tabs — FIX: underline style instead of floating pill ── */
+.vdb-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--vdb-border);
+    background: var(--vdb-bg-card);
+}
+
+.vdb-tab {
+    padding: 13px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    /* FIX: pull tab down 1px so active border sits flush on the card border */
+    margin-bottom: -1px;
+    font-weight: 500;
+    font-size: 13.5px;
+    color: var(--vdb-text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    border-radius: 0;
+    white-space: nowrap;
+}
+
+.vdb-tab:hover {
+    color: var(--vdb-blue);
+}
+
+.vdb-tab.active {
+    color: var(--vdb-blue);
+    border-bottom-color: var(--vdb-blue);
+    font-weight: 600;
+}
+
+/* ── Delivery list ────────────────────────────────────────── */
+.vdb-delivery-list {
+    padding: 4px 0;
+}
+
+.vdb-delivery-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--vdb-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    /* FIX: replaced transparent border-left (never colored) with a clean
+       hover tint and subtle left accent on hover */
+    border-left: 3px solid transparent;
+    transition: background 0.12s, border-left-color 0.12s;
+}
+
+.vdb-delivery-item:last-child {
+    border-bottom: none;
+}
+
+.vdb-delivery-item:hover {
+    background: var(--vdb-blue-xlight);
+    border-left-color: var(--vdb-blue);
+}
+
+.vdb-delivery-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vdb-delivery-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--vdb-text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vdb-delivery-detail {
+    font-size: 12.5px;
+    color: var(--vdb-text-muted);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vdb-delivery-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--vdb-text-muted);
+    margin-top: 6px;
+}
+
+/* Accept button */
+.vdb-accept-btn {
+    background: var(--vdb-blue);
+    color: #fff;
+    border: none;
+    border-radius: 40px;
+    padding: 7px 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.1s;
+    flex-shrink: 0;
+}
+
+.vdb-accept-btn:hover {
+    background: var(--vdb-blue-dark);
+}
+
+.vdb-accept-btn:active {
+    transform: scale(0.97);
+}
+
+/* ── Activity list ────────────────────────────────────────── */
+.vdb-activity-list {
+    padding: 4px 0;
+}
+
+.vdb-activity-item {
+    display: flex;
+    gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--vdb-border);
+    transition: background 0.1s;
+}
+
+.vdb-activity-item:last-child {
+    border-bottom: none;
+}
+
+.vdb-activity-item:hover {
+    background: var(--vdb-blue-xlight);
+}
+
+/* FIX: activity icon colour varies by type via modifier classes */
+.vdb-activity-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--vdb-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    /* default — delivered/check */
+    background: var(--vdb-green-light);
+    color: var(--vdb-green);
+}
+
+.vdb-activity-icon.icon-shipping {
+    background: var(--vdb-blue-light);
+    color: var(--vdb-blue);
+}
+
+.vdb-activity-icon.icon-star {
+    background: var(--vdb-amber-light);
+    color: var(--vdb-amber);
+}
+
+.vdb-activity-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.vdb-activity-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--vdb-text-main);
+    line-height: 1.4;
+}
+
+.vdb-activity-time {
+    font-size: 11.5px;
+    color: var(--vdb-text-muted);
+}
+
+/* ── Achievements ─────────────────────────────────────────── */
+.vdb-achievements {
+    padding: 8px 16px;
+}
+
+.vdb-achievement {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--vdb-border);
+    transition: background 0.1s;
+}
+
+.vdb-achievement:last-child {
+    border-bottom: none;
+}
+
+/* FIX: achievement icon colours differentiated by type */
+.vdb-achievement-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--vdb-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--vdb-amber-light);
+    color: var(--vdb-amber);
+}
+
+.vdb-achievement-icon.icon-star {
+    background: var(--vdb-amber-light);
+    color: #e65100;
+}
+
+.vdb-achievement-icon.icon-schedule {
+    background: var(--vdb-purple-light);
+    color: var(--vdb-purple);
+}
+
+.vdb-achievement-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vdb-achievement-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--vdb-text-main);
+}
+
+.vdb-achievement-desc {
+    font-size: 11.5px;
+    color: var(--vdb-text-muted);
+    line-height: 1.4;
+}
+
+/* Completed achievement state */
+.vdb-achievement.completed .vdb-achievement-icon {
+    background: var(--vdb-green-light);
+    color: var(--vdb-green);
+}
+
+.vdb-achievement.completed .vdb-achievement-title {
+    color: var(--vdb-green);
+}
+
+/* ── Ratings card ─────────────────────────────────────────── */
+.vdb-rating-item-card {
+    padding: 18px 20px;
+}
+
+.vdb-rating-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--vdb-text-main);
+}
+
+.vdb-rating-detail {
+    font-size: 13px;
+    color: var(--vdb-text-muted);
+    margin-bottom: 4px;
+}
+
+.vdb-rating-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--vdb-blue);
+    font-weight: 500;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 1280px) {
+    .vdb-two-columns {
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .vdb-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vdb-stat-card:nth-child(2) {
+        border-right: none;
+    }
+
+    .vdb-stat-card:nth-child(1),
+    .vdb-stat-card:nth-child(2) {
+        border-bottom: 1px solid var(--vdb-border);
+    }
+
+    .vdb-two-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .vdb-main {
+        margin-left: 0;
+        padding: 16px;
+        max-width: 100vw;
+    }
+
+    .vdb-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 24px 20px;
+        min-height: unset;
+        gap: 16px;
+    }
+
+    .vdb-banner-stats {
+        justify-content: flex-start;
+    }
+
+    .vdb-banner-text h1 {
+        font-size: 22px;
+    }
+
+    .vdb-stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .vdb-stat-card {
+        border-right: none;
+        border-bottom: 1px solid var(--vdb-border);
+    }
+
+    .vdb-stat-card:last-child {
+        border-bottom: none;
+    }
+
+    .vdb-tabs {
+        padding: 0 14px;
+    }
+
+    .vdb-tab {
+        padding: 11px 12px;
+        font-size: 13px;
+    }
+}
+
+/* Critical layout fix */
+.vdb-main {
+    display: block !important;
+    /* prevents flex from vdb-layout bleeding in */
+}
+
+.vdb-banner {
+    width: 100%;
+    flex-shrink: 0;
+    /* prevents banner from collapsing in any flex context */
+}
+
+.vdb-two-columns {
+    width: 100%;
+    /* ensures the grid fills the full content area */
+}

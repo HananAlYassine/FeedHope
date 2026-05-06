@@ -1,0 +1,303 @@
+/* ================================================================
+    FeedHope — ReceiverAcceptedOffers.css
+    Styles for My Accepted Offers page (table + modal)
+==================================================================*/
+
+/* Banner date badge */
+.rao-date-badge {
+    background: rgba(255, 255, 255, 0.2);
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 13px;
+    margin-top: 12px;
+    backdrop-filter: blur(4px);
+}
+
+/* Table container – responsive overflow */
+.rao-table-container {
+    background: var(--rdb-bg-card);
+    border-radius: var(--rdb-radius-md);
+    border: 1px solid var(--rdb-border);
+    overflow-x: auto;
+    margin-top: 20px;
+    box-shadow: var(--rdb-shadow);
+}
+
+.rao-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 700px;
+}
+
+.rao-table thead tr {
+    background: #f9fafb;
+    border-bottom: 1px solid var(--rdb-border);
+}
+
+.rao-table th {
+    text-align: left;
+    padding: 14px 16px;
+    font-weight: 600;
+    color: var(--rdb-text-main);
+    font-size: 13px;
+}
+
+.rao-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rdb-border);
+    vertical-align: middle;
+    color: var(--rdb-text-sub);
+}
+
+.rao-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status badge */
+.rao-status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+.rao-status-accepted {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Action buttons */
+.rao-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.rao-btn-cancel,
+.rao-btn-feedback {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: 0.15s;
+}
+.rao-btn-cancel {
+    background: #ffebee;
+    color: #c62828;
+}
+.rao-btn-cancel:hover {
+    background: #ffcdd2;
+}
+.rao-btn-feedback {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.rao-btn-feedback:hover {
+    background: #c8e6c9;
+}
+.rao-btn-cancel:disabled,
+.rao-btn-feedback:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Empty row */
+.rao-empty-row td {
+    text-align: center;
+    padding: 40px;
+    color: var(--rdb-text-muted);
+}
+
+/* Modal overlay */
+.ram-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.ram-modal {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 20px 35px rgba(0,0,0,0.2);
+}
+.ram-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eaeef2;
+}
+.ram-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+.ram-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+}
+.ram-modal-body {
+    padding: 20px;
+}
+.ram-rating {
+    margin-bottom: 20px;
+}
+.ram-stars {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+}
+.ram-star {
+    cursor: pointer;
+    font-size: 24px;
+}
+.ram-comment label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+.ram-comment textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+.ram-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #eaeef2;
+}
+.ram-btn-cancel-modal,
+.ram-btn-submit {
+    padding: 8px 18px;
+    border-radius: 30px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+.ram-btn-cancel-modal {
+    background: #f0f0f0;
+}
+.ram-btn-submit {
+    background: #2e7d32;
+    color: white;
+}
+.ram-btn-submit:hover {
+    background: #1b5e20;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .rao-table thead {
+        display: none;
+    }
+    .rao-table,
+    .rao-table tbody,
+    .rao-table tr,
+    .rao-table td {
+        display: block;
+        width: 100%;
+    }
+    .rao-table tr {
+        margin-bottom: 16px;
+        border: 1px solid var(--rdb-border);
+        border-radius: 12px;
+        background: white;
+    }
+    .rao-table td {
+        text-align: right;
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+        position: relative;
+    }
+    .rao-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 12px;
+        font-weight: 600;
+        color: var(--rdb-text-main);
+    }
+    .rao-actions {
+        justify-content: flex-end;
+    }
+}
+
+/* Skip button styling (matches Cancel button style) */
+.ram-btn-skip {
+    background: #f0f0f0;
+    color: #333;
+    padding: 8px 18px;
+    border-radius: 30px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.15s;
+}
+.ram-btn-skip:hover {
+    background: #e0e0e0;
+}
+
+.rate-experience-modal {
+    max-width: 500px;
+}
+.rate-intro {
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #555;
+}
+.rate-section {
+    margin-bottom: 20px;
+}
+.rate-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* ========== NEW: Cancel Confirmation Modal Styles ========== */
+.confirm-cancel-modal {
+    max-width: 420px;
+    text-align: center;
+}
+.confirm-warning-icon {
+    margin-bottom: 16px;
+}
+.confirm-message {
+    font-size: 16px;
+    margin: 8px 0 4px;
+    color: #1e2a3a;
+}
+.confirm-submessage {
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-top: 8px;
+}
+.confirm-footer {
+    justify-content: center;
+}
+.confirm-btn-danger {
+    background: #c62828 !important;
+}
+.confirm-btn-danger:hover {
+    background: #b71c1c !important;
+}

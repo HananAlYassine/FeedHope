@@ -1,0 +1,349 @@
+.how-wrapper {
+    min-height: 100vh;
+    width: 100vw;
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+        url('/public/Images/how.jpeg') no-repeat center center;
+    background-size: cover;
+    background-attachment: fixed;
+    display: flex;
+    flex-direction: column;
+    padding: 0 6%;
+}
+
+.how-header-nav {
+    height: 100px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.how-nav-toggle {
+    display: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+}
+
+.how-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: white;
+    font-weight: 800;
+    font-size: 24px;
+}
+
+.how-logo-circle {
+    width: 45px;
+    height: 45px;
+}
+
+.how-logo-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.how-header-nav ul {
+    display: flex;
+    list-style: none;
+    align-items: center;
+    gap: 40px;
+}
+
+.how-header-nav a {
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.how-header-nav nav a:hover,
+.how-header-nav nav a.active {
+    color: #0f9b6f;
+    opacity: 1;
+}
+
+/* Sign In button — matches LandingPage style */
+.how-btn-signin {
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.1);
+    color: white !important;
+    padding: 10px 26px;
+    border-radius: 30px;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: 0.3s;
+}
+
+.how-btn-signin:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #0f9b6f;
+}
+
+.how-nav-mobile-signin {
+    display: none;
+}
+
+.how-main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 0;
+}
+
+.how-glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+}
+
+.how-info-section {
+    padding: 50px;
+    background: rgba(15, 155, 111, 0.25);
+    color: white;
+}
+
+.how-info-section h1 span {
+    color: #0f9b6f;
+}
+
+.hero-description {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 15px 0 35px;
+}
+
+.how-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.how-step-item {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.how-step-num {
+    background: #0f9b6f;
+    color: white;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.how-step-content h3 {
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.how-step-content p {
+    font-size: 13.5px;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.how-content-section {
+    padding: 50px;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.how-content-section h2 {
+    color: #333;
+    margin-bottom: 25px;
+}
+
+.how-roles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.role-card {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 12px;
+    border: 1px solid #eaeaea;
+    transition: 0.3s;
+}
+
+.role-card:hover {
+    border-color: #0f9b6f;
+    transform: translateX(5px);
+}
+
+.role-card h4 {
+    color: #0f9b6f;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.role-card p {
+    font-size: 13.5px;
+    color: #555;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.how-cta-box {
+    text-align: center;
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.how-cta-box h2 {
+    margin-bottom: 10px;
+    font-size: 22px;
+}
+
+.how-cta-box p {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.how-cta-btn {
+    display: inline-block;
+    background: #0f9b6f;
+    color: white;
+    padding: 14px 30px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: 0.3s;
+    width: 100%;
+}
+
+.how-cta-btn:hover {
+    background: #0c7a5c;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(15, 155, 111, 0.3);
+}
+
+@media (max-width: 900px) {
+    .how-glass-card {
+        grid-template-columns: 1fr;
+    }
+    .how-info-section,
+    .how-content-section {
+        padding: 30px;
+    }
+
+    /* Mobile nav: hamburger + dropdown */
+    .how-nav-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .how-nav-desktop-signin {
+        display: none;
+    }
+    .how-nav-mobile-signin {
+        display: list-item;
+        margin-top: 4px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 4px;
+    }
+    .how-header-nav nav {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        left: 0;
+        z-index: 20;
+        padding: 0 4%;
+    }
+    .how-header-nav nav ul {
+        display: none;
+    }
+    .how-header-nav nav.is-open ul {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 8px;
+        margin-top: 8px;
+    }
+    .how-header-nav nav ul li {
+        width: 100%;
+    }
+    .how-header-nav nav ul li a {
+        display: block;
+        padding: 14px 16px;
+        border-radius: 10px;
+    }
+    .how-header-nav nav ul li a:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    .how-nav-mobile-signin .how-btn-signin {
+        display: block;
+        text-align: center;
+        background: #0f9b6f;
+        border-color: #0f9b6f;
+    }
+}
+
+@media (max-width: 600px) {
+    .how-wrapper {
+        padding: 0 4%;
+        background-attachment: scroll;
+    }
+    .how-header-nav {
+        height: 70px;
+    }
+    .how-logo {
+        font-size: 18px;
+    }
+    .how-logo-circle {
+        width: 36px;
+        height: 36px;
+    }
+    .how-info-section,
+    .how-content-section {
+        padding: 24px 20px;
+    }
+    .how-info-section h1 {
+        font-size: 26px;
+    }
+    .how-step-num {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+    }
+    .how-btn-signin {
+        padding: 8px 18px;
+        font-size: 13px;
+    }
+}
