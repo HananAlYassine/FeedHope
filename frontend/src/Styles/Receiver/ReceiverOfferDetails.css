@@ -179,3 +179,12 @@
     max-width: 100%;
   }
 }
+/* ── Top action row: back button + AI translate button ──── */
+.rod-top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0 14px;
+}

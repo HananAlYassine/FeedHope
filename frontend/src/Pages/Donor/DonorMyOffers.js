@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import Skeleton from '../../Components/Shared/Skeleton';
 import EmptyState from '../../Components/Shared/EmptyState';
 import Button from '../../Components/Shared/Button';
@@ -20,7 +21,10 @@ const DIETARY_OPTIONS = [
     'Gluten-free', 'Dairy-free', 'Nut-free', 'Contains Allergens',
 ];
 
-const STATUS_FILTERS = ['All', 'Available', 'Accepted', 'In_delivery', 'Delivered', 'Expired'];
+// Filter pills shown above the table. Order matches the offer lifecycle:
+// available → accepted → delivery_accepted → in_delivery → delivered → expired.
+// Underscores are rendered as spaces by `status.replaceAll('_', ' ')`.
+const STATUS_FILTERS = ['All', 'Available', 'Accepted', 'Delivery_accepted', 'In_delivery', 'Delivered', 'Expired'];
 
 // Same helper as DonorNewOffer.js — returns the current local time
 // formatted for an <input type="datetime-local"> element.
@@ -422,7 +426,7 @@ const DonorMyOffers = () => {
                                     className={`status-pill ${statusFilter === status ? 'active' : ''}`}
                                     onClick={() => setStatusFilter(status)}
                                 >
-                                    {status.replace('_', ' ')}
+                                    {status.replaceAll('_', ' ')}
                                 </button>
                             ))}
                         </div>
@@ -746,7 +750,8 @@ const DonorMyOffers = () => {
                     </div>
                 )}
             </main>
-        </div>
+        <DashboardChatbot role="Donor" />
+            </div>
     );
 };
 

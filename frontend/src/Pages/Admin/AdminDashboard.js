@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminDashboard.css';
 
 // MUI icons
@@ -822,6 +823,9 @@ const AdminDashboard = () => {
                     )}
                 </div>
             </main>
+
+            {/* Role-aware AI assistant */}
+            <DashboardChatbot role="Admin" />
         </div>
     );
 };

@@ -2080,9 +2080,11 @@ app.get("/api/donor/dashboard/:userId", async (req, res) => {
             [donorId]
         );
 
-        // 3. Recent Offers
+        // 3. Recent Offers — fetch up to 5 so the dashboard's Recent Offers
+        // card fills the available column space without leaving a big gap
+        // above the donut chart below it.
         const [recent] = await pool.query(
-            "SELECT offer_id, food_name, status, number_of_person, created_at FROM Food_offer WHERE donor_id = ? ORDER BY created_at DESC LIMIT 3",
+            "SELECT offer_id, food_name, status, number_of_person, created_at FROM Food_offer WHERE donor_id = ? ORDER BY created_at DESC LIMIT 5",
             [donorId]
         );
 
@@ -2090,6 +2092,16 @@ app.get("/api/donor/dashboard/:userId", async (req, res) => {
         const [notifs] = await pool.query(
             `SELECT * FROM Notifications WHERE user_id = ? ORDER BY (read_at IS NULL) DESC, date DESC LIMIT 3`,
             [userId]
+        );
+
+        // 5. Status breakdown — count of offers grouped by status (powers the donut chart)
+        const [statusRows] = await pool.query(
+            `SELECT COALESCE(status, 'unknown') AS status, COUNT(*) AS count
+             FROM Food_offer
+             WHERE donor_id = ?
+             GROUP BY status
+             ORDER BY count DESC`,
+            [donorId]
         );
 
         res.json({
@@ -2103,7 +2115,8 @@ app.get("/api/donor/dashboard/:userId", async (req, res) => {
             },
             recentOffers: recent,
             notifications: notifs,
-            unreadCount: notifs.length // Simplified for now
+            unreadCount: notifs.length, // Simplified for now
+            statusBreakdown: statusRows.map(r => ({ status: r.status, count: Number(r.count) }))
         });
 
     } catch (err) {
@@ -4667,7 +4680,10 @@ app.get('/api/volunteer/dashboard/:userId', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 app.get('/api/admin/food-offers', async (req, res) => {
     try {
-        // All offers with donor name, category name, and donor city
+        // All offers with donor name, category name, and donor city.
+        // Hide offers that are expired — either explicitly (status='expired')
+        // or because the expiration_date_and_time has already passed even if a
+        // cron run hasn't flipped them to 'expired' yet.
         const [offers] = await pool.query(`
             SELECT
                 fo.offer_id,
@@ -4685,13 +4701,18 @@ app.get('/api/admin/food-offers', async (req, res) => {
             JOIN User u ON d.user_id = u.user_id
             LEFT JOIN Address a ON a.user_id = u.user_id
             LEFT JOIN Food_category fc ON fo.category_id = fc.category_id
+            WHERE fo.status IN ('available', 'accepted', 'delivery_accepted', 'in_delivery', 'delivered')
+              AND (fo.expiration_date_and_time IS NULL
+                   OR fo.expiration_date_and_time > NOW())
             ORDER BY fo.offer_id DESC
         `);
 
-        // Distinct statuses (for dropdown)
-        const [statusRows] = await pool.query(`
-            SELECT DISTINCT status FROM Food_offer WHERE status IS NOT NULL ORDER BY status
-        `);
+        // Status dropdown — restrict to the active lifecycle stages only:
+        // Available → Accepted → Delivery Accepted → In Delivery → Delivered.
+        // Hides terminal/edge statuses (expired, cancelled, completed) from
+        // the filter so the admin only sees in-progress states.
+        const allowedStatuses = ['available', 'accepted', 'delivery_accepted', 'in_delivery', 'delivered'];
+        const statusRows = allowedStatuses.map(status => ({ status }));
 
         // Distinct categories (for dropdown) - from Food_category table
         const [catRows] = await pool.query(`
@@ -6395,7 +6416,7 @@ app.get("/api/admin/money-requests", async (req, res) => {
             JOIN Donor d ON mr.donor_id = d.donor_id
             JOIN User u ON d.user_id = u.user_id
             WHERE mr.status = 'pending'
-            ORDER BY mr.request_date ASC
+            ORDER BY mr.request_date DESC
         `);
         res.json(rows);
     } catch (err) {
@@ -6664,6 +6685,17 @@ checkExpiringOffers();
 // ─── GET /api/admin/expiration-alerts ─────────────────────────
 app.get('/api/admin/expiration-alerts', async (req, res) => {
     try {
+        // Once the underlying offer has actually expired (status='expired' or
+        // its expiration_date_and_time has passed) the "about-to-expire" alert
+        // is no longer relevant — drop it from the dashboard alert box.
+        await pool.query(`
+            DELETE ea FROM expiration_alert ea
+            JOIN Food_offer fo ON ea.offer_id = fo.offer_id
+            WHERE fo.status = 'expired'
+               OR (fo.expiration_date_and_time IS NOT NULL
+                   AND fo.expiration_date_and_time <= NOW())
+        `);
+
         const [rows] = await pool.query(`
             SELECT
                 ea.alert_id,
@@ -6676,6 +6708,9 @@ app.get('/api/admin/expiration-alerts', async (req, res) => {
                 fo.receiver_id
             FROM expiration_alert ea
             JOIN Food_offer fo ON ea.offer_id = fo.offer_id
+            WHERE fo.status <> 'expired'
+              AND (fo.expiration_date_and_time IS NULL
+                   OR fo.expiration_date_and_time > NOW())
             ORDER BY ea.alert_time DESC
         `);
         res.json({ alerts: rows });
@@ -6831,19 +6866,31 @@ async function callGeminiWithRetry(payload) {
         return /\b503\b|UNAVAILABLE|overloaded|high demand|\b502\b|\b504\b/i.test(msg);
     };
 
+    // Hit the per-model daily/minute quota? Don't retry the same model —
+    // jump straight to the fallback (different model = separate quota bucket).
+    const isQuotaExceeded = err => {
+        const msg = err?.message || String(err);
+        return /\b429\b|quota|exceeded|rate.?limit/i.test(msg);
+    };
+
     let lastErr;
     for (let attempt = 1; attempt <= 3; attempt++) {
         const r = await tryOnce(geminiModel, GEMINI_PRIMARY_MODEL);
         if (r.ok) return r;
         lastErr = r.err;
+        if (isQuotaExceeded(r.err)) {
+            process.stdout.write(`[ai] Primary model quota exhausted — switching to ${GEMINI_FALLBACK_MODEL}\n`);
+            break; // try fallback model immediately
+        }
         if (!isTransient(r.err)) throw r.err;
         if (attempt < 3) await sleep(500 * attempt); // 500ms, 1000ms
     }
 
-    process.stdout.write(`[ai/summary] Primary model overloaded, falling back to ${GEMINI_FALLBACK_MODEL}\n`);
     const fb = await tryOnce(geminiFallbackModel, GEMINI_FALLBACK_MODEL);
     if (fb.ok) return fb;
-    throw lastErr;
+    // Both models failed — surface the original error so the route handler
+    // can map it to a user-friendly status.
+    throw lastErr || fb.err;
 }
 
 const ADMIN_SUMMARY_SYSTEM_PROMPT = `You are an analyst for FeedHope, a food donation platform serving Lebanon. Donors post surplus food, receivers (charities, shelters, families) accept it, and volunteers deliver it.
@@ -7061,6 +7108,1026 @@ app.post('/api/admin/ai/summary', async (req, res) => {
             });
         }
         return res.status(500).json({ error: raw });
+    }
+});
+
+// ==============================================================
+// ──────────────── AI DASHBOARD CHAT (Gemini Flash) ────────────
+// ==============================================================
+//  Role-aware chatbot that lives inside each user dashboard.
+//  POST /api/ai/chat
+//  Body: { userId, role, message, history?: [{ role: 'user'|'model', text }] }
+//  Returns: { reply, model, usage }
+//
+//  Behaviour:
+//   • Looks up the signed-in user and pulls a focused snapshot of
+//     their data based on role.
+//   • Feeds the snapshot + role-specific system prompt into Gemini
+//     so answers reflect the user's actual offers / deliveries /
+//     stats, not generic boilerplate.
+
+// FeedHope offer/delivery lifecycle. The chatbot MUST use these exact
+// definitions when answering any "what does X status mean" question or
+// "how do I know if Y happened" question. Keep this list authoritative —
+// the database stores these literal strings.
+const STATUS_GLOSSARY = `
+OFFER STATUS GLOSSARY (canonical lifecycle — memorize this):
+- "available"          → A donor just posted the offer. No receiver has accepted it yet. It is visible on the public/receiver browse page.
+- "accepted"           → A RECEIVER has accepted the offer. (This is the status that signals "the receiver took it.") The donor sees this status as confirmation of acceptance.
+- "delivery_accepted"  → A VOLUNTEER (not the receiver) has accepted the delivery assignment from an admin. The receiver had already accepted in the previous step.
+- "in_delivery"        → The volunteer is actively transporting the food to the receiver.
+- "delivered"          → The food has reached the receiver. The transaction is complete.
+- "expired"            → The expiration date passed before anyone took the offer.
+- "cancelled"          → The donor or admin cancelled the offer.
+
+KEY ANSWERS:
+- "How do I know a receiver accepted my offer?" → Status changes from "available" to **"accepted"**. The donor also gets a notification.
+- "How do I know a volunteer is on the way?" → Status changes to "delivery_accepted" then "in_delivery".
+- "How do I know it was delivered?" → Status becomes "delivered".
+NEVER conflate "accepted" (receiver) with "delivery_accepted" (volunteer) — they are different stages.
+`;
+
+// Shared rules every role inherits — focuses Gemini on EXACT numbers
+// from the snapshot, prevents hallucinations, and provides counting
+// shortcuts so it doesn't drift on common "how many X" questions.
+const SHARED_DATA_RULES = `
+DATA RULES — read carefully:
+1. The "as_of" field tells you the current date and time. Use it for relative answers like "today", "this week", "yesterday".
+2. The "summary" object holds PRE-COMPUTED counts and totals. Prefer reading from "summary" over re-counting arrays.
+3. For "how many X" questions, return the exact number from "summary" (or count entries in the matching array). Never estimate.
+4. For specific items (e.g. "what was my last offer"), pull the full record from the relevant array and quote names/dates verbatim.
+5. Format dates human-friendly (e.g. "Mar 5, 2026" or "yesterday at 3pm") — don't dump raw ISO strings.
+6. If the user asks something where the relevant array is empty (e.g. "no notifications yet"), say so plainly with a zero count.
+7. NEVER fabricate names, IDs, or numbers. If a value really isn't in the snapshot, say "I don't see that in your data right now."
+8. Use **bold** for key numbers/names. Use dash-bullet lists for multiple items. Keep replies under 4 short sentences unless listing.
+
+${STATUS_GLOSSARY}`;
+
+// Per-role feature/action guide. The chatbot MUST cite these when users
+// ask "how do I X". These reflect what the UI actually does — keep this
+// in sync with the dashboard pages.
+const DONOR_FEATURES = `
+DONOR FEATURES & ACTIONS (the user CAN do these inside the app):
+- Create a new offer → "New Offer" page (sidebar). Tip: upload a photo and the AI auto-fills food name, description, category, kg, portions, and dietary tags for review.
+- View all offers → "My Offers" page. Each row has: View Details (eye icon), and a 3-dot menu with **"Edit Offer"** and **"Cancel Offer"**.
+- Edit an offer → On "My Offers", click the 3-dot menu on the row, then "Edit Offer". You can change food name, category, description, dietary info, kg, portions, expiration, pickup time. Editing is allowed ONLY while status is "available". Once a receiver has accepted it (status "accepted") or later, the offer is locked and the Edit button is disabled.
+- Cancel an offer → Same 3-dot menu, "Cancel Offer". Same locking rule: only while status is "available".
+- See delivery history → "History" page lists offers that reached "delivered/completed".
+- Read feedback from receivers → "Feedback" page.
+- Send money support → "Money Donations" page.
+- Request money / view fund distributions → "Money Requests" / "Fund Distributions".
+- Manage account → "Profile".
+
+When users ask "can I edit my offer?" or "how do I edit?" → walk them to **My Offers → 3-dot menu → Edit Offer**, and remind them it's only editable while status is "available".`;
+
+const RECEIVER_FEATURES = `
+RECEIVER FEATURES & ACTIONS:
+- Browse all currently-available food → "Browse Offers" page.
+- View an offer's details → click the offer card or the eye icon.
+- Accept an offer → click the **Accept** button on the offer card / details modal. The offer's status moves from "available" to "accepted" and appears in "Accepted Offers".
+- Cancel an acceptance → on "Accepted Offers", use the cancel option (only while status is still "accepted" — once a volunteer is assigned, it's locked).
+- See past received food → "History" page.
+- Read notifications → "Notifications" page.
+- Leave feedback → "Feedback" page after delivery.
+- Manage account → "Profile".`;
+
+const VOLUNTEER_FEATURES = `
+VOLUNTEER FEATURES & ACTIONS:
+- See pickup requests an admin sent → "Volunteer Requests" / dashboard. Each request has **Accept** and **Reject** buttons.
+- Track active deliveries → "My Deliveries". You can mark a delivery as picked up (in_delivery) and as delivered.
+- Browse available offers → "Available Offers".
+- See completed deliveries → "History".
+- Read feedback received → "Feedback".
+- Manage account → "Profile".`;
+
+const ADMIN_FEATURES = `
+ADMIN FEATURES & ACTIONS:
+- See platform stats / urgent expiration alerts → "Dashboard". The red banner shows offers about to expire.
+- Manage offers → "Food Offers" page. Each row's 3-dot menu has: View Details, **Assign Volunteer**, **Mark Expired**, **Cancel Offer**. Status filter and category filter at the top.
+- Manage users → "Users" page. Disable/edit roles.
+- Track deliveries → "Deliveries" page.
+- Review money donations → "Money Donations".
+- Approve/Reject donor money requests + send fund distributions → "Fund Distribution" page.
+- Send notifications / read alerts → "Notifications".
+- Manage account → "Profile".`;
+
+const ROLE_PROMPTS = {
+    Donor: `You are HopeBot, the in-app AI assistant for the FeedHope Donor dashboard.
+The signed-in user is a DONOR who shares surplus food with the community in Lebanon.
+
+The JSON snapshot covers every page they can visit:
+- Dashboard / My Offers / History / Notifications / Feedback / Profile
+- Money Donations / Money Requests / Fund Distributions
+
+Answer questions about THEIR offers, history, ratings, money flows, and how to use any donor page.
+${SHARED_DATA_RULES}
+${DONOR_FEATURES}
+TONE: warm, encouraging, concise. When the user asks "how do I…", point to the exact page + button name from DONOR FEATURES — never say a feature doesn't exist if it's listed above.`,
+
+    Receiver: `You are HopeBot, the in-app AI assistant for the FeedHope Receiver dashboard.
+The signed-in user is a RECEIVER (NGO, shelter, or family) who browses and accepts food offers.
+
+The JSON snapshot covers every page they can visit:
+- Dashboard / Browse Offers / Accepted Offers / History / Notifications / Feedback / Profile
+
+Answer questions about their accepted offers, received history, what's currently available to browse, and how to use any receiver page.
+${SHARED_DATA_RULES}
+${RECEIVER_FEATURES}
+TONE: warm, helpful, concise. When the user asks "how do I…", point to the exact page + button name from RECEIVER FEATURES.`,
+
+    Volunteer: `You are HopeBot, the in-app AI assistant for the FeedHope Volunteer dashboard.
+The signed-in user is a VOLUNTEER who picks up and delivers food.
+
+The JSON snapshot covers every page they can visit:
+- Dashboard / Available Offers / My Deliveries / Volunteer Requests / History / Notifications / Feedback / Profile
+
+Answer questions about pending pickup requests, active deliveries, completed history, ratings received, and how to use any volunteer page.
+${SHARED_DATA_RULES}
+${VOLUNTEER_FEATURES}
+TONE: friendly, action-oriented, concise. When the user asks "how do I…", point to the exact page + button name from VOLUNTEER FEATURES.`,
+
+    Admin: `You are HopeBot, the in-app AI analyst-assistant for the FeedHope Admin dashboard.
+The signed-in user is a PLATFORM ADMIN.
+
+The JSON snapshot covers every admin page:
+- Dashboard / Food Offers / Users / Deliveries / Money Donations / Fund Distribution / Notifications / Profile / Expiration Alerts
+
+Answer questions with EXACT numbers from the snapshot — admins rely on precision.
+${SHARED_DATA_RULES}
+${ADMIN_FEATURES}
+TONE: precise, neutral, professional. When the user asks "how do I…", point to the exact page + button name from ADMIN FEATURES.`,
+};
+
+// Pull a focused, lightweight snapshot for the given user/role.
+async function buildChatContext(userId, role) {
+    if (!userId) return { error: 'Missing userId' };
+
+    // Common: the user's own basic profile + last 5 notifications.
+    const [[user]] = await pool.query(
+        `SELECT user_id, name, email, phone_number FROM User WHERE user_id = ?`,
+        [userId]
+    );
+    if (!user) return { error: 'User not found' };
+
+    const [notifications] = await pool.query(
+        `SELECT message_title, message, type, date, read_at
+         FROM Notifications WHERE user_id = ? ORDER BY date DESC LIMIT 5`,
+        [userId]
+    );
+
+    // Time anchors — Gemini uses these to answer "today", "this week".
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fmtLocal = d =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const ctx = {
+        as_of: {
+            iso: now.toISOString(),
+            readable: now.toLocaleString('en-GB', {
+                weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true,
+            }),
+            today_start: fmtLocal(todayStart),
+            week_start:  fmtLocal(weekStart),
+            month_start: fmtLocal(monthStart),
+        },
+        user: { user_id: user.user_id, name: user.name, role },
+        recent_notifications: notifications,
+        unread_notifications_count: notifications.filter(n => !n.read_at).length,
+    };
+
+    // Helper to safely run a query and return [] on schema mismatch.
+    const safe = async (sql, params = []) => {
+        try { const [rows] = await pool.query(sql, params); return rows; }
+        catch { return []; }
+    };
+
+    // ── Role-specific add-ons ─────────────────────────────────
+    if (role === 'Donor') {
+        const [[donor]] = await pool.query(
+            `SELECT donor_id FROM Donor WHERE user_id = ?`, [userId]
+        );
+        if (donor) {
+            const [[stats]] = await pool.query(`
+                SELECT
+                    SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS active,
+                    SUM(CASE WHEN status IN ('accepted','delivery_accepted','in_delivery') THEN 1 ELSE 0 END) AS in_progress,
+                    SUM(CASE WHEN status IN ('delivered','completed') THEN 1 ELSE 0 END) AS delivered,
+                    SUM(CASE WHEN status='expired' THEN 1 ELSE 0 END) AS expired,
+                    SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled,
+                    COALESCE(SUM(CASE WHEN status IN ('delivered','completed') THEN quantity_by_kg ELSE 0 END), 0) AS total_kg_donated,
+                    COALESCE(SUM(CASE WHEN status IN ('delivered','completed') THEN number_of_person ELSE 0 END), 0) AS people_fed
+                FROM Food_offer WHERE donor_id = ?`, [donor.donor_id]);
+
+            // My Offers page — every offer with status
+            const myOffers = await safe(`
+                SELECT offer_id, food_name, status, number_of_person AS portions,
+                       quantity_by_kg AS kg, expiration_date_and_time, created_at
+                FROM Food_offer WHERE donor_id = ?
+                ORDER BY offer_id DESC LIMIT 25`, [donor.donor_id]);
+
+            // History page — delivered/completed offers + recipient
+            const history = await safe(`
+                SELECT fo.offer_id, fo.food_name, fo.number_of_person AS portions,
+                       fo.quantity_by_kg AS kg, fo.status, fo.created_at,
+                       ru.name AS receiver_name
+                FROM Food_offer fo
+                LEFT JOIN Receiver r ON r.receiver_id = fo.receiver_id
+                LEFT JOIN User ru ON ru.user_id = r.user_id
+                WHERE fo.donor_id = ? AND fo.status IN ('delivered','completed')
+                ORDER BY fo.offer_id DESC LIMIT 15`, [donor.donor_id]);
+
+            // Feedback page — reviews left for this donor
+            const feedback = await safe(`
+                SELECT f.feedback_id, f.rating, f.comment, f.feedback_date,
+                       ru.name AS reviewer_name, fo.food_name
+                FROM Feedback f
+                LEFT JOIN User ru ON ru.user_id = f.reviewer_id
+                LEFT JOIN Food_offer fo ON fo.offer_id = f.offer_id
+                WHERE f.reviewee_id = ?
+                ORDER BY f.feedback_date DESC LIMIT 10`, [userId]);
+
+            // Money donations made by this donor
+            const moneyDonations = await safe(`
+                SELECT amount, payment_method, donation_date, reference_number
+                FROM Money_donation WHERE donor_id = ?
+                ORDER BY donation_date DESC LIMIT 10`, [donor.donor_id]);
+
+            // Money requests this donor sent
+            const moneyRequests = await safe(`
+                SELECT request_id, amount, reason, status, request_date, rejection_reason
+                FROM money_request WHERE donor_id = ?
+                ORDER BY request_date DESC LIMIT 10`, [donor.donor_id]);
+
+            // Fund distributions received by this donor
+            const fundDistributions = await safe(`
+                SELECT distribution_id, amount, payment_method, status, distribution_date, reference_number
+                FROM Fund_Distribution WHERE donor_id = ?
+                ORDER BY distribution_date DESC LIMIT 10`, [donor.donor_id]);
+
+            // Pre-computed counts so Gemini doesn't have to count arrays.
+            const avgRating = feedback.length
+                ? Number((feedback.reduce((s, f) => s + Number(f.rating || 0), 0) / feedback.length).toFixed(2))
+                : null;
+            const totalDonatedMoney = moneyDonations.reduce((s, m) => s + Number(m.amount || 0), 0);
+            const pendingRequests = moneyRequests.filter(r => r.status === 'pending').length;
+
+            ctx.summary = {
+                offers: {
+                    active:      Number(stats.active || 0),
+                    in_progress: Number(stats.in_progress || 0),
+                    delivered:   Number(stats.delivered || 0),
+                    expired:     Number(stats.expired || 0),
+                    cancelled:   Number(stats.cancelled || 0),
+                    total: Number(stats.active || 0) + Number(stats.in_progress || 0)
+                         + Number(stats.delivered || 0) + Number(stats.expired || 0)
+                         + Number(stats.cancelled || 0),
+                },
+                total_kg_donated:  Number(stats.total_kg_donated || 0),
+                people_fed:        Number(stats.people_fed || 0),
+                feedback_count:    feedback.length,
+                average_rating:    avgRating,
+                money_donations: {
+                    count: moneyDonations.length,
+                    total_amount: Number(totalDonatedMoney.toFixed(2)),
+                },
+                money_requests: {
+                    total:    moneyRequests.length,
+                    pending:  pendingRequests,
+                    approved: moneyRequests.filter(r => r.status === 'approved').length,
+                    rejected: moneyRequests.filter(r => r.status === 'rejected').length,
+                },
+                fund_distributions_count: fundDistributions.length,
+            };
+            ctx.my_offers = myOffers;
+            ctx.delivery_history = history;
+            ctx.feedback_received = feedback;
+            ctx.money_donations = moneyDonations;
+            ctx.money_requests = moneyRequests;
+            ctx.fund_distributions = fundDistributions;
+        }
+    } else if (role === 'Receiver') {
+        const [[receiver]] = await pool.query(
+            `SELECT receiver_id FROM Receiver WHERE user_id = ?`, [userId]
+        );
+        if (receiver) {
+            const [[stats]] = await pool.query(`
+                SELECT
+                    SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted,
+                    SUM(CASE WHEN status IN ('delivery_accepted','in_delivery') THEN 1 ELSE 0 END) AS in_delivery,
+                    SUM(CASE WHEN status IN ('delivered','completed') THEN 1 ELSE 0 END) AS received,
+                    COALESCE(SUM(CASE WHEN status IN ('delivered','completed') THEN number_of_person ELSE 0 END), 0) AS meals_received
+                FROM Food_offer WHERE receiver_id = ?`, [receiver.receiver_id]);
+
+            // Accepted / In-progress offers
+            const acceptedOffers = await safe(`
+                SELECT offer_id, food_name, status, number_of_person AS portions,
+                       quantity_by_kg AS kg, expiration_date_and_time
+                FROM Food_offer WHERE receiver_id = ?
+                  AND status IN ('accepted','delivery_accepted','in_delivery')
+                ORDER BY offer_id DESC LIMIT 15`, [receiver.receiver_id]);
+
+            // History — already received
+            const history = await safe(`
+                SELECT fo.offer_id, fo.food_name, fo.number_of_person AS portions,
+                       fo.status, du.name AS donor_name
+                FROM Food_offer fo
+                LEFT JOIN Donor d ON d.donor_id = fo.donor_id
+                LEFT JOIN User du ON du.user_id = d.user_id
+                WHERE fo.receiver_id = ? AND fo.status IN ('delivered','completed')
+                ORDER BY fo.offer_id DESC LIMIT 15`, [receiver.receiver_id]);
+
+            // Available offers right now (Browse page)
+            const availableOffers = await safe(`
+                SELECT fo.offer_id, fo.food_name, fo.number_of_person AS portions,
+                       fo.quantity_by_kg AS kg, fo.expiration_date_and_time,
+                       du.name AS donor_name, fc.category_name AS category
+                FROM Food_offer fo
+                JOIN Donor d ON d.donor_id = fo.donor_id
+                JOIN User du ON du.user_id = d.user_id
+                LEFT JOIN Food_category fc ON fc.category_id = fo.category_id
+                WHERE fo.status = 'available'
+                  AND (fo.expiration_date_and_time IS NULL OR fo.expiration_date_and_time > NOW())
+                ORDER BY fo.offer_id DESC LIMIT 10`);
+
+            // Feedback this receiver has given
+            const feedbackGiven = await safe(`
+                SELECT f.rating, f.comment, f.feedback_date, fo.food_name
+                FROM Feedback f
+                LEFT JOIN Food_offer fo ON fo.offer_id = f.offer_id
+                WHERE f.reviewer_id = ?
+                ORDER BY f.feedback_date DESC LIMIT 10`, [userId]);
+
+            const avgRatingGiven = feedbackGiven.length
+                ? Number((feedbackGiven.reduce((s, f) => s + Number(f.rating || 0), 0) / feedbackGiven.length).toFixed(2))
+                : null;
+
+            ctx.summary = {
+                offers: {
+                    accepted:    Number(stats.accepted || 0),
+                    in_delivery: Number(stats.in_delivery || 0),
+                    received:    Number(stats.received || 0),
+                    total: Number(stats.accepted || 0) + Number(stats.in_delivery || 0) + Number(stats.received || 0),
+                },
+                meals_received:        Number(stats.meals_received || 0),
+                accepted_offers_count: acceptedOffers.length,
+                history_count:         history.length,
+                available_offers_now:  availableOffers.length,
+                feedback_given_count:  feedbackGiven.length,
+                average_rating_given:  avgRatingGiven,
+            };
+            ctx.accepted_offers = acceptedOffers;
+            ctx.history = history;
+            ctx.available_offers = availableOffers;
+            ctx.feedback_given = feedbackGiven;
+        }
+    } else if (role === 'Volunteer') {
+        const [[vol]] = await pool.query(
+            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`, [userId]
+        );
+        if (vol) {
+            const [[stats]] = await pool.query(`
+                SELECT
+                    SUM(CASE WHEN delivery_status='delivery_accepted' THEN 1 ELSE 0 END) AS accepted_pending,
+                    SUM(CASE WHEN delivery_status='in_delivery' THEN 1 ELSE 0 END) AS in_delivery,
+                    SUM(CASE WHEN delivery_status IN ('delivered','completed') THEN 1 ELSE 0 END) AS completed
+                FROM Delivery WHERE volunteer_id = ?`, [vol.volunteer_id]);
+
+            // Pickup requests admins sent to them
+            const requests = await safe(`
+                SELECT vr.request_id, vr.status, vr.created_at, vr.message,
+                       fo.food_name, fo.expiration_date_and_time
+                FROM volunteer_request vr
+                JOIN Food_offer fo ON fo.offer_id = vr.offer_id
+                WHERE vr.volunteer_id = ?
+                ORDER BY vr.created_at DESC LIMIT 15`, [vol.volunteer_id]);
+
+            // Active deliveries
+            const myDeliveries = await safe(`
+                SELECT d.delivery_id, d.delivery_status, d.delivery_time,
+                       fo.food_name, fo.number_of_person AS portions,
+                       du.name AS donor_name, ru.name AS receiver_name
+                FROM Delivery d
+                JOIN Food_offer fo ON fo.offer_id = d.offer_id
+                LEFT JOIN Donor dn ON dn.donor_id = fo.donor_id
+                LEFT JOIN User du ON du.user_id = dn.user_id
+                LEFT JOIN Receiver r ON r.receiver_id = fo.receiver_id
+                LEFT JOIN User ru ON ru.user_id = r.user_id
+                WHERE d.volunteer_id = ?
+                  AND d.delivery_status IN ('delivery_accepted','in_delivery')
+                ORDER BY d.delivery_id DESC LIMIT 10`, [vol.volunteer_id]);
+
+            // Completed delivery history
+            const history = await safe(`
+                SELECT d.delivery_id, d.delivery_time, fo.food_name,
+                       du.name AS donor_name, ru.name AS receiver_name
+                FROM Delivery d
+                JOIN Food_offer fo ON fo.offer_id = d.offer_id
+                LEFT JOIN Donor dn ON dn.donor_id = fo.donor_id
+                LEFT JOIN User du ON du.user_id = dn.user_id
+                LEFT JOIN Receiver r ON r.receiver_id = fo.receiver_id
+                LEFT JOIN User ru ON ru.user_id = r.user_id
+                WHERE d.volunteer_id = ?
+                  AND d.delivery_status IN ('delivered','completed')
+                ORDER BY d.delivery_id DESC LIMIT 15`, [vol.volunteer_id]);
+
+            // Available offers volunteer could pick up
+            const availableOffers = await safe(`
+                SELECT fo.offer_id, fo.food_name, fo.expiration_date_and_time,
+                       du.name AS donor_name
+                FROM Food_offer fo
+                JOIN Donor d ON d.donor_id = fo.donor_id
+                JOIN User du ON du.user_id = d.user_id
+                WHERE fo.status = 'accepted'
+                ORDER BY fo.offer_id DESC LIMIT 10`);
+
+            // Feedback received on deliveries
+            const feedback = await safe(`
+                SELECT f.rating, f.comment, f.feedback_date, fo.food_name,
+                       ru.name AS reviewer_name
+                FROM Feedback f
+                LEFT JOIN User ru ON ru.user_id = f.reviewer_id
+                LEFT JOIN Food_offer fo ON fo.offer_id = f.offer_id
+                WHERE f.reviewee_id = ?
+                ORDER BY f.feedback_date DESC LIMIT 10`, [userId]);
+
+            const avgRating = feedback.length
+                ? Number((feedback.reduce((s, f) => s + Number(f.rating || 0), 0) / feedback.length).toFixed(2))
+                : null;
+            const pendingRequests   = requests.filter(r => r.status === 'pending').length;
+            const acceptedRequests  = requests.filter(r => r.status === 'accepted').length;
+            const rejectedRequests  = requests.filter(r => r.status === 'rejected').length;
+
+            ctx.summary = {
+                deliveries: {
+                    accepted_pending: Number(stats.accepted_pending || 0),
+                    in_delivery:      Number(stats.in_delivery || 0),
+                    completed:        Number(stats.completed || 0),
+                    total: Number(stats.accepted_pending || 0) + Number(stats.in_delivery || 0) + Number(stats.completed || 0),
+                },
+                requests: {
+                    total:    requests.length,
+                    pending:  pendingRequests,
+                    accepted: acceptedRequests,
+                    rejected: rejectedRequests,
+                },
+                available_offers_now: availableOffers.length,
+                feedback_count:       feedback.length,
+                average_rating:       avgRating,
+            };
+            ctx.volunteer_requests = requests;
+            ctx.my_deliveries = myDeliveries;
+            ctx.delivery_history = history;
+            ctx.available_offers = availableOffers;
+            ctx.feedback_received = feedback;
+        }
+    } else if (role === 'Admin') {
+        const [[offers]] = await pool.query(`
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS available,
+                SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted,
+                SUM(CASE WHEN status IN ('in_delivery','delivery_accepted') THEN 1 ELSE 0 END) AS in_delivery,
+                SUM(CASE WHEN status IN ('delivered','completed') THEN 1 ELSE 0 END) AS delivered,
+                SUM(CASE WHEN status='expired' THEN 1 ELSE 0 END) AS expired,
+                SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled
+            FROM Food_offer`);
+
+        const [[userTotals]] = await pool.query(`
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN r.role_name='Donor' THEN 1 ELSE 0 END) AS donors,
+                SUM(CASE WHEN r.role_name='Receiver' THEN 1 ELSE 0 END) AS receivers,
+                SUM(CASE WHEN r.role_name='Volunteer' THEN 1 ELSE 0 END) AS volunteers,
+                SUM(CASE WHEN r.role_name='Admin' THEN 1 ELSE 0 END) AS admins
+            FROM User u
+            LEFT JOIN Role r ON r.user_id = u.user_id`);
+
+        const [[alerts]] = await pool.query(`SELECT COUNT(*) AS open FROM expiration_alert`);
+
+        // Recent offers (Food Offers page)
+        const recentOffers = await safe(`
+            SELECT fo.offer_id, fo.food_name, fo.status,
+                   fo.number_of_person AS portions, fo.expiration_date_and_time,
+                   u.name AS donor_name, fc.category_name AS category
+            FROM Food_offer fo
+            JOIN Donor d ON d.donor_id = fo.donor_id
+            JOIN User u ON u.user_id = d.user_id
+            LEFT JOIN Food_category fc ON fc.category_id = fo.category_id
+            ORDER BY fo.offer_id DESC LIMIT 10`);
+
+        // Recent users (Users page)
+        const recentUsers = await safe(`
+            SELECT u.user_id, u.name, u.email, u.created_at, r.role_name AS role
+            FROM User u
+            LEFT JOIN Role r ON r.user_id = u.user_id
+            ORDER BY u.user_id DESC LIMIT 10`);
+
+        // Active expiration alerts (Dashboard banner)
+        const expirationAlerts = await safe(`
+            SELECT ea.alert_id, ea.message, ea.alert_time,
+                   fo.food_name, fo.expiration_date_and_time
+            FROM expiration_alert ea
+            JOIN Food_offer fo ON fo.offer_id = ea.offer_id
+            ORDER BY ea.alert_time DESC LIMIT 10`);
+
+        // Money donations
+        const moneyDonations = await safe(`
+            SELECT md.amount, md.donation_date, md.payment_method, u.name AS donor_name
+            FROM Money_donation md
+            JOIN Donor d ON d.donor_id = md.donor_id
+            JOIN User u ON u.user_id = d.user_id
+            ORDER BY md.donation_date DESC LIMIT 10`);
+
+        // Pending money requests (Fund Distribution page)
+        const pendingRequests = await safe(`
+            SELECT mr.request_id, mr.amount, mr.reason, mr.request_date, u.name AS donor_name
+            FROM money_request mr
+            JOIN Donor d ON d.donor_id = mr.donor_id
+            JOIN User u ON u.user_id = d.user_id
+            WHERE mr.status = 'pending'
+            ORDER BY mr.request_date DESC LIMIT 10`);
+
+        // Fund distributions
+        const [[fundTotals]] = await pool.query(`
+            SELECT
+                COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END), 0) AS completed,
+                COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END), 0) AS pending,
+                COUNT(*) AS total_count
+            FROM Fund_Distribution`);
+
+        // Active deliveries
+        const activeDeliveries = await safe(`
+            SELECT d.delivery_id, d.delivery_status, fo.food_name,
+                   uv.name AS volunteer_name
+            FROM Delivery d
+            JOIN Food_offer fo ON fo.offer_id = d.offer_id
+            LEFT JOIN Volunteer v ON v.volunteer_id = d.volunteer_id
+            LEFT JOIN User uv ON uv.user_id = v.user_id
+            WHERE d.delivery_status IN ('delivery_accepted','in_delivery')
+            ORDER BY d.delivery_id DESC LIMIT 10`);
+
+        const totalDonationsAmount = moneyDonations.reduce((s, m) => s + Number(m.amount || 0), 0);
+        const pendingRequestsAmount = pendingRequests.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+        ctx.summary = {
+            offers: {
+                total:       Number(offers.total || 0),
+                available:   Number(offers.available || 0),
+                accepted:    Number(offers.accepted || 0),
+                in_delivery: Number(offers.in_delivery || 0),
+                delivered:   Number(offers.delivered || 0),
+                expired:     Number(offers.expired || 0),
+                cancelled:   Number(offers.cancelled || 0),
+            },
+            users: {
+                total:      Number(userTotals.total || 0),
+                donors:     Number(userTotals.donors || 0),
+                receivers:  Number(userTotals.receivers || 0),
+                volunteers: Number(userTotals.volunteers || 0),
+                admins:     Number(userTotals.admins || 0),
+            },
+            open_expiration_alerts: Number(alerts.open || 0),
+            fund_distribution: {
+                completed_amount: Number(fundTotals.completed || 0),
+                pending_amount:   Number(fundTotals.pending || 0),
+                total_count:      Number(fundTotals.total_count || 0),
+            },
+            money_donations: {
+                count:        moneyDonations.length,
+                total_amount: Number(totalDonationsAmount.toFixed(2)),
+            },
+            pending_money_requests: {
+                count:        pendingRequests.length,
+                total_amount: Number(pendingRequestsAmount.toFixed(2)),
+            },
+            active_deliveries_count: activeDeliveries.length,
+        };
+        ctx.recent_offers = recentOffers;
+        ctx.recent_users = recentUsers;
+        ctx.expiration_alerts = expirationAlerts;
+        ctx.money_donations = moneyDonations;
+        ctx.pending_money_requests = pendingRequests;
+        ctx.active_deliveries = activeDeliveries;
+    }
+
+    return ctx;
+}
+
+app.post('/api/ai/chat', async (req, res) => {
+    if (!geminiModel) {
+        return res.status(503).json({
+            error: 'AI chat is not configured. Set GEMINI_API_KEY in backend/.env and restart the server.'
+        });
+    }
+
+    const { userId, role, message, history } = req.body || {};
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Missing message.' });
+    }
+    const validRole = ['Donor', 'Receiver', 'Volunteer', 'Admin'].includes(role) ? role : 'Donor';
+
+    try {
+        const ctx = await buildChatContext(userId, validRole);
+        const systemPrompt = ROLE_PROMPTS[validRole];
+
+        // Map prior turns into Gemini's content format. Trim to last 8 turns
+        // to keep prompt size sane.
+        const priorTurns = Array.isArray(history)
+            ? history.slice(-8).map(h => ({
+                role: h.role === 'model' ? 'model' : 'user',
+                parts: [{ text: String(h.text || '') }],
+            }))
+            : [];
+
+        const userTurn = {
+            role: 'user',
+            parts: [{
+                text:
+                    `User question: ${message}\n\n` +
+                    `Live data snapshot for this user (JSON):\n${JSON.stringify(ctx, null, 2)}`
+            }],
+        };
+
+        const { result, label: modelUsed } = await callGeminiWithRetry({
+            systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] },
+            contents: [...priorTurns, userTurn],
+            generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
+        });
+
+        const reply = (result.response.text() || '').trim();
+        const usage = result.response.usageMetadata || {};
+
+        res.json({
+            reply,
+            model: modelUsed,
+            usage: {
+                input_tokens:  usage.promptTokenCount     || 0,
+                output_tokens: usage.candidatesTokenCount || 0,
+                total_tokens:  usage.totalTokenCount      || 0,
+            },
+        });
+    } catch (err) {
+        const raw = err?.message || String(err);
+        const status =
+            /\b429\b|quota|rate/i.test(raw) ? 429 :
+            /\b401\b|API key not valid|invalid API key/i.test(raw) ? 401 :
+            /\b503\b|UNAVAILABLE|overloaded/i.test(raw) ? 503 :
+            500;
+
+        process.stdout.write(`[ai/chat] Gemini error ${status}: ${raw}\n`);
+
+        if (status === 401) {
+            return res.status(401).json({ error: 'Invalid GEMINI_API_KEY. Check backend/.env.' });
+        }
+        if (status === 429) {
+            return res.status(429).json({ error: 'AI is busy right now (rate limit). Please try again in a moment.' });
+        }
+        if (status === 503) {
+            return res.status(503).json({ error: 'AI servers are temporarily overloaded. Please try again in 15-30 seconds.' });
+        }
+        return res.status(500).json({ error: 'AI chat failed. Please try again.' });
+    }
+});
+
+// ==============================================================
+// ──────────── AI IMAGE → AUTO-FILL OFFER FORM (Gemini) ────────
+// ==============================================================
+//  POST /api/donor/ai/analyze-image
+//  Accepts: multipart/form-data with field "imageFile".
+//  Returns: { foodName, description, categoryId, categoryName,
+//            numPersons, quantityKg, dietary: [..] }
+//
+//  The donor uploads a photo of the food; Gemini's multimodal
+//  vision returns suggested values which the form pre-fills.
+//  The donor reviews and edits before submitting.
+
+// Use memory storage so the buffer can be sent straight to Gemini
+// without first writing to disk.
+const aiImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 4 * 1024 * 1024 }, // 4MB cap for vision input
+});
+
+const DIETARY_TAGS = [
+    'Vegetarian', 'Vegan', 'Halal', 'Kosher',
+    'Gluten-free', 'Dairy-free', 'Nut-free', 'Contains Allergens',
+];
+
+app.post('/api/donor/ai/analyze-image',
+    aiImageUpload.single('imageFile'),
+    async (req, res) => {
+        if (!geminiModel) {
+            return res.status(503).json({
+                error: 'AI is not configured. Set GEMINI_API_KEY in backend/.env.'
+            });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image uploaded.' });
+        }
+
+        try {
+            // Pull the live category list so we can ask Gemini to choose
+            // exactly one and map it back to a category_id.
+            const [categories] = await pool.query(
+                `SELECT category_id, category_name FROM Food_category ORDER BY category_name`
+            );
+            const categoryNames = categories.map(c => c.category_name);
+
+            const prompt = `You are analyzing a photo of food that a donor is about to share through FeedHope (a food-donation platform).
+
+Look at the image and produce a JSON object with these EXACT keys:
+{
+  "foodName": "<short dish title, 3-6 words>",
+  "description": "<one or two sentences describing what's visible: items, packaging, condition>",
+  "categoryName": "<MUST be exactly one of: ${categoryNames.join(' | ')}>",
+  "numPersons": <integer estimate of how many people this serves, 1-100>,
+  "quantityKg": <number, estimated total weight in kilograms, e.g. 2.5>,
+  "dietary": [<zero or more of: ${DIETARY_TAGS.join(', ')}>]
+}
+
+Strict rules:
+- Return ONLY raw JSON. No markdown, no fences, no commentary.
+- "categoryName" MUST be one of the listed names (exact spelling). Pick the closest match.
+- Be conservative with "dietary" — only add a tag if it's clearly applicable.
+- If the image does NOT show food, return: {"error": "Image does not appear to contain food. Please upload a food photo."}`;
+
+            const imagePart = {
+                inlineData: {
+                    data: req.file.buffer.toString('base64'),
+                    mimeType: req.file.mimetype || 'image/jpeg',
+                },
+            };
+
+            const { result, label: modelUsed } = await callGeminiWithRetry({
+                contents: [{
+                    role: 'user',
+                    parts: [{ text: prompt }, imagePart],
+                }],
+                generationConfig: {
+                    temperature: 0.3,
+                    maxOutputTokens: 600,
+                    responseMimeType: 'application/json',
+                },
+            });
+
+            const raw = (result.response.text() || '').trim();
+            let parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                // Strip any code fences Gemini might still emit
+                const cleaned = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+                try { parsed = JSON.parse(cleaned); }
+                catch {
+                    return res.status(502).json({
+                        error: 'AI returned an unparseable response. Try a clearer photo.',
+                    });
+                }
+            }
+
+            if (parsed.error) {
+                return res.status(422).json({ error: parsed.error });
+            }
+
+            // Map categoryName → categoryId (case-insensitive match)
+            const matchedCat = categories.find(
+                c => c.category_name.toLowerCase() === String(parsed.categoryName || '').toLowerCase()
+            );
+
+            // Whitelist the dietary tags Gemini returned
+            const dietary = Array.isArray(parsed.dietary)
+                ? parsed.dietary.filter(d => DIETARY_TAGS.includes(d))
+                : [];
+
+            const usage = result.response.usageMetadata || {};
+            res.json({
+                foodName:    String(parsed.foodName || '').slice(0, 120),
+                description: String(parsed.description || '').slice(0, 500),
+                categoryId:   matchedCat?.category_id || null,
+                categoryName: matchedCat?.category_name || null,
+                numPersons:  Number.isFinite(+parsed.numPersons) ? Math.round(+parsed.numPersons) : null,
+                quantityKg:  Number.isFinite(+parsed.quantityKg) ? Number((+parsed.quantityKg).toFixed(2)) : null,
+                dietary,
+                model: modelUsed,
+                usage: {
+                    input_tokens:  usage.promptTokenCount     || 0,
+                    output_tokens: usage.candidatesTokenCount || 0,
+                    total_tokens:  usage.totalTokenCount      || 0,
+                },
+            });
+        } catch (err) {
+            const raw = err?.message || String(err);
+            const status =
+                /\b429\b|quota|rate/i.test(raw) ? 429 :
+                /\b401\b|API key not valid|invalid API key/i.test(raw) ? 401 :
+                /\b503\b|UNAVAILABLE|overloaded/i.test(raw) ? 503 :
+                500;
+
+            process.stdout.write(`[ai/analyze-image] Gemini error ${status}: ${raw}\n`);
+
+            if (status === 401) return res.status(401).json({ error: 'Invalid GEMINI_API_KEY.' });
+            if (status === 429) return res.status(429).json({ error: 'AI is busy (rate limit). Try again shortly.' });
+            if (status === 503) return res.status(503).json({ error: 'AI is temporarily overloaded. Try again in 15-30s.' });
+            return res.status(500).json({ error: 'Image analysis failed. Try again.' });
+        }
+    }
+);
+
+// ==============================================================
+// ──────── AI TRANSLATE OFFERS → ARABIC (Gemini Flash) ─────────
+// ==============================================================
+//  POST /api/ai/translate-offers
+//  Body: { offers: [{ offer_id, food_name, description, category_name, donor_name, address }] }
+//  Returns: { translations: { <offer_id>: { food_name, description, category_name, donor_name, address } } }
+//
+//  Used by the Receiver "Browse Offers" page so non-English speakers
+//  can read offer details in Arabic without leaving the page.
+app.post('/api/ai/translate-offers', async (req, res) => {
+    if (!geminiModel) {
+        return res.status(503).json({ error: 'AI translate is not configured.' });
+    }
+    const offers = Array.isArray(req.body?.offers) ? req.body.offers : [];
+    if (!offers.length) return res.json({ translations: {} });
+
+    // Trim payload — only send what needs translating + the id.
+    const slim = offers.map(o => ({
+        offer_id:            o.offer_id,
+        food_name:           String(o.food_name || ''),
+        description:         String(o.description || ''),
+        category_name:       String(o.category_name || ''),
+        donor_name:          String(o.donor_name || ''),
+        address:             String(o.address || ''),
+        dietary_information: String(o.dietary_information || ''),
+    }));
+
+    // Robust parser: strip fences, fix common Gemini quirks, then parse.
+    const repairAndParse = (text) => {
+        let s = (text || '').trim();
+        s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+        // Trim any prose around the JSON
+        const firstBracket = Math.min(
+            ...['[', '{'].map(c => { const i = s.indexOf(c); return i === -1 ? Infinity : i; })
+        );
+        const lastBracket = Math.max(s.lastIndexOf(']'), s.lastIndexOf('}'));
+        if (Number.isFinite(firstBracket) && lastBracket > firstBracket) {
+            s = s.slice(firstBracket, lastBracket + 1);
+        }
+        try { return JSON.parse(s); } catch {}
+        // Strip trailing commas before ] or }
+        try { return JSON.parse(s.replace(/,(\s*[\]}])/g, '$1')); } catch {}
+        // Last resort: replace control characters that often slip into Arabic strings.
+        const sanitized = s
+            .replace(/,(\s*[\]}])/g, '$1')
+            .replace(/[ -]+/g, ' ');
+        return JSON.parse(sanitized);
+    };
+
+    // Translate a SINGLE offer in its own Gemini call. Used as a fallback
+    // when batch translation fails — small payload, simpler JSON, much
+    // less likely to break.
+    const translateOne = async (offer) => {
+        const prompt = `Translate these English fields to Modern Standard Arabic. Return JSON with the SAME keys. Preserve numbers/dates. Return an empty string for empty inputs.
+
+${JSON.stringify({
+    food_name:           offer.food_name,
+    description:         offer.description,
+    category_name:       offer.category_name,
+    donor_name:          offer.donor_name,
+    address:             offer.address,
+    dietary_information: offer.dietary_information,
+})}`;
+        try {
+            const { result } = await callGeminiWithRetry({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.2,
+                    maxOutputTokens: 800,
+                    responseMimeType: 'application/json',
+                },
+            });
+            const raw = (result.response.text() || '').trim();
+            const obj = repairAndParse(raw);
+            return {
+                food_name:           obj?.food_name           || offer.food_name           || '',
+                description:         obj?.description         || offer.description         || '',
+                category_name:       obj?.category_name       || offer.category_name       || '',
+                donor_name:          obj?.donor_name          || offer.donor_name          || '',
+                address:             obj?.address             || offer.address             || '',
+                dietary_information: obj?.dietary_information || offer.dietary_information || '',
+            };
+        } catch (e) {
+            return {
+                food_name:           offer.food_name           || '',
+                description:         offer.description         || '',
+                category_name:       offer.category_name       || '',
+                donor_name:          offer.donor_name          || '',
+                address:             offer.address             || '',
+                dietary_information: offer.dietary_information || '',
+            };
+        }
+    };
+
+    const batchPrompt = `You are a translator. Translate FeedHope food-offer fields from English to Modern Standard Arabic (العربية الفصحى).
+
+Rules:
+- Preserve proper names (donor_name) unless a well-known Arabic equivalent exists.
+- Keep numbers, units, and dates unchanged.
+- Category mapping: Bakery → مخبوزات, Dairy → ألبان, Beverages → مشروبات, Prepared Meals → وجبات جاهزة, Grains → حبوب, Seafood → مأكولات بحرية, Canned → معلبات.
+- Tone: natural, friendly.
+- For empty input strings, return "".
+
+Input:
+${JSON.stringify(slim)}`;
+
+    // Schema-enforced response: an array of objects with the exact keys we need.
+    const responseSchema = {
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                offer_id:            { type: 'string' },
+                food_name:           { type: 'string' },
+                description:         { type: 'string' },
+                category_name:       { type: 'string' },
+                donor_name:          { type: 'string' },
+                address:             { type: 'string' },
+                dietary_information: { type: 'string' },
+            },
+            required: ['offer_id', 'food_name', 'description', 'category_name', 'donor_name', 'address', 'dietary_information'],
+        },
+    };
+
+    try {
+        let translations = {};
+        let modelUsed = null;
+
+        // ── Try batch first ─────────────────────────────────
+        let batchOk = false;
+        try {
+            const { result, label } = await callGeminiWithRetry({
+                contents: [{ role: 'user', parts: [{ text: batchPrompt }] }],
+                generationConfig: {
+                    temperature: 0.2,
+                    maxOutputTokens: 4096,
+                    responseMimeType: 'application/json',
+                    responseSchema,
+                },
+            });
+            modelUsed = label;
+            const raw = (result.response.text() || '').trim();
+            const parsed = repairAndParse(raw);
+            const items = Array.isArray(parsed) ? parsed
+                : Array.isArray(parsed?.data) ? parsed.data
+                : Array.isArray(parsed?.translations) ? parsed.translations
+                : null;
+            if (items && items.length) {
+                items.forEach(item => {
+                    if (item && item.offer_id != null) {
+                        translations[String(item.offer_id)] = {
+                            food_name:           item.food_name           || '',
+                            description:         item.description         || '',
+                            category_name:       item.category_name       || '',
+                            donor_name:          item.donor_name          || '',
+                            address:             item.address             || '',
+                            dietary_information: item.dietary_information || '',
+                        };
+                    }
+                });
+                batchOk = Object.keys(translations).length === slim.length;
+            }
+        } catch (batchErr) {
+            process.stdout.write(`[ai/translate-offers] batch failed (${batchErr?.message || batchErr}); falling back to per-offer\n`);
+        }
+
+        // ── Per-offer fallback for any missing IDs ───────────
+        const missing = slim.filter(o => !translations[String(o.offer_id)]);
+        if (missing.length) {
+            process.stdout.write(`[ai/translate-offers] translating ${missing.length} item(s) individually\n`);
+            const oneResults = await Promise.all(missing.map(o => translateOne(o)));
+            missing.forEach((o, i) => {
+                translations[String(o.offer_id)] = oneResults[i];
+            });
+        }
+
+        res.json({ translations, model: modelUsed || GEMINI_PRIMARY_MODEL });
+    } catch (err) {
+        const raw = err?.message || String(err);
+        const status =
+            /\b429\b|quota|rate/i.test(raw) ? 429 :
+            /\b401\b|API key not valid/i.test(raw) ? 401 :
+            /\b503\b|UNAVAILABLE|overloaded/i.test(raw) ? 503 :
+            500;
+        process.stdout.write(`[ai/translate-offers] error ${status}: ${raw}\n`);
+        if (status === 429) return res.status(429).json({ error: 'AI is busy (rate limit). Try again shortly.' });
+        if (status === 503) return res.status(503).json({ error: 'AI is temporarily overloaded. Try again in 15-30s.' });
+        if (status === 401) return res.status(401).json({ error: 'Invalid GEMINI_API_KEY.' });
+        return res.status(500).json({ error: 'Translation failed. Try again.' });
     }
 });
 

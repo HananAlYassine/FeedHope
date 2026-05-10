@@ -415,3 +415,73 @@
     margin: 8px 0;
     width: fit-content;
 }
+/* ── AI Translate (Arabic) ─────────────────────────────────── */
+.rob-translate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1.5px solid #2e7d32;
+    background: #fff;
+    color: #1b5e20;
+    border-radius: 22px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    white-space: nowrap;
+}
+
+.rob-translate-btn:hover:not(:disabled) {
+    background: #2e7d32;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+}
+
+.rob-translate-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.rob-translate-btn--active {
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+    color: #fff;
+    border-color: #1b5e20;
+}
+
+.rob-translate-spin {
+    animation: rob-spin 1.4s linear infinite;
+}
+
+@keyframes rob-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.rob-translate-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    margin: 8px 0 16px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: 1px solid #a5d6a7;
+    color: #1b5e20;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rob-translate-error {
+    padding: 10px 14px;
+    margin: 8px 0;
+    background: #ffebee;
+    border: 1px solid #ef9a9a;
+    color: #b71c1c;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+}

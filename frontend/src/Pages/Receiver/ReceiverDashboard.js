@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
 
 // ── Page-specific styles ──────────────────────────────────────
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 
 // ── MUI Icon imports ─────────────────────────────────────────
@@ -327,8 +328,43 @@ const ReceiverDashboard = () => {
                                 ))
                             )}
                         </section>
+                    </div>
 
-                        {/* Notifications Card with dynamic icons */}
+                    {/* RIGHT COLUMN  */}
+                    <div className="rdb-col-right">
+                        <section className="rdb-card">
+                            <div className="rdb-card-header">
+                                <div className="rdb-card-title">
+                                    <CheckCircleIcon fontSize="small" />
+                                    My Accepted Offers
+                                </div>
+                                <button
+                                    className="rdb-view-all"
+                                    onClick={() => navigate('/receiver-accepted')}
+                                >
+                                    View All <ChevronRightIcon fontSize="small" />
+                                </button>
+                            </div>
+                            {acceptedOffers.length === 0 ? (
+                                <p className="rdb-empty-state">
+                                    You haven't accepted any offers yet.
+                                </p>
+                            ) : (
+                                acceptedOffers.map(item => (
+                                    <div className="rdb-accepted-item" key={item.offer_id}>
+                                        <div className="rdb-accepted-info">
+                                            <span className="rdb-accepted-name">{item.food_name}</span>
+                                            <span className="rdb-accepted-source">{item.donor_name}</span>
+                                        </div>
+                                        <span className="rdb-status-badge rdb-status-badge--accepted">
+                                            Accepted
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </section>
+
+                        {/* Notifications Card — sits under My Accepted Offers */}
                         <section className="rdb-card">
                             <div className="rdb-card-header">
                                 <div className="rdb-card-title">
@@ -365,43 +401,11 @@ const ReceiverDashboard = () => {
                             )}
                         </section>
                     </div>
-
-                    {/* RIGHT COLUMN  */}
-                    <div className="rdb-col-right">
-                        <section className="rdb-card">
-                            <div className="rdb-card-header">
-                                <div className="rdb-card-title">
-                                    <CheckCircleIcon fontSize="small" />
-                                    My Accepted Offers
-                                </div>
-                                <button
-                                    className="rdb-view-all"
-                                    onClick={() => navigate('/receiver-accepted')}
-                                >
-                                    View All <ChevronRightIcon fontSize="small" />
-                                </button>
-                            </div>
-                            {acceptedOffers.length === 0 ? (
-                                <p className="rdb-empty-state">
-                                    You haven't accepted any offers yet.
-                                </p>
-                            ) : (
-                                acceptedOffers.map(item => (
-                                    <div className="rdb-accepted-item" key={item.offer_id}>
-                                        <div className="rdb-accepted-info">
-                                            <span className="rdb-accepted-name">{item.food_name}</span>
-                                            <span className="rdb-accepted-source">{item.donor_name}</span>
-                                        </div>
-                                        <span className="rdb-status-badge rdb-status-badge--accepted">
-                                            Accepted
-                                        </span>
-                                    </div>
-                                ))
-                            )}
-                        </section>
-                    </div>
                 </div>
             </main>
+
+            {/* Role-aware AI assistant */}
+            <DashboardChatbot role="Receiver" />
         </div>
     );
 };

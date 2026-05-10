@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Donor/DonorDashboard.css';
 import '../../Styles/Donor/DonorDeliveries.css';
 
@@ -286,7 +287,8 @@ const DonorDeliveries = () => {
                     )}
                 </div>
             </main>
-        </div>
+        <DashboardChatbot role="Donor" />
+            </div>
     );
 };
 

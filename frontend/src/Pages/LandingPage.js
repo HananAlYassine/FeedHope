@@ -5,6 +5,7 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import Chatbot from "../Components/Shared/Chatbot";
 
 const dashboardRouteFor = (role) => {
     if (role === "Admin")     return "/admin-dashboard";
@@ -128,6 +129,10 @@ const LandingPage = () => {
                     </div>
                 </div>
             </footer>
+
+            {/* Public chatbot — mounted ONLY on the landing page so
+                authenticated dashboards never show it. */}
+            <Chatbot />
         </div>
     );
 }

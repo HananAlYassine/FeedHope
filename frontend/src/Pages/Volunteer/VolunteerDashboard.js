@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VolunteerSidebar from '../../Components/Volunteer/VolunteerSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Volunteer/VolunteerDashboard.css';
 
 // MUI Icons
@@ -21,6 +22,7 @@ import InventoryIcon from '@mui/icons-material/Inventory2';
 import PeopleIcon from '@mui/icons-material/People';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -78,6 +80,10 @@ const VolunteerDashboard = () => {
     const [actingRequestId, setActingRequestId] = useState(null);
     const [requestError, setRequestError] = useState('');
 
+    // Notifications shown in the bottom-right card. Limited to the
+    // newest 4 to keep the dashboard fixed in 100vh on desktop.
+    const [notifications, setNotifications] = useState([]);
+
     // Reject modal state — replaces window.prompt with a styled red/white form
     const [rejectModal, setRejectModal] = useState({ open: false, request: null, reason: '' });
 
@@ -107,6 +113,16 @@ const VolunteerDashboard = () => {
         }
     }, [user?.user_id]);
 
+    const fetchNotifications = useCallback(async () => {
+        if (!user?.user_id) return;
+        try {
+            const res = await axios.get(`${API_BASE}/api/volunteer/notifications/all/${user.user_id}`);
+            setNotifications(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+            console.error('Failed to fetch notifications:', err);
+        }
+    }, [user?.user_id]);
+
     useEffect(() => {
         if (!user) {
             navigate('/signin');
@@ -114,13 +130,15 @@ const VolunteerDashboard = () => {
         }
         fetchDashboard();
         fetchPendingRequests();
-        // Real-time: poll dashboard data + pending requests every 3s.
+        fetchNotifications();
+        // Real-time: poll dashboard data + pending requests + notifications every 3s.
         const interval = setInterval(() => {
             fetchDashboard();
             fetchPendingRequests();
+            fetchNotifications();
         }, 3000);
         return () => clearInterval(interval);
-    }, [fetchDashboard, fetchPendingRequests, navigate, user]);
+    }, [fetchDashboard, fetchPendingRequests, fetchNotifications, navigate, user]);
 
     const handleAcceptRequest = async (request) => {
         setActingRequestId(request.request_id);
@@ -201,9 +219,9 @@ const VolunteerDashboard = () => {
     const displayName        = data?.user?.name || user?.name || 'Volunteer';
 
     return (
-        <div className="vdb-layout">
+        <div className="vdb-layout vdb-layout--fixed">
             <VolunteerSidebar />
-            <main className="vdb-main">
+            <main className="vdb-main vdb-main--fixed">
                 {/* 🚨 Compact Urgent Assignment Requests */}
                 {pendingRequests.length > 0 && (
                     <div
@@ -339,7 +357,7 @@ const VolunteerDashboard = () => {
                                         <div style={{ padding: 16, color: '#64748b' }}>
                                             No available offers right now.
                                         </div>
-                                    ) : availableList.map(del => (
+                                    ) : availableList.slice(0, 3).map(del => (
                                         <div key={del.offer_id} className="vdb-delivery-item">
                                             <div className="vdb-delivery-info">
                                                 <div className="vdb-delivery-title">{del.food_name}</div>
@@ -364,7 +382,7 @@ const VolunteerDashboard = () => {
                                         <div style={{ padding: 16, color: '#64748b' }}>
                                             You don't have any active deliveries.
                                         </div>
-                                    ) : activeList.map(del => (
+                                    ) : activeList.slice(0, 3).map(del => (
                                         <div key={del.delivery_id} className="vdb-delivery-item">
                                             <div className="vdb-delivery-info">
                                                 <div className="vdb-delivery-title">{del.food_name}</div>
@@ -399,7 +417,7 @@ const VolunteerDashboard = () => {
                                     <div style={{ padding: 16, color: '#64748b' }}>
                                         No recent activity yet.
                                     </div>
-                                ) : activities.map((act, i) => (
+                                ) : activities.slice(0, 3).map((act, i) => (
                                     <div key={i} className="vdb-activity-item">
                                         <div className="vdb-activity-icon">{activityIcon(act.kind)}</div>
                                         <div className="vdb-activity-text">
@@ -495,6 +513,45 @@ const VolunteerDashboard = () => {
                                     No ratings received yet.
                                 </div>
                             )}
+                        </div>
+
+                        {/* Notifications — bottom-right card, mirrors the
+                            other roles' dashboards. Limited to the latest 4
+                            so the page stays fixed in the viewport. */}
+                        <div className="vdb-card vdb-notif-card">
+                            <div className="vdb-card-header">
+                                <h3>
+                                    <NotificationsIcon fontSize="small" /> Notifications
+                                    {notifications.filter(n => !n.read_at).length > 0 && (
+                                        <span className="vdb-notif-unread">
+                                            ({notifications.filter(n => !n.read_at).length})
+                                        </span>
+                                    )}
+                                </h3>
+                                <button className="vdb-view-all" onClick={() => navigate('/volunteer-notifications')}>
+                                    View All <ChevronRightIcon fontSize="small" />
+                                </button>
+                            </div>
+                            <div className="vdb-notif-list">
+                                {notifications.length === 0 ? (
+                                    <div style={{ padding: 16, color: '#64748b' }}>
+                                        No notifications yet.
+                                    </div>
+                                ) : notifications.slice(0, 2).map(n => (
+                                    <div
+                                        key={n.notification_id}
+                                        className={`vdb-notif-item ${!n.read_at ? 'unread' : ''}`}
+                                    >
+                                        <div className="vdb-notif-body">
+                                            <p className="vdb-notif-title">{n.message_title}</p>
+                                            <p className="vdb-notif-text">{n.message}</p>
+                                            <span className="vdb-notif-time">
+                                                {timeAgo(n.date)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -654,6 +711,9 @@ const VolunteerDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* Role-aware AI assistant */}
+            <DashboardChatbot role="Volunteer" />
         </div>
     );
 };

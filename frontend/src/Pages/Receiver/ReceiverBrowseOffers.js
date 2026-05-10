@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Receiver/ReceiverBrowseOffers.css';
 
 import SearchIcon from '@mui/icons-material/Search';
@@ -24,6 +25,40 @@ import SetMealIcon from '@mui/icons-material/SetMeal';
 import EmojiFoodBeverageIcon from '@mui/icons-material/EmojiFoodBeverage';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import ImageNotSupportedIcon from '@mui/icons-material/ImageNotSupported';
+import TranslateIcon from '@mui/icons-material/Translate';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+
+// UI labels in English / Arabic. Picked at render-time based on `lang`.
+const LABELS = {
+  en: {
+    portions: 'portions',
+    posted: 'Posted:',
+    expires: 'Expires:',
+    addressMissing: 'Address not provided',
+    descriptionMissing: 'No description provided',
+    details: 'Details',
+    acceptOffer: 'Accept Offer',
+    accepting: 'Accepting…',
+    translateBtn: 'العربية',
+    revertBtn: 'English',
+    translating: 'Translating…',
+    translatedBanner: 'Translated to Arabic by AI',
+  },
+  ar: {
+    portions: 'حصة',
+    posted: 'تاريخ النشر:',
+    expires: 'تاريخ الانتهاء:',
+    addressMissing: 'العنوان غير متوفر',
+    descriptionMissing: 'لا يوجد وصف',
+    details: 'التفاصيل',
+    acceptOffer: 'قبول العرض',
+    accepting: 'جارٍ القبول…',
+    translateBtn: 'العربية',
+    revertBtn: 'English',
+    translating: 'جارٍ الترجمة…',
+    translatedBanner: 'تمت الترجمة إلى العربية بواسطة الذكاء الاصطناعي',
+  },
+};
 
 // Returns an icon based on the category name of the offer
 const getCategoryIcon = (categoryName) => {
@@ -45,24 +80,37 @@ const formatExpiry = (datetime) => {
 };
 
 
-const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
+const OfferCard = ({ offer, onAccept, onDetails, accepting, lang = 'en', translation }) => {
+  const t = LABELS[lang] || LABELS.en;
+  const isAr = lang === 'ar';
   const weight = offer.quantity_by_kg ? `${offer.quantity_by_kg} kg` : '—';
   const portions = offer.number_of_person || 0;
-  const donorAddress = [offer.street, offer.city].filter(Boolean).join(', ') || 'Address not provided';
+
+  // Pull either the original or translated text for each field.
+  // Only use the translation when we're actually in Arabic mode — otherwise
+  // a cached translation would keep showing in English mode after toggling back.
+  const tx = (key, fallback) =>
+    (isAr && translation && translation[key]) || offer[key] || fallback;
+  const foodName     = tx('food_name', '');
+  const description  = tx('description', t.descriptionMissing);
+  const categoryName = tx('category_name', offer.category_name || 'General');
+  const donorName    = tx('donor_name', offer.donor_name || '');
+  const englishAddress = [offer.street, offer.city].filter(Boolean).join(', ');
+  const donorAddress = (isAr && translation?.address) || englishAddress || t.addressMissing;
 
   // Format creation time
   const formatTime = (datetime) => {
     if (!datetime) return '—';
-    return new Date(datetime).toLocaleString();
+    return new Date(datetime).toLocaleString(isAr ? 'ar-EG' : undefined);
   };
 
   return (
-    <article className="rob-card">
+    <article className="rob-card" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="rob-card-img">
         {offer.image_url ? (
           <img
             src={`http://localhost:5000${offer.image_url}`}
-            alt={offer.food_name}
+            alt={foodName}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
@@ -72,21 +120,21 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
         )}
         <span className="rob-category-badge">
           {getCategoryIcon(offer.category_name)}
-          {offer.category_name || 'General'}
+          {categoryName}
         </span>
         <span className="rob-portions-badge" title="Available portions">
           {portions}
-          <span className="rob-portions-label">portions</span>
+          <span className="rob-portions-label">{t.portions}</span>
         </span>
       </div>
 
       <div className="rob-card-body">
-        <h3 className="rob-offer-title">{offer.food_name}</h3>
+        <h3 className="rob-offer-title">{foodName}</h3>
         <p className="rob-offer-donor">
           <StorefrontIcon sx={{ fontSize: 14 }} />
-          {offer.donor_name}
+          {donorName}
         </p>
-        <p className="rob-offer-desc">{offer.description || 'No description provided'}</p>
+        <p className="rob-offer-desc">{description}</p>
 
         {/* Row 1: Weight and Address side by side */}
         <div className="rob-meta-row">
@@ -104,22 +152,22 @@ const OfferCard = ({ offer, onAccept, onDetails, accepting }) => {
         <div className="rob-meta-stack">
           <span className="rob-meta-item">
             <EventIcon sx={{ fontSize: 14 }} />
-            Posted: {formatTime(offer.created_at)}
+            {t.posted} {formatTime(offer.created_at)}
           </span>
           <span className="rob-meta-item rob-meta-item--expiry">
             <EventIcon sx={{ fontSize: 14 }} />
-            Expires: {formatExpiry(offer.expiration_date_and_time)}
+            {t.expires} {formatExpiry(offer.expiration_date_and_time)}
           </span>
         </div>
 
         <div className="rob-card-actions">
           <button className="rob-btn-details" onClick={() => onDetails(offer.offer_id)}>
             <InfoOutlinedIcon sx={{ fontSize: 16 }} />
-            Details
+            {t.details}
           </button>
           <button className="rob-btn-accept" onClick={() => onAccept(offer.offer_id)} disabled={accepting === offer.offer_id}>
             <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />
-            {accepting === offer.offer_id ? 'Accepting…' : 'Accept Offer'}
+            {accepting === offer.offer_id ? t.accepting : t.acceptOffer}
           </button>
         </div>
       </div>
@@ -143,6 +191,15 @@ const ReceiverBrowseOffers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState('all');
   const [accepting, setAccepting] = useState(null);
+
+  // ── AI Translate (Arabic) ─────────────────────────────────
+  // `lang` toggles English ⇄ Arabic; `translations` caches per-offer
+  // Arabic strings keyed by offer_id so we don't re-translate on every
+  // silent refresh.
+  const [lang, setLang] = useState('en');
+  const [translations, setTranslations] = useState({});
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState('');
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -217,6 +274,51 @@ const ReceiverBrowseOffers = () => {
     }
   };
 
+  // ── Translate handler ─────────────────────────────────────
+  // First click: fetch Arabic translations for the offers shown, cache them,
+  // and switch lang→ar. Second click: just toggle back to English (cache stays
+  // so re-entering Arabic mode is instant).
+  const handleTranslateToggle = async () => {
+    setTranslateError('');
+    if (lang === 'ar') {
+      setLang('en');
+      return;
+    }
+    // Only translate offers we don't already have a cached translation for.
+    const targetOffers = filteredOffers.filter(o => !translations[o.offer_id]);
+    if (targetOffers.length === 0) {
+      setLang('ar');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const slim = targetOffers.map(o => ({
+        offer_id: o.offer_id,
+        food_name: o.food_name,
+        description: o.description,
+        category_name: o.category_name,
+        donor_name: o.donor_name,
+        address: [o.street, o.city].filter(Boolean).join(', '),
+      }));
+      const res = await fetch('http://localhost:5000/api/ai/translate-offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offers: slim }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTranslateError(data.error || 'Translation failed.');
+        return;
+      }
+      setTranslations(prev => ({ ...prev, ...(data.translations || {}) }));
+      setLang('ar');
+    } catch {
+      setTranslateError('Could not reach the AI service.');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const filteredOffers = offers.filter(offer => {
     const matchesCat = activeCategoryId === 'all' || offer.category_id === Number(activeCategoryId);
     const q = searchQuery.toLowerCase();
@@ -288,6 +390,26 @@ const ReceiverBrowseOffers = () => {
             />
           </div>
 
+          <button
+            type="button"
+            className={`rob-translate-btn ${lang === 'ar' ? 'rob-translate-btn--active' : ''}`}
+            onClick={handleTranslateToggle}
+            disabled={translating}
+            title={lang === 'ar' ? 'Switch back to English' : 'Translate offers to Arabic'}
+          >
+            {translating ? (
+              <>
+                <AutoAwesomeIcon sx={{ fontSize: 16 }} className="rob-translate-spin" />
+                {LABELS[lang].translating}
+              </>
+            ) : (
+              <>
+                <TranslateIcon sx={{ fontSize: 16 }} />
+                {lang === 'ar' ? LABELS.ar.revertBtn : LABELS.en.translateBtn}
+              </>
+            )}
+          </button>
+
           <div className="rob-filter-wrap">
             <FilterListIcon className="rob-filter-icon" sx={{ fontSize: 18 }} />
             <select
@@ -311,6 +433,17 @@ const ReceiverBrowseOffers = () => {
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
 
+        {translateError && (
+          <div className="rob-translate-error">{translateError}</div>
+        )}
+
+        {lang === 'ar' && (
+          <div className="rob-translate-banner" dir="rtl">
+            <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+            <span>{LABELS.ar.translatedBanner}</span>
+          </div>
+        )}
+
         {filteredOffers.length === 0 ? (
           <div className="rdb-empty-state rob-empty-state">
             <p>No offers found. Try adjusting your search or category.</p>
@@ -324,12 +457,15 @@ const ReceiverBrowseOffers = () => {
                 onAccept={handleAccept}
                 onDetails={handleDetails}
                 accepting={accepting}
+                lang={lang}
+                translation={translations[offer.offer_id]}
               />
             ))}
           </div>
         )}
       </main>
-    </div>
+    <DashboardChatbot role="Receiver" />
+            </div>
   );
 };
 

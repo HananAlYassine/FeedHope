@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VolunteerSidebar from '../../Components/Volunteer/VolunteerSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import MapModal from '../../Components/Shared/MapModal';
 import '../../Styles/Volunteer/VolunteerDashboard.css';
 import '../../Styles/Volunteer/VolunteerAvailableOffers.css';
@@ -294,7 +295,8 @@ const VolunteerAvailableOffers = () => {
                 }}
                 distanceKm={mapTarget?.distance_km}
             />
-        </div>
+        <DashboardChatbot role="Volunteer" />
+            </div>
     );
 };
 

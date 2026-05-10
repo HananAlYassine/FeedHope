@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminFundDistribution.css';
 
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -563,7 +564,8 @@ const AdminFundDistribution = () => {
             )}
 
             {toast && <div className={`afd-toast afd-toast--${toast.type}`}>{toast.msg}</div>}
-        </div>
+        <DashboardChatbot role="Admin" />
+            </div>
     );
 };
 

@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import { useToast } from '../../Components/Shared/Toast';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 import '../../Styles/Receiver/ReceiverProfile.css';
@@ -551,7 +552,8 @@ const ReceiverProfile = () => {
                     </div>
                 </div>
             )}
-        </div>
+        <DashboardChatbot role="Receiver" />
+            </div>
     );
 };
 

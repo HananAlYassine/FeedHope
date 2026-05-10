@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminProfile.css';
 
 // ── MUI Icons ────────────────────────────────────────────────
@@ -428,7 +429,8 @@ const AdminProfile = () => {
                     {toast.msg}
                 </div>
             )}
-        </div>
+        <DashboardChatbot role="Admin" />
+            </div>
     );
 };
 

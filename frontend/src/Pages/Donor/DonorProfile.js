@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Donor/DonorDashboard.css';
 import '../../Styles/Donor/DonorProfile.css';
 
@@ -468,7 +469,8 @@ const DonorProfile = () => {
                     </div>
                 </div>
             )}
-        </div>
+        <DashboardChatbot role="Donor" />
+            </div>
     );
 };
 

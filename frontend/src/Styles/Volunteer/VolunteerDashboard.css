@@ -628,3 +628,315 @@ body {
     width: 100%;
     /* ensures the grid fills the full content area */
 }
+/* ============================================================
+   Fixed-viewport mode (desktop) — page fits in 100vh, no scroll.
+   ============================================================ */
+.vdb-layout--fixed {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.vdb-layout--fixed .vdb-main--fixed {
+    margin-left: var(--vdb-sidebar-w);
+    flex: 1;
+    height: 100vh;
+    padding: 14px 20px;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    max-width: calc(100vw - var(--vdb-sidebar-w));
+    box-sizing: border-box;
+}
+
+.vdb-layout--fixed .vdb-banner {
+    /* Match the My-Profile banner sizing exactly. */
+    padding: 24px 28px;
+    margin-bottom: 14px;
+    min-height: 0;
+    flex-shrink: 0;
+}
+
+.vdb-layout--fixed .vdb-banner h1 {
+    font-size: 26px;
+    margin-bottom: 6px;
+}
+
+.vdb-layout--fixed .vdb-greeting {
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    margin: 0 0 4px;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.vdb-layout--fixed .vdb-message {
+    font-size: 13px;
+    margin: 0;
+    opacity: 0.92;
+}
+
+.vdb-layout--fixed .vdb-banner-stats {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.vdb-layout--fixed .vdb-stat-pill {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.vdb-layout--fixed .vdb-two-columns {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 14px;
+    align-items: stretch;
+}
+
+.vdb-layout--fixed .vdb-left,
+.vdb-layout--fixed .vdb-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.vdb-layout--fixed .vdb-left > .vdb-card,
+.vdb-layout--fixed .vdb-right > .vdb-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.vdb-layout--fixed .vdb-card-header,
+.vdb-layout--fixed .vdb-tabs {
+    flex-shrink: 0;
+}
+
+.vdb-layout--fixed .vdb-delivery-list,
+.vdb-layout--fixed .vdb-activity-list,
+.vdb-layout--fixed .vdb-notif-list {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    /* Stack items as a flex column so each row stretches to share
+       the box height equally — matching the donor "Recent Offers"
+       behaviour and giving every box the same visual size. */
+    display: flex;
+    flex-direction: column;
+}
+
+.vdb-layout--fixed .vdb-delivery-item,
+.vdb-layout--fixed .vdb-activity-item,
+.vdb-layout--fixed .vdb-notif-item {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+}
+
+.vdb-layout--fixed .vdb-delivery-item .vdb-delivery-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vdb-layout--fixed .vdb-delivery-title {
+    font-size: 13.5px;
+}
+
+.vdb-layout--fixed .vdb-delivery-detail,
+.vdb-layout--fixed .vdb-delivery-meta {
+    font-size: 11.5px;
+    line-height: 1.3;
+}
+
+.vdb-layout--fixed .vdb-activity-title {
+    font-size: 13px;
+}
+
+.vdb-layout--fixed .vdb-activity-time {
+    font-size: 11px;
+}
+
+.vdb-layout--fixed .vdb-notif-title {
+    font-size: 13px;
+}
+
+.vdb-layout--fixed .vdb-notif-text {
+    font-size: 12px;
+}
+
+/* ── Notifications card (mirrors donor/receiver styling) ── */
+.vdb-notif-card .vdb-card-header h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vdb-notif-unread {
+    color: var(--vdb-orange);
+    font-size: 12px;
+    margin-left: 4px;
+    font-weight: 600;
+}
+
+.vdb-notif-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.vdb-notif-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--vdb-border);
+    position: relative;
+}
+
+.vdb-notif-item:last-child {
+    border-bottom: none;
+}
+
+.vdb-notif-item.unread {
+    background: rgba(255, 165, 0, 0.05);
+    border-left: 4px solid #ff9800;
+}
+
+.vdb-notif-item.unread::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    width: 8px;
+    height: 8px;
+    background: #ff9800;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #ff9800;
+}
+
+.vdb-notif-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 18px;
+}
+
+.vdb-notif-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--vdb-text-main);
+    margin: 0;
+}
+
+.vdb-notif-text {
+    font-size: 12.5px;
+    color: var(--vdb-text-sub);
+    line-height: 1.4;
+    margin: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.vdb-notif-time {
+    font-size: 11.5px;
+    color: var(--vdb-text-muted);
+    margin-top: 2px;
+}
+
+/* ============================================================
+   Below 1100px the fixed layout becomes scrollable inside main.
+   ============================================================ */
+@media (max-width: 1100px) {
+    .vdb-layout--fixed .vdb-main--fixed {
+        margin-left: 0;
+        max-width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: block !important;
+        padding: 16px;
+        padding-bottom: 90px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .vdb-layout--fixed .vdb-two-columns {
+        display: block;
+        overflow: visible;
+    }
+
+    .vdb-layout--fixed .vdb-left,
+    .vdb-layout--fixed .vdb-right,
+    .vdb-layout--fixed .vdb-left > .vdb-card,
+    .vdb-layout--fixed .vdb-right > .vdb-card {
+        display: block;
+        flex: 0 0 auto;
+        overflow: visible;
+        min-height: 0;
+    }
+
+    .vdb-layout--fixed .vdb-left > .vdb-card,
+    .vdb-layout--fixed .vdb-right > .vdb-card {
+        margin-bottom: 14px;
+    }
+
+    .vdb-layout--fixed .vdb-delivery-list,
+    .vdb-layout--fixed .vdb-activity-list,
+    .vdb-layout--fixed .vdb-notif-list {
+        overflow: visible;
+        max-height: none;
+    }
+}
+
+/* ============================================================
+   Notification rows — stop cramping content together. Items are
+   still flex-stretched to fill the box, but the content now
+   anchors to the top with comfortable inner padding.
+   ============================================================ */
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-item {
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--vdb-border);
+}
+
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-item:last-child {
+    border-bottom: none;
+}
+
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    padding-right: 20px;
+}
+
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-text {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--vdb-text-sub);
+    margin: 0;
+    -webkit-line-clamp: 2;
+}
+
+.vdb-layout--fixed .vdb-notif-card .vdb-notif-time {
+    font-size: 11.5px;
+    color: var(--vdb-text-muted);
+    margin-top: 2px;
+}

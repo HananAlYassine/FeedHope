@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminMoneyDonations.css';
 
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -348,7 +349,8 @@ const AdminMoneyDonations = () => {
             )}
 
             {toast && <div className={`amd-toast amd-toast--${toast.type}`}>{toast.msg}</div>}
-        </div>
+        <DashboardChatbot role="Admin" />
+            </div>
     );
 };
 

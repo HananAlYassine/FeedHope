@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VolunteerSidebar from '../../Components/Volunteer/VolunteerSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Volunteer/VolunteerDashboard.css';
 import '../../Styles/Volunteer/VolunteerProfile.css';
 
@@ -496,7 +497,8 @@ const VolunteerProfile = () => {
                     </div>
                 </div>
             )}
-        </div>
+        <DashboardChatbot role="Volunteer" />
+            </div>
     );
 };
 

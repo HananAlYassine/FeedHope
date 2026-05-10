@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminFoodOffers.css';
 
 import SearchIcon           from '@mui/icons-material/Search';
@@ -618,7 +619,8 @@ const AdminFoodOffers = () => {
                     {toast.msg}
                 </div>
             )}
-        </div>
+        <DashboardChatbot role="Admin" />
+            </div>
     );
 };
 

@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Receiver/ReceiverAcceptedOffers.css';
 
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -265,7 +266,8 @@ const ReceiverAcceptedOffers = () => {
                 onConfirm={confirmCancel}
                 offerTitle={cancelConfirm.offerTitle}
             />
-        </div>
+        <DashboardChatbot role="Receiver" />
+            </div>
     );
 };
 

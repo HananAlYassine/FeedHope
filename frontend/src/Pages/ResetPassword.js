@@ -130,6 +130,7 @@ const ResetPassword = () => {
                 placeholder="3-10 characters"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
               />
               <div className="rp-eye" onClick={() => setShowNew(!showNew)}>
                 {showNew ? <VisibilityOff /> : <Visibility />}
@@ -145,6 +146,7 @@ const ResetPassword = () => {
                 placeholder="Repeat new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
               />
               <div className="rp-eye" onClick={() => setShowConfirm(!showConfirm)}>
                 {showConfirm ? <VisibilityOff /> : <Visibility />}

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Donor/DonorDashboard.css';
 import '../../Styles/Donor/NewOffer.css';
 
@@ -14,6 +15,7 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import GrassIcon from '@mui/icons-material/Grass';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const DIETARY_OPTIONS = [
     'Vegetarian', 'Vegan', 'Halal', 'Kosher',
@@ -41,6 +43,11 @@ const DonorNewOffers = () => {
     const [notification, setNotification]           = useState({ message: '', type: '' });
     const [isSubmitting, setIsSubmitting]           = useState(false);
 
+    // AI auto-fill state — shows a status pill while Gemini analyzes
+    // the photo and a banner once it has pre-filled the form.
+    const [aiAnalyzing, setAiAnalyzing] = useState(false);
+    const [aiNotice,    setAiNotice]    = useState('');
+
     const fileInputRef = useRef(null);
 
     // ─── Fetch categories on mount ───────────────────────────────
@@ -64,6 +71,49 @@ const DonorNewOffers = () => {
         );
     };
 
+    // Send the uploaded photo to Gemini, then pre-fill any empty fields
+    // with the AI's suggestions. Donor reviews/edits before submit.
+    const runAiAutoFill = async (file) => {
+        setAiAnalyzing(true);
+        setAiNotice('');
+        setNotification({ message: '', type: '' });
+        try {
+            const fd = new FormData();
+            fd.append('imageFile', file);
+            const res = await fetch('http://localhost:5000/api/donor/ai/analyze-image', {
+                method: 'POST',
+                body: fd,
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setNotification({
+                    message: data.error || 'AI auto-fill failed. You can fill the fields manually.',
+                    type: 'error',
+                });
+                return;
+            }
+
+            // Only fill fields the donor hasn't already typed in — never
+            // overwrite their input.
+            if (data.foodName    && !foodName.trim())     setFoodName(data.foodName);
+            if (data.description && !description.trim()) setDescription(data.description);
+            if (data.categoryId  && !categoryId)          setCategoryId(String(data.categoryId));
+            if (data.quantityKg  && !quantityKg)          setQuantityKg(String(data.quantityKg));
+            if (data.numPersons  && !numPersons)          setNumPersons(String(data.numPersons));
+            if (Array.isArray(data.dietary) && data.dietary.length && dietarySelections.length === 0) {
+                setDietarySelections(data.dietary);
+            }
+            setAiNotice('AI filled what it could from the photo — please review and adjust before submitting.');
+        } catch (err) {
+            setNotification({
+                message: 'Could not reach the AI service. You can fill the fields manually.',
+                type: 'error',
+            });
+        } finally {
+            setAiAnalyzing(false);
+        }
+    };
+
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -71,9 +121,12 @@ const DonorNewOffers = () => {
             const reader = new FileReader();
             reader.onload = (e) => setImagePreview(e.target.result);
             reader.readAsDataURL(file);
+            // Kick off the AI auto-fill in the background.
+            runAiAutoFill(file);
         } else {
             setImageFile(null);
             setImagePreview(null);
+            setAiNotice('');
         }
     };
 
@@ -91,6 +144,7 @@ const DonorNewOffers = () => {
         setImageFile(null);
         setImagePreview(null);
         setNotification({ message: '', type: '' });
+        setAiNotice('');
     };
 
     const validateForm = () => {
@@ -226,10 +280,15 @@ const DonorNewOffers = () => {
 
                             {/* Image Upload */}
                             <div className="input-group">
-                                <label><CloudUploadIcon /> Upload Image</label>
+                                <label>
+                                    <CloudUploadIcon /> Upload Image
+                                    <span className="ai-hint">
+                                        <AutoAwesomeIcon sx={{ fontSize: 14 }} /> AI auto-fill enabled
+                                    </span>
+                                </label>
                                 <div className="upload-area" onClick={triggerFileInput}>
                                     <CloudUploadIcon className="upload-icon" />
-                                    <p>Click or drag to upload a photo</p>
+                                    <p>Click or drag to upload a photo — AI will pre-fill the fields for you</p>
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -245,6 +304,20 @@ const DonorNewOffers = () => {
                                             alt="Preview"
                                             style={{ maxHeight: '200px', marginTop: '10px', borderRadius: '8px' }}
                                         />
+                                    </div>
+                                )}
+
+                                {/* AI status: analyzing → success banner */}
+                                {aiAnalyzing && (
+                                    <div className="ai-status ai-status--analyzing">
+                                        <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+                                        <span>AI is analyzing the photo…</span>
+                                    </div>
+                                )}
+                                {!aiAnalyzing && aiNotice && (
+                                    <div className="ai-status ai-status--success">
+                                        <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+                                        <span>{aiNotice}</span>
                                     </div>
                                 )}
                             </div>
@@ -381,7 +454,8 @@ const DonorNewOffers = () => {
                     </div>
                 </div>
             </main>
-        </div>
+        <DashboardChatbot role="Donor" />
+            </div>
     );
 };
 

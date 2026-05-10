@@ -4,11 +4,12 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    height: 100vh;
     background: linear-gradient(135deg, #1e2b3c 0%, #0f1722 100%);
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
-    padding: 20px;
+    padding: 12px;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* 2. THE MAIN CARD - The floating box */
@@ -16,11 +17,13 @@
     display: flex;
     width: 100%;
     max-width: 1150px;
-    height: 88vh;
+    height: 100%;
+    max-height: calc(100vh - 24px);
     background: #ffffff;
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+    min-height: 0;
 }
 
 /* --- LEFT SIDE: HERO --- */
@@ -104,20 +107,23 @@
 .reg-form-section {
     flex: 1.2;
     background: #ffffff;
-    padding: 40px 60px;
+    padding: 28px 44px;
     overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Role Navigation Pills */
 .role-pills-nav {
     display: flex;
-    gap: 12px;
-    margin: 20px 0 25px;
+    gap: 10px;
+    margin: 12px 0 16px;
 }
 
 .role-nav-btn {
     flex: 1;
-    padding: 12px;
+    padding: 9px 10px;
     border: 1px solid #e2e8f0;
     background: #ffffff;
     border-radius: 10px;
@@ -129,7 +135,7 @@
     gap: 8px;
     transition: all 0.3s ease;
     color: #4a5568;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .role-nav-btn.active-pill {
@@ -139,11 +145,13 @@
     box-shadow: 0 5px 15px rgba(16, 185, 129, 0.15);
 }
 
-/* Form Grid */
+/* Form Grid — fills remaining height of .reg-form-section and distributes rows */
 .auth-input-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 12px 14px;
+    flex: 1;
+    align-content: space-between;
 }
 
 .full-width-field {
@@ -152,20 +160,21 @@
 
 .auth-input-group label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12.5px;
     color: #2d3748;
 }
 
 .auth-input-field,
 .auth-select-field {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 14px;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     background: #fcfdfe;
     font-family: inherit;
+    font-size: 13.5px;
     transition: all 0.2s ease;
 }
 
@@ -179,15 +188,15 @@
 /* Submit Button */
 .submit-reg-button {
     width: 100%;
-    padding: 16px;
+    padding: 13px;
     background: #10b981;
     color: white;
     border: none;
-    border-radius: 12px;
+    border-radius: 11px;
     font-weight: 800;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
-    margin-top: 20px;
+    margin-top: 4px;
     transition: all 0.2s ease;
 }
 

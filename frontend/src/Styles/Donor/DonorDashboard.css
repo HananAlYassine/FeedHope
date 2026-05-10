@@ -82,6 +82,56 @@ body {
     display: block !important;
 }
 
+/* ── Fixed-viewport variant (DonorDashboard only — opt-in via modifier classes) ── */
+.ddb-layout--fixed {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.ddb-layout--fixed .ddb-main--fixed {
+    padding: 16px 20px;
+    height: 100vh;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.ddb-layout--fixed .ddb-banner {
+    padding: 14px 24px;
+    margin-bottom: 10px;
+    min-height: 0;
+    flex-shrink: 0;
+}
+
+.ddb-layout--fixed .ddb-banner-title {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+.ddb-layout--fixed .ddb-banner-subtitle {
+    font-size: 12.5px;
+    margin: 0;
+}
+
+.ddb-layout--fixed .ddb-stats-row {
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.ddb-layout--fixed .ddb-stat-card {
+    padding: 12px 16px;
+}
+
+.ddb-layout--fixed .ddb-stat-number {
+    font-size: 22px;
+}
+
+.ddb-layout--fixed .ddb-stat-label {
+    font-size: 11.5px;
+}
+
 /* ── Welcome Banner (Orange Gradient for Donors) ── */
 .ddb-banner {
     background: linear-gradient(135deg, #ff9800 0%, #f57c00 60%, #e65100 100%);
@@ -266,6 +316,81 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+/* ── Fixed-viewport overrides for the grid (DonorDashboard only) ── */
+.ddb-layout--fixed .ddb-grid {
+    gap: 14px;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ddb-layout--fixed .ddb-col-left,
+.ddb-layout--fixed .ddb-col-right {
+    gap: 14px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ddb-layout--fixed .ddb-col-left > .ddb-card,
+.ddb-layout--fixed .ddb-col-right > .ddb-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ddb-layout--fixed .ddb-offer-list,
+.ddb-layout--fixed .ddb-notif-list,
+.ddb-layout--fixed .ddb-feedback-list {
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    /* Stack children vertically and let them share the box height
+       equally so 5 rows perfectly fill the card with no empty gap. */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Each offer row stretches to fill its share of the list height. */
+.ddb-layout--fixed .ddb-offer-card {
+    padding: 8px 16px;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* Inside the stretched card, keep the title/portions row spanning
+   the full width as before. */
+.ddb-layout--fixed .ddb-offer-card .ddb-offer-body {
+    width: 100%;
+}
+
+.ddb-layout--fixed .ddb-offer-title {
+    font-size: 13.5px;
+    margin-bottom: 2px;
+}
+
+.ddb-layout--fixed .ddb-offer-meta {
+    font-size: 11.5px;
+    margin-top: 2px;
+}
+
+.ddb-layout--fixed .ddb-offer-portions {
+    min-width: 28px;
+    height: 28px;
+    font-size: 12px;
+    margin-left: 12px;
+}
+
+.ddb-layout--fixed .ddb-card-header,
+.ddb-layout--fixed .ddb-impact-body,
+.ddb-layout--fixed .ddb-donut-body {
+    flex-shrink: 0;
 }
 
 /* ── Card Base ── */
@@ -504,6 +629,153 @@ body {
     padding: 0;
 }
 
+/* ── Status Breakdown donut (left column, below Recent Offers) ── */
+.ddb-status-total {
+    font-size: 12px;
+    background: var(--ddb-orange-light);
+    color: var(--ddb-orange);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.ddb-donut-body {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(170px, 230px);
+    gap: 8px;
+    align-items: center;
+    padding: 4px 14px 8px;
+    min-height: 0;
+}
+
+/* In the fixed-viewport layout, the donut card is content-sized
+   (so the pie is never clipped), and the Recent Offers card takes
+   whatever space is left in the column. */
+.ddb-layout--fixed .ddb-col-left > .ddb-donut-card {
+    flex: 0 0 auto !important;
+    overflow: visible;
+}
+
+.ddb-layout--fixed .ddb-donut-card .ddb-donut-body {
+    flex-shrink: 0;
+}
+
+.ddb-layout--fixed .ddb-card-header {
+    padding: 10px 16px;
+}
+
+.ddb-layout--fixed .ddb-donut-legend {
+    gap: 5px;
+}
+
+.ddb-layout--fixed .ddb-donut-legend li {
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.ddb-donut-chart {
+    width: 100%;
+    min-width: 0;
+}
+
+.ddb-donut-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ddb-donut-legend li {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ddb-text-sub);
+}
+
+.ddb-donut-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.ddb-donut-label {
+    font-weight: 500;
+    color: var(--ddb-text-main);
+}
+
+.ddb-donut-count {
+    font-weight: 600;
+    color: var(--ddb-text-main);
+    min-width: 22px;
+    text-align: right;
+}
+
+.ddb-donut-pct {
+    font-size: 12px;
+    color: var(--ddb-text-muted);
+    min-width: 36px;
+    text-align: right;
+}
+
+/* ── Recent Feedback (vertical list inside right column) ── */
+.ddb-feedback-list {
+    padding: 4px 0;
+}
+
+.ddb-feedback-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--ddb-border);
+    border-left: 3px solid var(--ddb-orange);
+}
+
+.ddb-feedback-item:last-child {
+    border-bottom: none;
+}
+
+.ddb-feedback-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.ddb-feedback-name {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--ddb-text-main);
+}
+
+.ddb-feedback-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.ddb-feedback-meta {
+    font-size: 12px;
+    color: var(--ddb-text-muted);
+    margin: 0 0 4px;
+}
+
+.ddb-feedback-text {
+    font-size: 13px;
+    color: var(--ddb-text-sub);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ddb-feedback-date {
+    display: block;
+    font-size: 11.5px;
+    color: var(--ddb-text-muted);
+    margin-top: 5px;
+}
+
 /* ── Responsive Design ── */
 @media (max-width: 1280px) {
     .ddb-grid {
@@ -527,6 +799,131 @@ body {
 
     .ddb-grid {
         grid-template-columns: 1fr;
+    }
+
+    .ddb-donut-body {
+        grid-template-columns: 1fr;
+    }
+
+    .ddb-feedback-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ddb-feedback-item {
+        border-right: none;
+        border-bottom: 1px solid var(--ddb-border);
+    }
+
+    .ddb-feedback-item:last-child {
+        border-bottom: none;
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Below 1100px the desktop "fit-in-100vh" layout doesn't
+       work — cards stack vertically and the column would be
+       taller than the viewport. We make .ddb-main--fixed the
+       scroll container so the user can scroll through the
+       stacked cards. The outer .ddb-layout--fixed still owns
+       the viewport, so the sidebar and bottom-nav stay in
+       place.
+       ────────────────────────────────────────────────────── */
+    .ddb-layout--fixed {
+        height: 100vh;
+        min-height: 100vh;
+        overflow: hidden;
+    }
+
+    .ddb-layout--fixed .ddb-main--fixed {
+        height: 100vh;
+        max-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: block !important;
+        padding-bottom: 90px; /* breathing room above the mobile bottom nav */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ddb-layout--fixed .ddb-grid,
+    .ddb-layout--fixed .ddb-col-left,
+    .ddb-layout--fixed .ddb-col-right {
+        overflow: visible;
+        min-height: 0;
+        display: block;
+    }
+
+    .ddb-layout--fixed .ddb-col-left > .ddb-card,
+    .ddb-layout--fixed .ddb-col-right > .ddb-card {
+        flex: 0 0 auto;
+        overflow: visible;
+        margin-bottom: 14px;
+    }
+
+    /* Lists go back to natural height — no scroll, no flex stretch. */
+    .ddb-layout--fixed .ddb-offer-list,
+    .ddb-layout--fixed .ddb-notif-list,
+    .ddb-layout--fixed .ddb-feedback-list {
+        overflow: visible;
+        flex: 0 0 auto;
+        display: block;
+    }
+
+    .ddb-layout--fixed .ddb-offer-card {
+        flex: 0 0 auto;
+        display: block;
+    }
+
+    /* Keep the donut card content-sized; chart sits centered. */
+    .ddb-layout--fixed .ddb-donut-card {
+        overflow: visible;
+    }
+
+    .ddb-layout--fixed .ddb-donut-body {
+        align-items: stretch;
+        padding: 12px 14px 16px;
+    }
+
+    .ddb-donut-chart {
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto;
+    }
+}
+
+/* Phone-specific touch-ups (≤640px). */
+@media (max-width: 640px) {
+    .ddb-stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ddb-banner {
+        padding: 18px 18px;
+        text-align: center;
+        min-height: 0;
+    }
+
+    .ddb-banner-icon {
+        display: none;
+    }
+
+    .ddb-banner-title {
+        font-size: 22px;
+    }
+
+    .ddb-banner-subtitle {
+        max-width: none;
+    }
+
+    .ddb-banner-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .ddb-card-header {
+        padding: 12px 14px;
+    }
+
+    .ddb-card-title {
+        font-size: 14px;
     }
 }
 

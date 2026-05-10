@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import VolunteerSidebar from '../../Components/Volunteer/VolunteerSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Volunteer/VolunteerDashboard.css';
 import '../../Styles/Volunteer/VolunteerNotifications.css';
 
@@ -381,7 +382,8 @@ const VolunteerNotifications = () => {
                     </div>
                 )}
             </main>
-        </div>
+        <DashboardChatbot role="Volunteer" />
+            </div>
     );
 };
 

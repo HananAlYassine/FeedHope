@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiverSidebar from '../../Components/Receiver/ReceiverSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Receiver/ReceiverDashboard.css';
 import '../../Styles/Receiver/ReceiverNotifications.css';
 
@@ -425,7 +426,8 @@ const ReceiverNotifications = () => {
                 onConfirm={modalState.onConfirm}
                 onCancel={closeModal}
             />
-        </div>
+        <DashboardChatbot role="Receiver" />
+            </div>
     );
 };
 

@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';  
 import AdminSidebar from '../../Components/Admin/AdminSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Admin/AdminUsers.css';
 
 // ── MUI Icons ────────────────────────────────────────────────
@@ -793,7 +794,8 @@ const AdminUsers = () => {
                 </div>
             )}
 
-        </div>
+        <DashboardChatbot role="Admin" />
+            </div>
     );
 };
 

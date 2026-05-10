@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DonorSidebar from '../../Components/Donor/DonorSidebar';
+import DashboardChatbot from '../../Components/Shared/DashboardChatbot';
 import '../../Styles/Donor/DonorNotifications.css'; // Reusing your layout styles
 
 // MUI Icons
@@ -142,7 +143,8 @@ const DonorFeedback = () => {
                     </div>
                 )}
             </main>
-        </div>
+        <DashboardChatbot role="Donor" />
+            </div>
     );
 };
 
