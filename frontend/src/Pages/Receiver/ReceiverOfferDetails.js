@@ -87,21 +87,24 @@ const LABELS = {
 
 // ----- Helper Functions -----
 
-// Converts date into readable format like: Feb 14, 2026
-const formatDate = (dt) => {
+// Converts date into readable format. Uses Arabic locale when lang='ar'
+// so the month name and digits are localized too (Feb 14, 2026 → ١٤ فبراير ٢٠٢٦).
+const formatDate = (dt, lang = 'en') => {
   if (!dt) return 'N/A';
-  return new Date(dt).toLocaleDateString('en-US', {
+  const locale = lang === 'ar' ? 'ar-EG' : 'en-US';
+  return new Date(dt).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 };
 
-// Converts time into: 03:45 PM
-const formatTime = (dt) => {
+// Converts time into 03:45 PM (or Arabic equivalent when lang='ar').
+const formatTime = (dt, lang = 'en') => {
   if (!dt) return 'N/A';
+  const locale = lang === 'ar' ? 'ar-EG' : 'en-US';
   const d = new Date(dt);
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 };
 
 const ReceiverOfferDetails = () => {
@@ -388,7 +391,7 @@ const ReceiverOfferDetails = () => {
               <div className="rod-meta-item">
                 <ScaleIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
                 <span className="rod-meta-label">{t.quantityKg}</span>
-                <span className="rod-meta-value">{offer.quantity_by_kg ? `${offer.quantity_by_kg} KG` : '—'}</span>
+                <span className="rod-meta-value">{offer.quantity_by_kg ? `${offer.quantity_by_kg} ${isAr ? 'كغ' : 'KG'}` : '—'}</span>
               </div>
               <div className="rod-meta-item">
                 <PeopleIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
@@ -398,7 +401,7 @@ const ReceiverOfferDetails = () => {
               <div className="rod-meta-item">
                 <EventIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
                 <span className="rod-meta-label">{t.expiryDate}</span>
-                <span className="rod-meta-value">{formatDate(offer.expiration_date_and_time)}</span>
+                <span className="rod-meta-value">{formatDate(offer.expiration_date_and_time, lang)}</span>
               </div>
               <div className="rod-meta-item">
                 <LocationOnIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
@@ -408,7 +411,7 @@ const ReceiverOfferDetails = () => {
               <div className="rod-meta-item">
                 <AccessTimeIcon sx={{ fontSize: 16 }} className="rod-meta-icon" />
                 <span className="rod-meta-label">{t.pickupTime}</span>
-                <span className="rod-meta-value">{formatTime(offer.pickup_time)}</span>
+                <span className="rod-meta-value">{formatTime(offer.pickup_time, lang)}</span>
               </div>
             </div>
 

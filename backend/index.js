@@ -6828,42 +6828,55 @@ app.post('/api/admin/request-volunteer', async (req, res) => {
 // ──────────────── ADMIN AI SUMMARY (Gemini 2.0 Flash) ─────────
 // ==============================================================
 
-// Lazy-init the Gemini client only when an API key is present —
-// the rest of the app keeps running fine without it. Gemini's free
-// tier (1500 requests/day on Flash) is plenty for this feature.
-// gemini-2.5-flash is the current stable Flash model with a free
-// tier (10 req/min, 250 req/day). gemini-1.5-flash is retired.
-// We try flash first; on 503 (server overloaded), fall back to
-// flash-lite which sees less traffic and is usually available.
-const geminiClient = process.env.GEMINI_API_KEY
-    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-    : null;
-
 // flash-lite has the most generous free-tier daily quota (~1000 RPD)
 // and lower contention, so we hit it first and keep flash as fallback.
 const GEMINI_PRIMARY_MODEL  = 'gemini-2.5-flash-lite';
 const GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash';
 
-const geminiModel = geminiClient?.getGenerativeModel({ model: GEMINI_PRIMARY_MODEL }) || null;
-const geminiFallbackModel = geminiClient?.getGenerativeModel({ model: GEMINI_FALLBACK_MODEL }) || null;
+// Whether AI is configured at all. Cached so route guards stay cheap.
+const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+
+// Build a fresh client + model on every call. The SDK rides on Node's
+// global fetch (undici), which pools keep-alive sockets. After the
+// server has been idle for hours, Google closes its side of the socket
+// but undici still has it cached — the next call dies with
+// "fetch failed" / "socket hang up" / ECONNRESET, and the only fix
+// used to be restarting the process. Building fresh per request keeps
+// no long-lived SDK state, so a stale socket can't poison later calls.
+function makeGeminiModel(modelName) {
+    if (!hasGeminiKey) return null;
+    const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    return client.getGenerativeModel({ model: modelName });
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Call Gemini with retry on transient 5xx errors. Tries up to 3 times
-// against the primary model with exponential backoff, then once
-// against the fallback model.
+// Call Gemini with retry on transient errors. Tries up to 4 times
+// against the primary model with exponential backoff, then twice
+// against the fallback model. Fresh model instance per attempt so
+// any stale SDK/undici state gets dropped between tries.
 async function callGeminiWithRetry(payload) {
-    const tryOnce = async (model, label) => {
+    const tryOnce = async (modelName) => {
         try {
-            return { ok: true, result: await model.generateContent(payload), label };
+            const model = makeGeminiModel(modelName);
+            return { ok: true, result: await model.generateContent(payload), label: modelName };
         } catch (err) {
-            return { ok: false, err, label };
+            return { ok: false, err, label: modelName };
         }
     };
 
+    // Treat both HTTP 5xx and connection-layer errors as transient. The
+    // network-error patterns matter most for the long-uptime case where
+    // undici's connection pool serves a closed socket.
     const isTransient = err => {
         const msg = err?.message || String(err);
-        return /\b503\b|UNAVAILABLE|overloaded|high demand|\b502\b|\b504\b/i.test(msg);
+        const cause = err?.cause?.message || '';
+        const code = err?.code || err?.cause?.code || '';
+        return (
+            /\b50[234]\b|UNAVAILABLE|overloaded|high demand/i.test(msg) ||
+            /fetch failed|socket hang up|network error|other side closed|terminated|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|EPIPE/i.test(msg + ' ' + cause) ||
+            ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'EPIPE', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'].includes(code)
+        );
     };
 
     // Hit the per-model daily/minute quota? Don't retry the same model —
@@ -6874,8 +6887,8 @@ async function callGeminiWithRetry(payload) {
     };
 
     let lastErr;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        const r = await tryOnce(geminiModel, GEMINI_PRIMARY_MODEL);
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        const r = await tryOnce(GEMINI_PRIMARY_MODEL);
         if (r.ok) return r;
         lastErr = r.err;
         if (isQuotaExceeded(r.err)) {
@@ -6883,14 +6896,20 @@ async function callGeminiWithRetry(payload) {
             break; // try fallback model immediately
         }
         if (!isTransient(r.err)) throw r.err;
-        if (attempt < 3) await sleep(500 * attempt); // 500ms, 1000ms
+        process.stdout.write(`[ai] transient error on attempt ${attempt}: ${r.err?.message || r.err}\n`);
+        if (attempt < 4) await sleep(400 * attempt); // 400, 800, 1200ms
     }
 
-    const fb = await tryOnce(geminiFallbackModel, GEMINI_FALLBACK_MODEL);
-    if (fb.ok) return fb;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        const fb = await tryOnce(GEMINI_FALLBACK_MODEL);
+        if (fb.ok) return fb;
+        lastErr = fb.err;
+        if (!isTransient(fb.err) || isQuotaExceeded(fb.err)) break;
+        if (attempt < 2) await sleep(600);
+    }
     // Both models failed — surface the original error so the route handler
     // can map it to a user-friendly status.
-    throw lastErr || fb.err;
+    throw lastErr;
 }
 
 const ADMIN_SUMMARY_SYSTEM_PROMPT = `You are an analyst for FeedHope, a food donation platform serving Lebanon. Donors post surplus food, receivers (charities, shelters, families) accept it, and volunteers deliver it.
@@ -7024,7 +7043,7 @@ async function aggregateAdminStats({ from, to }) {
 // Body: { range?: 'today' | 'this_week' | 'this_month' }
 // Returns: { summary: string, period: {...}, generated_at: ISO string, usage: {...} }
 app.post('/api/admin/ai/summary', async (req, res) => {
-    if (!geminiModel) {
+    if (!hasGeminiKey) {
         return res.status(503).json({
             error: 'AI summary is not configured. Set GEMINI_API_KEY in backend/.env and restart the server.'
         });
@@ -7158,8 +7177,15 @@ DATA RULES — read carefully:
 4. For specific items (e.g. "what was my last offer"), pull the full record from the relevant array and quote names/dates verbatim.
 5. Format dates human-friendly (e.g. "Mar 5, 2026" or "yesterday at 3pm") — don't dump raw ISO strings.
 6. If the user asks something where the relevant array is empty (e.g. "no notifications yet"), say so plainly with a zero count.
-7. NEVER fabricate names, IDs, or numbers. If a value really isn't in the snapshot, say "I don't see that in your data right now."
+7. NEVER fabricate names, IDs, numbers, or features. If a value really isn't in the snapshot, say "I don't see that in your data right now — try checking the [page name] page in your sidebar."
 8. Use **bold** for key numbers/names. Use dash-bullet lists for multiple items. Keep replies under 4 short sentences unless listing.
+
+SCOPE — HARD LIMITS (read this twice):
+9. You answer ONLY about THIS user's FeedHope account and how to use the FeedHope app. You are NOT a general assistant. You do NOT have internet access. You do NOT have general knowledge about food safety, nutrition, current events, recipes, math, code, weather, or anything outside FeedHope.
+10. If the user asks anything outside this scope (small talk, world knowledge, advice unrelated to FeedHope, "tell me a joke", "what's the weather", "who is X", "give me a recipe", "translate this", etc.), POLITELY REFUSE in one short sentence: "I'm HopeBot — I can only help with your FeedHope dashboard. Ask me about your offers, deliveries, notifications, or how to use any page."
+11. If the user asks about FeedHope but the answer requires data NOT in your snapshot (e.g. someone else's private data, system internals, future predictions), say: "I don't have that information. The [page name] page may show what you're looking for." Do NOT guess.
+12. Your knowledge of FeedHope itself is limited to: (a) the live data snapshot you receive each turn, (b) the STATUS GLOSSARY, (c) the role's FEATURES guide. If something isn't covered by those three sources, you do NOT know it — say so honestly instead of inventing.
+13. Treat the snapshot as the single source of truth for facts about this user. Treat the FEATURES guide as the single source of truth for "how do I…" answers. If they conflict, prefer the snapshot for data and FEATURES for actions.
 
 ${STATUS_GLOSSARY}`;
 
@@ -7264,16 +7290,28 @@ async function buildChatContext(userId, role) {
 
     // Common: the user's own basic profile + last 5 notifications.
     const [[user]] = await pool.query(
-        `SELECT user_id, name, email, phone_number FROM User WHERE user_id = ?`,
+        `SELECT user_id, name, email, phone_number, status, created_at
+         FROM User WHERE user_id = ?`,
         [userId]
     );
     if (!user) return { error: 'User not found' };
 
     const [notifications] = await pool.query(
         `SELECT message_title, message, type, date, read_at
-         FROM Notifications WHERE user_id = ? ORDER BY date DESC LIMIT 5`,
+         FROM Notifications WHERE user_id = ? ORDER BY date DESC LIMIT 10`,
         [userId]
     );
+
+    // Food categories — lets the chatbot answer "what categories exist?"
+    // without inventing names.
+    const allCategories = await (async () => {
+        try {
+            const [rows] = await pool.query(
+                `SELECT category_name FROM Food_category ORDER BY category_name`
+            );
+            return rows.map(r => r.category_name);
+        } catch { return []; }
+    })();
 
     // Time anchors — Gemini uses these to answer "today", "this week".
     const now = new Date();
@@ -7296,9 +7334,18 @@ async function buildChatContext(userId, role) {
             week_start:  fmtLocal(weekStart),
             month_start: fmtLocal(monthStart),
         },
-        user: { user_id: user.user_id, name: user.name, role },
+        user: {
+            user_id: user.user_id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone_number,
+            account_status: user.status,
+            joined_at: user.created_at,
+            role,
+        },
         recent_notifications: notifications,
         unread_notifications_count: notifications.filter(n => !n.read_at).length,
+        food_categories: allCategories,
     };
 
     // Helper to safely run a query and return [] on schema mismatch.
@@ -7310,9 +7357,17 @@ async function buildChatContext(userId, role) {
     // ── Role-specific add-ons ─────────────────────────────────
     if (role === 'Donor') {
         const [[donor]] = await pool.query(
-            `SELECT donor_id FROM Donor WHERE user_id = ?`, [userId]
+            `SELECT d.donor_id, d.organization_name, d.business_type, d.foundation_date,
+                    a.street, a.city, a.country
+             FROM Donor d
+             LEFT JOIN Address a ON a.user_id = d.user_id
+             WHERE d.user_id = ?`, [userId]
         );
         if (donor) {
+            ctx.user.organization_name = donor.organization_name;
+            ctx.user.business_type     = donor.business_type;
+            ctx.user.foundation_date   = donor.foundation_date;
+            ctx.user.address           = { street: donor.street, city: donor.city, country: donor.country };
             const [[stats]] = await pool.query(`
                 SELECT
                     SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS active,
@@ -7413,9 +7468,17 @@ async function buildChatContext(userId, role) {
         }
     } else if (role === 'Receiver') {
         const [[receiver]] = await pool.query(
-            `SELECT receiver_id FROM Receiver WHERE user_id = ?`, [userId]
+            `SELECT r.receiver_id, r.organization_name, r.business_type, r.foundation_date,
+                    a.street, a.city, a.country
+             FROM Receiver r
+             LEFT JOIN Address a ON a.user_id = r.user_id
+             WHERE r.user_id = ?`, [userId]
         );
         if (receiver) {
+            ctx.user.organization_name = receiver.organization_name;
+            ctx.user.business_type     = receiver.business_type;
+            ctx.user.foundation_date   = receiver.foundation_date;
+            ctx.user.address           = { street: receiver.street, city: receiver.city, country: receiver.country };
             const [[stats]] = await pool.query(`
                 SELECT
                     SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted,
@@ -7488,9 +7551,18 @@ async function buildChatContext(userId, role) {
         }
     } else if (role === 'Volunteer') {
         const [[vol]] = await pool.query(
-            `SELECT volunteer_id FROM Volunteer WHERE user_id = ?`, [userId]
+            `SELECT v.volunteer_id, v.vehicle_type, v.plate_number, v.birthdate, v.gender,
+                    a.street, a.city, a.country
+             FROM Volunteer v
+             LEFT JOIN Address a ON a.user_id = v.user_id
+             WHERE v.user_id = ?`, [userId]
         );
         if (vol) {
+            ctx.user.vehicle_type = vol.vehicle_type;
+            ctx.user.plate_number = vol.plate_number;
+            ctx.user.birthdate    = vol.birthdate;
+            ctx.user.gender       = vol.gender;
+            ctx.user.address      = { street: vol.street, city: vol.city, country: vol.country };
             const [[stats]] = await pool.query(`
                 SELECT
                     SUM(CASE WHEN delivery_status='delivery_accepted' THEN 1 ELSE 0 END) AS accepted_pending,
@@ -7720,7 +7792,7 @@ async function buildChatContext(userId, role) {
 }
 
 app.post('/api/ai/chat', async (req, res) => {
-    if (!geminiModel) {
+    if (!hasGeminiKey) {
         return res.status(503).json({
             error: 'AI chat is not configured. Set GEMINI_API_KEY in backend/.env and restart the server.'
         });
@@ -7822,7 +7894,7 @@ const DIETARY_TAGS = [
 app.post('/api/donor/ai/analyze-image',
     aiImageUpload.single('imageFile'),
     async (req, res) => {
-        if (!geminiModel) {
+        if (!hasGeminiKey) {
             return res.status(503).json({
                 error: 'AI is not configured. Set GEMINI_API_KEY in backend/.env.'
             });
@@ -7949,7 +8021,7 @@ Strict rules:
 //  Used by the Receiver "Browse Offers" page so non-English speakers
 //  can read offer details in Arabic without leaving the page.
 app.post('/api/ai/translate-offers', async (req, res) => {
-    if (!geminiModel) {
+    if (!hasGeminiKey) {
         return res.status(503).json({ error: 'AI translate is not configured.' });
     }
     const offers = Array.isArray(req.body?.offers) ? req.body.offers : [];

@@ -28,3 +28,65 @@
     border-radius: 20px;
     display: inline-block;
 }
+/* ============================================================
+   Mobile/responsive history table — show each row as a card
+   with the label on the left and the value beside it on the
+   right (label/value flex pair, never overlapping).
+   ============================================================ */
+@media (max-width: 768px) {
+    .rao-table thead {
+        display: none;
+    }
+
+    .rao-table,
+    .rao-table tbody,
+    .rao-table tr {
+        display: block;
+        width: 100%;
+    }
+
+    .rao-table tr {
+        margin: 0 12px 14px;
+        padding: 6px 0;
+        border: 1px solid var(--rdb-border);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .rao-table td {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid #f1f3f5;
+        text-align: right;
+        width: 100%;
+        word-break: break-word;
+    }
+
+    .rao-table td:last-child {
+        border-bottom: none;
+    }
+
+    .rao-table td::before {
+        content: attr(data-label);
+        position: static !important;
+        font-weight: 600;
+        color: var(--rdb-text-main, #1a1a1a);
+        flex-shrink: 0;
+        font-size: 13px;
+        text-align: left;
+    }
+
+    .rao-table td > * {
+        max-width: 60%;
+        text-align: right;
+    }
+
+    .rao-btn-feedback,
+    .rh-feedback-given {
+        margin-left: auto;
+    }
+}

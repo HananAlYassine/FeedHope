@@ -13,6 +13,8 @@ import Mission from './Pages/Mission';
 import HowItWorks from './Pages/HowItWorks';
 import ContactUs from './Pages/ContactUs';
 import ResetPassword from "./Pages/ResetPassword";
+import TermsOfService from './Pages/TermsOfService';
+import PrivacyPolicy from './Pages/PrivacyPolicy';
 
 
 // ── Registration pages ──
@@ -108,6 +110,8 @@ function App() {
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/forgetpassword" element={<ForgetPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
 
 
 
